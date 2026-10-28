@@ -45,6 +45,9 @@ before the chat model and add to the visitor's wait.
   handful of lab docs, so a bigger embedder buys little. Alternatives: `qwen3-embedding:4b`,
   `nomic-embed-text`, `embeddinggemma`.
 Final choice is confirmed once `make bench` reports guard/embed overhead on the GB10.
+**Update (same day, GB10 bench):** confirmed. Guard costs 0.25 s and embed 0.11 s (medians).
+With chat TTFT 0.57 s, the estimated first word is 0.93 s, within the 1.5 s target, so the
+smaller `llama-guard3:1b` isn't needed.
 
 **D8. No FastAPI/server dependency in M0.**
 Why: scope. It arrives with the server milestone.
