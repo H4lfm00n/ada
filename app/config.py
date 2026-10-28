@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 from pydantic import Field, field_validator
@@ -37,6 +38,13 @@ class Settings(BaseSettings):
     max_reply_tokens: int = Field(256, gt=0)
 
     session_timeout_s: float = Field(120.0, gt=0)
+    max_history_messages: int = Field(20, ge=0)
+
+    # Content files (relative to the repo root unless absolute). Swappable so evals can
+    # compare prompt versions without editing the designer's files.
+    system_prompt_file: str = "prompts/system_prompt.md"
+    lines_file: str = "content/lines.yaml"
+    timezone: str = "America/Los_Angeles"
 
     target_first_token_s: float = Field(1.5, gt=0)
     target_decode_tok_s: float = Field(10.0, gt=0)
@@ -57,6 +65,19 @@ class Settings(BaseSettings):
         if not v:
             raise ValueError("model tag must not be empty")
         return v
+
+    @field_validator("timezone")
+    @classmethod
+    def _known_timezone(cls, v: str) -> str:
+        try:
+            ZoneInfo(v)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"unknown timezone {v!r}") from exc
+        return v
+
+    def content_path(self, rel: str) -> Path:
+        p = Path(rel)
+        return p if p.is_absolute() else REPO_ROOT / p
 
     @property
     def model_tags(self) -> dict[str, str]:

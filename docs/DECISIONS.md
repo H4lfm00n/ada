@@ -90,3 +90,58 @@ Why: guard and eval coverage for other languages isn't there yet.
 
 **DES11. No code in replies.**
 Why: the kiosk isn't an editor, and code blocks break the plain-text rule.
+
+## 2026-10-28 · M1 text chat
+
+**D9. The CLI shows replies sentence by sentence, not token by token.**
+Alternatives: print raw token deltas as they arrive.
+Why: the sentence is the unit the M3 output guard will check before anything is shown
+(brief 5.2) and the unit TTS will speak (M6). Showing tokens now would mean the CLI
+displays text the guard never saw once guards land. Cost: a visitor sees the first
+sentence, not the first token, so we now report both **TTFT** (first model token) and
+**time to first sentence** (what the visitor actually waits for).
+
+**D10. Sentence splitting waits one character past the full stop.**
+A boundary is `.`/`!`/`?` (plus closing quotes) + whitespace + an uppercase letter, digit,
+or opening quote. That costs about one token of latency and avoids splitting `3.14`,
+`sfsu.edu`, `e.g. this`, and `Dr. Lee`. Newlines always split. Text over 400 characters
+with no boundary is force-split at a space so TTS is never starved.
+
+**D11. Fail safe at the model too, not just the guards.**
+Any exception while streaming (Ollama down, runner crash, reply timeout =
+`request_timeout_s`) or an empty reply gives the visitor a `guard_fallback` line. Sentences
+already shown stay; an incomplete trailing sentence is dropped. The error goes to the log
+and the turn result, never to the screen.
+
+**D12. Sessions: in-memory, a busy flag, and whole-turn history trimming.**
+`InMemorySessionManager` keeps `create/get/reset` from the interface and adds
+`active()` (a session never times out while a reply is generating), `expire_idle()`
+(so the caller can say goodbye), and `peek()`/`end()`. `reset` keeps the id but wipes
+history, turn count, and line memory. History is capped at `max_history_messages` (20),
+dropping the oldest whole turns so it never starts with an assistant message. Nothing
+touches disk; transcript logging is M3.
+
+**D13. Farewells are an exact-match list, not a classifier.**
+Whole-message matches only ("bye", "ok bye", "see ya", ...) after lowercasing and removing
+punctuation, so "bye, but what's a GAN?" still reaches the model. A "bye" says a `goodbye`
+line and resets the context without calling the model.
+
+**D14. `wave` action on the first message of each session.**
+It's the only robot event M1 can meaningfully emit (a new visitor started talking). The
+handler is a no-op that keeps the last 100 actions for tests and the CLI.
+
+**D15. `make bench` uses the real system prompt.**
+The designer asked for TTFT measured with the full ~2,200-token prompt. The M0 stand-in
+is still available with `--neutral-prompt` to compare against M0 numbers.
+
+**D16. `{{current_time}}` has minute precision and sits at the end of the prompt.**
+This follows the designer's DES6. Only the tail of the prompt changes between turns, so
+Ollama can reuse its cached prefix. `timezone` (America/Los_Angeles) is in config,
+because the GB10's system clock may be UTC.
+
+**D17. The front matter in `prompts/system_prompt.md` is parsed leniently, and two note lines were quoted.**
+Two `notes:` items began with a quoted phrase followed by more text (`"not sure" + ...`),
+which is invalid YAML. The loader now logs and ignores bad front matter (it's
+notes for humans and never reaches the model), and I wrapped those two lines in single
+quotes so `version` parses again. No wording changed. Designer: please keep front-matter
+list items that start with `"` fully quoted.

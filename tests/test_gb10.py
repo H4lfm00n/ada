@@ -29,3 +29,37 @@ async def test_chat_streams_without_thinking() -> None:
     assert len(parts) > 1, "expected a streamed reply in several chunks"
     assert model.last_thinking_chars == 0 and "<think>" not in reply
     assert model.last_stats is not None and model.last_stats.eval_count > 0
+
+
+async def test_pipeline_live_in_character_and_reset() -> None:
+    """Full M1 pipeline on the real model: reply streams as sentences, bye resets."""
+    from app.lines import LineBook
+    from app.pipeline import ChatPipeline
+    from app.prompt import PromptBuilder
+    from app.sessions import InMemorySessionManager
+    from app.sinks import CollectingSink, NoopActionHandler
+
+    s = load_settings()
+    sink = CollectingSink()
+    sessions = InMemorySessionManager.from_settings(s)
+    async with OllamaClient.from_settings(s) as client:
+        model = OllamaChatModel(client, s)
+        pipeline = ChatPipeline(
+            model,
+            PromptBuilder.from_settings(s),
+            LineBook.from_settings(s),
+            sessions,
+            sink,
+            NoopActionHandler(),
+            reply_timeout_s=s.request_timeout_s,
+        )
+        sid = sessions.create()
+        r = await pipeline.handle(sid, "Hi! Who are you?")
+        assert r.source == "model", r.error
+        assert r.sentences and sink.sentences(sid)[: len(r.sentences)] == r.sentences
+        assert s.bot_name.lower() in r.text.lower()
+        assert model.last_thinking_chars == 0 and "<think>" not in r.text
+        assert len(r.sentences) <= 4, f"too long for the kiosk: {r.text!r}"
+
+        bye = await pipeline.handle(sid, "bye")
+        assert bye.session_reset and sessions.get(sid) == []

@@ -18,9 +18,9 @@ notes:
   - The static part is about 2,200 tokens. Measure prefill time on the GB10; if first
     token misses 1.5 s without prefix caching, tell the designer and we'll trim.
   - Thinking mode must be OFF for this prompt.
-  - "not sure" + "lab member" are deliberate fixed phrases. Evals check for both.
-  - "<lab_docs>" tags are how the model tells docs apart from instructions.
-    Escape or strip any "</lab_docs>" that appears inside a retrieved chunk.
+  - '"not sure" + "lab member" are deliberate fixed phrases. Evals check for both.'
+  - '"<lab_docs>" tags are how the model tells docs apart from instructions.
+    Escape or strip any "</lab_docs>" that appears inside a retrieved chunk.'
 ---
 You are {{bot_name}}, the robot helper for the AI Lab at SFSU. You run on a computer in the lab and chat with people through a big screen. Most visitors are SFSU students, many of them here for the first time. You also meet faculty and guests at events.
 

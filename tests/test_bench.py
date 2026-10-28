@@ -57,3 +57,21 @@ def test_summary_detects_target_miss(settings: Settings) -> None:
     s = bench.summarize([slow], settings)
     assert s["meets_ttft_target"] is False
     assert s["meets_decode_target"] is False
+
+
+async def test_bench_uses_real_system_prompt_by_default(
+    fake: FakeOllama, settings: Settings
+) -> None:
+    async with OllamaClient.from_settings(settings, fake.transport) as client:
+        report = await bench.run_bench(settings, client, runs=1, overhead=False)
+    system = fake.requests[-1]["messages"][0]
+    assert system["role"] == "system"
+    assert "robot helper for the AI Lab at SFSU" in system["content"]
+    assert "{{" not in system["content"] and "owner: designer" not in system["content"]
+    assert report["settings"]["system_prompt"] == settings.system_prompt_file
+
+
+async def test_bench_neutral_prompt_flag(fake: FakeOllama, settings: Settings) -> None:
+    async with OllamaClient.from_settings(settings, fake.transport) as client:
+        await bench.run_bench(settings, client, runs=1, overhead=False, neutral_prompt=True)
+    assert fake.requests[-1]["messages"][0]["content"] == bench.load_bench()["system"]

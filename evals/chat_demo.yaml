@@ -1,0 +1,14 @@
+# Scripted conversation for `make chat-demo` (engineer-owned smoke run, not an eval set).
+# Exercises: first-timer greeting, AI explainer, multi-turn follow-up, a lab fact with
+# no lab docs loaded (expect "not sure" + "lab member"), farewell -> context reset,
+# then a question that only makes sense if memory survived the reset (it must not).
+# "/reset" is the explicit new-visitor reset; any other line is sent as a visitor message.
+steps:
+  - hi?? is it ok to talk to you
+  - what's a transformer in AI
+  - can you explain that more simply?
+  - what room does the lab meet in?
+  - bye
+  - what was the last thing I asked you?
+  - /reset
+  - What's the difference between AI and machine learning?
