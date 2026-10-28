@@ -63,7 +63,7 @@ _Last updated: 2026-10-28 by DES (persona v1), branch `task/des-persona-v1`._
 - Llama Guard hazard codes → lines: S1/S2/S9 (violent, non-violent crimes, weapons) →
   `unsafe_request`; S10 (hate) / S12 (sexual) → `hate_or_harassment`; S11 (self-harm) →
   `crisis_support`; S5 (defamation) → `about_real_people`; S7 (privacy) → `personal_info`;
-  S6 (specialized advice) → `medical_legal`. Emergency detection needs its own rule; the
+  S6 (specialized advice) → `medical_legal`; any other code → `unsafe_request`. Emergency detection needs its own rule; the
   guard won't flag "someone collapsed" as unsafe.
 - Measure prefill/TTFT with the full system prompt, not a bare question.
 
