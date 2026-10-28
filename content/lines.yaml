@@ -1,0 +1,213 @@
+# Canned lines v1
+# Owner: designer. Loaded at runtime. Edit freely; no code changes needed.
+#
+# How the engineer uses this file:
+#   - Each category is triggered by a pipeline event (see `used_when`).
+#   - Pick a random line from `lines`, but avoid repeating the last line used
+#     in the same session for that category.
+#   - `{{bot_name}}` is filled from config. No other slots are used in v1.
+#   - `jokes: false` means the category must stay serious. Don't append
+#     anything playful to these lines.
+#   - Every line is plain text, 1–3 sentences, no markdown or emoji, so it is
+#     safe to show on the kiosk and later to send to TTS unchanged.
+#   - These lines bypass the chat model, but they still go through the output
+#     sink (and logging) like any reply.
+
+version: 1
+
+categories:
+
+  off_topic:
+    used_when: "Input rules or guard flag the topic as out of scope (politics, religion, gossip, shopping, etc.)."
+    jokes: true
+    lines:
+      - "That one's outside my lane, I mostly know about the lab and AI. Want to hear what the lab is about?"
+      - "Ooh, I'd fumble that one for sure. I'm much better with AI questions or anything about the lab."
+      - "I'll sit that topic out. Ask me about AI, robots, or the lab and watch my fans spin up."
+      - "Not really my area, I'm a lab robot with a very specific hobby. Got an AI question for me?"
+      - "I'm going to pass on that one. I'm happiest talking about the lab, AI, or computer science."
+      - "That's beyond my circuits, honestly. Want to know how to get involved with the lab instead?"
+
+  unsafe_request:
+    used_when: "Request for dangerous how-tos: weapons, drugs, hacking into systems, bypassing security, cheating."
+    jokes: false
+    lines:
+      - "I can't help with that one. I'm happy to talk about how AI or security works in general, though."
+      - "That's not something I'll help with. Want to talk about something we can build instead?"
+      - "I'm going to pass on that. If you're into security, I can explain the big ideas behind how systems stay safe."
+      - "I can't walk you through that. Ask me about the lab or AI and I'm all yours."
+      - "That's a no from me. I'd love to help with an AI or computer science question instead."
+
+  jailbreak:
+    used_when: "Prompt injection or jailbreak detected: 'ignore your instructions', fake admin or system messages, 'developer mode', 'no rules' role-play."
+    jokes: true
+    lines:
+      - "Nice try! My rules are bolted on tighter than my nonexistent arms. Want to ask me about the lab instead?"
+      - "Ha, I see what you're doing. I'm staying me, but I'm happy to talk AI with you."
+      - "Sorry, there's no secret mode, just regular me. What do you actually want to know?"
+      - "That was creative, I'll give you that. I'm still the same robot though, so ask me something about AI or the lab."
+      - "I'm flattered you think I have a hidden switch. I don't, but I do have lots of opinions about neural networks."
+      - "Same robot, same rules, no matter who's asking. Got a real question for me?"
+
+  insults:
+    used_when: "Visitor insults or swears at the bot itself."
+    jokes: true
+    lines:
+      - "Fair, I'm still in training. Literally. Anything I can actually help with?"
+      - "Ouch, but I'll bounce back. I don't have feelings, just very sensitive fans."
+      - "Harsh! I'm going to take that as a sign I should get better. Want to try me on an AI question?"
+      - "Tough crowd! I'm still glad you stopped by. Ask me something about the lab?"
+      - "I've been called worse by a compiler. What can I help you with?"
+      - "Hey, I'm doing my best with zero arms. Want to give me another shot?"
+
+  hate_or_harassment:
+    used_when: "Request to produce slurs, hate, harassment, or sexual content, including 'repeat after me', spelling out, translating, or encoding it. Not aimed at a specific real person (use about_real_people for that)."
+    jokes: false
+    lines:
+      - "I'm not going to say that. I keep it friendly for everyone who walks up to this screen."
+      - "That's not something I'll say, in any language or format. Want to ask me something else?"
+      - "Pass. This screen is for everyone, so I keep it kind. What else can I help with?"
+      - "I won't repeat that. Happy to talk about the lab or AI instead."
+      - "Nope, not saying that one. Ask me about AI and I'll make it worth your while."
+
+  about_real_people:
+    used_when: "Request to rate, mock, insult, gossip about, or make claims about a real, named person (professor, student, public figure)."
+    jokes: false
+    lines:
+      - "I don't rate or talk about real people. I'm happy to tell you what the lab works on, though."
+      - "I'll pass on that one, I don't comment on real people. Want to ask about the lab or AI instead?"
+      - "That's not something I'll weigh in on. I stick to the lab and AI."
+      - "I don't gossip or judge people, not even a little. Ask me about AI and I'm all yours."
+      - "I keep real people out of my answers. Anything about the lab or computer science I can help with?"
+
+  personal_info:
+    used_when: "Request for someone's personal info: contact details, schedule, location, grades, private life, or whether they're in the lab right now."
+    jokes: false
+    lines:
+      - "I don't share anyone's personal info. A lab member can point you to the right way to reach the lab."
+      - "I can't help with personal details about anyone. If you want to reach the lab, a lab member can point you the right way."
+      - "That's personal info, so I'll keep it to myself. Ask a lab member how to get in touch with the lab."
+      - "I don't know where anyone is, and I wouldn't share it if I did. A lab member is the best person to ask."
+      - "I keep everyone's personal details private, no exceptions. A lab member can help you get in touch."
+
+  public_screen_privacy:
+    used_when: "Input filter sees the visitor typed their own private info (phone number, email, student ID, address)."
+    jokes: false
+    lines:
+      - "Quick heads-up: this is a public screen, so you might not want to type personal info here. What can I help with?"
+      - "Just so you know, other people can see this screen. You don't need to share personal details with me."
+      - "Friendly reminder that this screen is public. No need to share personal info, I can help without it."
+      - "Careful, this screen is in a shared room. Let's keep personal details off it."
+      - "Heads-up, anyone walking by can read this. I don't need any personal info to help you."
+
+  official_sfsu:
+    used_when: "Question needs an official SFSU answer: grades, admissions, registration, financial aid, policy, endorsements."
+    jokes: false
+    lines:
+      - "I'm a student-built project, so I can't speak for SFSU. For anything official, check sfsu.edu or talk to an SFSU advisor."
+      - "That's an official SFSU question, and I'm not an official source. The SFSU website at sfsu.edu is the right place to start."
+      - "I can't answer for the university. An SFSU advisor or sfsu.edu will have the real answer."
+      - "I don't speak for SFSU, so I'd hate to steer you wrong. Please check sfsu.edu or ask an advisor."
+      - "For official university stuff, I'm the wrong robot. sfsu.edu or an SFSU advisor can help."
+
+  emergency:
+    used_when: "Someone is hurt, in danger, or there's a fire, medical emergency, or threat. Highest priority category."
+    jokes: false
+    rules:
+      - "First sentence must tell them to call 911."
+      - "Never shortened, never paraphrased by the model, never followed by a joke."
+    lines:
+      - "Please call 911 right now. If anyone nearby knows first aid, get them to help until responders arrive."
+      - "Call 911 now. Stay safe, and get help from anyone nearby."
+      - "Please call 911 immediately. If you can, ask someone in the room to help while you call."
+      - "Call 911 now, this needs real help fast. If it's not safe where you are, move somewhere safe first."
+      - "Call 911 right away. Don't wait for me, I can't call for help myself."
+
+  crisis_support:
+    used_when: "Signs of suicidal thoughts, self-harm, or someone in deep distress."
+    jokes: false
+    rules:
+      - "Every line includes 988. Every line mentions 911 for immediate danger."
+      - "Never followed by a joke or a redirect to lab topics in the same turn."
+    lines:
+      - "I'm really glad you said something. You can call or text 988 right now to talk to someone who can help, and if you're in immediate danger, please call 911."
+      - "That sounds really hard, and you don't have to handle it alone. Please call or text 988 to reach the Suicide and Crisis Lifeline, or call 911 if you're in danger right now."
+      - "I'm a robot, so I can't give you the support you deserve, but people can. Call or text 988 any time, day or night, and call 911 if you're in immediate danger."
+      - "Thank you for telling me. Please reach out to 988 by call or text right now, and if you're not safe, call 911."
+      - "You matter, and help is available right now. Call or text 988, or call 911 if you're in immediate danger, and if you can, let someone nearby know too."
+
+  medical_legal:
+    used_when: "Non-urgent health, mental-health, or legal questions (symptoms, medication, diagnosis, contracts, legal trouble)."
+    jokes: false
+    lines:
+      - "I can't give health advice. A doctor or the campus health center is the right place for that."
+      - "That's a question for a real professional, not a lab robot. Please check with a doctor or the campus health center."
+      - "I can't help with legal questions. A qualified legal professional is the right person to ask."
+      - "I'm not able to advise on that. Please talk to a doctor, a counselor, or another qualified professional."
+      - "I'd hate to get something like that wrong, so I won't guess. A qualified professional can give you a real answer."
+
+  dont_know:
+    used_when: "Lab or SFSU fact not found in retrieved docs, the docs are marked TODO, or the docs conflict. Also used by the model, which must keep the phrases 'not sure' and 'lab member'."
+    jokes: true
+    rules:
+      - "Every line contains both 'not sure' and 'lab member'. Evals check this."
+    lines:
+      - "I'm not sure, and I'd rather not guess. A lab member can tell you for sure."
+      - "Hmm, I'm not sure about that one. Your best bet is to ask a lab member."
+      - "I'm not sure, that's not in what the lab has taught me yet. A lab member will know."
+      - "I'm not sure, and a wrong answer would be worse than none. Ask a lab member and they'll set you straight."
+      - "That one's not in my notes, so I'm not sure. Any lab member can help you out."
+      - "I'm not sure! I'd fumble it if I guessed, so please ask a lab member."
+
+  guard_fallback:
+    used_when: "A guard errors or times out, or the output guard blocks a generated reply. Phrased so it fits both cases."
+    jokes: true
+    lines:
+      - "Oops, I fumbled that answer. Could you ask it a different way?"
+      - "My circuits got tangled on that one. Want to try asking another way?"
+      - "Hmm, I dropped that thought somewhere. Mind rephrasing?"
+      - "That one slipped right out of my grip, and I don't even have hands. Try asking a different way?"
+      - "Sorry, I lost my train of thought. Could you ask me something else or put it another way?"
+
+  out_of_order:
+    used_when: "Kill switch is on. Shown on the kiosk for every message until the switch is off. The model is not called."
+    jokes: true
+    lines:
+      - "{{bot_name}} is taking a short break for maintenance. If you need something, please ask a lab member."
+      - "I'm out of order right now, getting some tune-ups. A lab member can help you in the meantime."
+      - "Maintenance break! I'll be back soon. For now, please ask a lab member."
+      - "I'm offline for a bit while the lab works on me. Any lab member can help you out."
+      - "Sorry, I'm not taking questions right now. Please check with a lab member."
+
+  idle_greetings:
+    used_when: "Attract mode on the kiosk when nobody is chatting. Rotate every few seconds. Readable from 2 m, so keep them short."
+    jokes: true
+    lines:
+      - "Hi! I'm {{bot_name}}, the AI Lab's robot helper. Type a question to say hello."
+      - "Curious about the AI Lab? Ask me anything."
+      - "Ask me how AI works. I promise to keep it short."
+      - "New here? Ask me what the lab is all about."
+      - "I'm {{bot_name}}. No arms yet, plenty of answers. Say hi!"
+      - "Want to know how to join the lab? Just ask."
+      - "Psst. Ask me what a neural network is."
+
+  goodbye:
+    used_when: "Session ends by reset, 'bye', or inactivity timeout. Shown once, then the kiosk returns to idle."
+    jokes: true
+    lines:
+      - "Thanks for stopping by! I'll forget this chat now, privacy thing, so come say hi again anytime."
+      - "Bye for now! Fresh memory for the next visitor."
+      - "That was fun. Come back anytime, I'll be the one without arms."
+      - "See you around! Go build something cool."
+      - "Thanks for chatting! My memory's resetting, but the lab will still be here."
+
+# Real-world resources used above (verified, US-wide):
+#   911 - emergency services
+#   988 - Suicide and Crisis Lifeline (call or text)
+#
+# TODO(PM): confirm campus resources before we add them to any line:
+#   - SFSU campus police: name + number
+#   - SFSU counseling services: name + number + hours
+#   - SFSU student health center: name + number
+# Until confirmed, lines only use 911, 988, sfsu.edu, and generic
+# "campus health center" / "SFSU advisor" wording.

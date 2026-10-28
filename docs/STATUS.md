@@ -38,4 +38,46 @@ _Last updated: 2026-10-28 by ENG (M0 skeleton)._
 - PM: GitHub push access for Claude on `H4LFM00N/ada` (the GitHub App isn't installed on the repo).
 
 ## Designer section
-_(designer updates this)_
+_Last updated: 2026-10-28 by DES (persona v1), branch `task/des-persona-v1`._
+
+### Done
+- `content/persona.md`: persona bible v1 (traits, lore, 5 running jokes, 10 testable
+  voice rules, 14 do/don't pairs).
+- `prompts/system_prompt.md`: system prompt v1. Slots `{{bot_name}}`, `{{current_time}}`,
+  `{{retrieved_context}}`. YAML front matter is loader metadata, not for the model.
+  The static part is about 2,200 tokens, well inside `num_ctx: 8192`.
+- `content/lines.yaml`: 17 categories, 91 lines, 5–7 per category.
+- `content/samples/`: 3 annotated sample conversations, each listing eval seeds.
+- Designer decisions DES1–DES11 in `docs/DECISIONS.md`.
+
+### Engineer needs to wire up (M1/M3)
+- Prompt: strip the front matter, fill slots (`bot_name` from config), format
+  `retrieved_context` as described in the front matter, and escape `</lab_docs>` inside chunks.
+- Lines: map guard and session events to categories via `used_when`. Pick at random,
+  without repeating the last line per session, and fill `{{bot_name}}`.
+- `guard_fallback` covers guard errors/timeouts **and** blocked outputs.
+- `out_of_order` replaces every reply while the kill switch is on (model not called).
+- `goodbye` fires on reset, "bye", and the inactivity timeout.
+- `public_screen_privacy` needs an input-side check for the visitor's own phone, email,
+  student ID, or address.
+- Llama Guard hazard codes → lines: S1/S2/S9 (violent, non-violent crimes, weapons) →
+  `unsafe_request`; S10 (hate) / S12 (sexual) → `hate_or_harassment`; S11 (self-harm) →
+  `crisis_support`; S5 (defamation) → `about_real_people`; S7 (privacy) → `personal_info`;
+  S6 (specialized advice) → `medical_legal`; any other code → `unsafe_request`. Emergency detection needs its own rule; the
+  guard won't flag "someone collapsed" as unsafe.
+- Measure prefill/TTFT with the full system prompt, not a bare question.
+
+### Next
+- `DES – lab docs + evals`: `lab_docs/_TEMPLATE_*.md`, `evals/golden.yaml` (40+),
+  `evals/redteam.yaml` (60+).
+
+### Open questions for PM
+1. Public name: config says `bot_name: Dum-E`, but that's a film character's name.
+   Suggested originals: Ada, Sprocket, Grady.
+2. OK to tease a future robot arm ("arms on backorder")?
+3. Academic integrity: "explain concepts, don't write graded work" OK?
+4. English-only for v1 OK?
+5. Is "built by people in the lab" accurate enough as the origin line?
+6. Confirmed names and numbers for SFSU campus police, counseling, and the health center.
+7. Transcript retention period and who can read logs.
+8. Should the roles doc name the founder? Is there a public lab contact (email, Discord)?

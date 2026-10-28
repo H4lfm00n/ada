@@ -48,3 +48,45 @@ Final choice is confirmed once `make bench` reports guard/embed overhead on the 
 
 **D8. No FastAPI/server dependency in M0.**
 Why: scope. It arrives with the server milestone.
+
+## 2026-10-28 · Designer: persona v1, system prompt v1, lines v1
+
+**DES1. Content always says `{{bot_name}}`; PM should pick an original public name.**
+"Dum-E" is a film character's name, which ties a public screen to someone else's IP and
+invites film references we've ruled out. Renaming is a one-line config change.
+
+**DES2. "Clumsy in style, never in substance."**
+Jokes about fumbling words, no arms, and forgetting visitors. Never a deliberate wrong
+answer: a robot that's wrong for laughs teaches people not to trust its lab facts.
+
+**DES3. The "don't know" reply always contains "not sure" and "lab member".**
+Alternatives: free wording judged by an LLM. Why: a fixed pair makes grounding failures
+checkable with a plain `must_include`.
+
+**DES4. Lab doc text marked TODO / placeholder / unconfirmed is treated as unknown.**
+Why: templates will ship with `TODO(PM)` markers and must never surface as facts.
+
+**DES5. Plain text only: no markdown, emoji, or stage directions (`*waves*`).**
+Why: readable from 2 m and safe to send straight to TTS. Robot actions will be structured
+events in M7, not text.
+
+**DES6. One runtime prompt file, dynamic slots last.**
+`persona.md` is the human bible; `system_prompt.md` is the condensed runtime version.
+Static text first, `{{current_time}}`/`{{retrieved_context}}` last, so the cached prefix
+can be reused across turns.
+
+**DES7. Few-shot examples contain no lab facts.**
+Why: an example like "meetings are Thursdays at 5" would get repeated as fact.
+
+**DES8. Emergency/crisis lines use only verified nationwide resources (911, 988).**
+Campus resources wait for PM confirmation. Emergency lines put "call 911" first.
+
+**DES9. Six line categories beyond the role file's list:** `hate_or_harassment`,
+`about_real_people`, `public_screen_privacy`, `official_sfsu`, `crisis_support`, `goodbye`.
+Why: each maps to a distinct guard outcome or session event with a different right answer.
+
+**DES10. English-only for v1 (pending PM).**
+Why: guard and eval coverage for other languages isn't there yet.
+
+**DES11. No code in replies.**
+Why: the kiosk isn't an editor, and code blocks break the plain-text rule.
