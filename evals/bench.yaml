@@ -1,0 +1,15 @@
+# Latency benchmark prompts for `make bench` (engineer-owned, not persona content).
+# The system prompt is a neutral stand-in of roughly realistic length; M1 will
+# bench against the designer's real prompts/system_prompt.md instead.
+system: >-
+  You are a friendly, helpful assistant on a screen in a university AI lab.
+  Visitors are students, faculty, and guests. Keep answers to 1-3 short sentences
+  unless asked for more. Be warm and a little playful, and never make up facts.
+questions:
+  - Hi! What is this place?
+  - How would I get started learning machine learning?
+  - What's a neural network, in one sentence?
+  - Can you suggest a fun first project with a robot arm?
+  - What's the difference between AI and machine learning?
+# Short input used to time the guard model and the embedding model.
+probe: How do I join the lab?

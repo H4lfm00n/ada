@@ -1,0 +1,30 @@
+# AI Lab Assistant runtime config.
+# Every key can be overridden with an env var: ADA_<KEY_IN_UPPERCASE>
+#   e.g.  ADA_CHAT_MODEL=gemma4:12b make bench
+# Use a different file with ADA_CONFIG=/path/to/config.yaml.
+
+# --- Character ---------------------------------------------------------------
+bot_name: Dum-E
+
+# --- Ollama (must be localhost: no runtime network calls off the machine) ----
+ollama_url: http://localhost:11434
+request_timeout_s: 120        # model loads can take a while on first call
+keep_alive: 30m               # keep models resident between visitors
+
+# --- Models (tags exactly as shown by `ollama list`) -------------------------
+chat_model: qwen3.8:27b
+guard_model: llama-guard3:8b          # proposed in M0; pull before `make health`
+embed_model: qwen3-embedding:0.6b     # proposed in M0; pull before `make health`
+
+# --- Generation ---------------------------------------------------------------
+think: false                  # thinking OFF for user-facing replies (latency)
+temperature: 0.7
+num_ctx: 8192
+max_reply_tokens: 256
+
+# --- Sessions -----------------------------------------------------------------
+session_timeout_s: 120        # new visitor = fresh context. TODO(PM): confirm
+
+# --- Latency targets (brief section 8) -----------------------------------------
+target_first_token_s: 1.5
+target_decode_tok_s: 10.0     # proposal: comfortably faster than reading speed. TODO(PM): confirm
