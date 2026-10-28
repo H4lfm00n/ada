@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.env
+
+# Local-only outputs (benchmarks, transcripts, eval reports stay on the GB10)
+reports/
+logs/
