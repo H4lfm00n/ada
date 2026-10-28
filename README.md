@@ -11,7 +11,9 @@ decisions: [docs/DECISIONS.md](docs/DECISIONS.md)
 ```bash
 make setup     # uv-managed Python 3.12 + deps
 make health    # Ollama up? models present? each model answers?
-make bench     # first-token latency + tokens/sec (thinking off)
+make bench     # first-token latency + tokens/sec (thinking off, real system prompt)
+make chat      # talk to it in the terminal (/reset, /stats, /quit)
+make chat-demo # scripted conversation + latency report
 make test      # unit tests (Ollama mocked)
 make test-gb10 # live tests against local Ollama
 ```
@@ -25,7 +27,7 @@ ADA_CHAT_MODEL=gemma4:12b make bench
 ## Layout
 
 ```
-app/       Python package (config, interfaces, Ollama client, health, bench)
+app/       Python package (config, Ollama client, prompt, lines, sessions, pipeline, chat CLI)
 prompts/   system prompt templates (designer)
 content/   persona bible, lines (designer)
 lab_docs/  lab knowledge base (Markdown)

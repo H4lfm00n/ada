@@ -47,3 +47,15 @@ def test_ollama_url_must_be_local(url: str) -> None:
 def test_empty_model_tag_rejected() -> None:
     with pytest.raises(ValidationError):
         Settings(chat_model="  ", guard_model="b", embed_model="c")
+
+
+def test_unknown_timezone_rejected() -> None:
+    with pytest.raises(ValidationError, match="timezone"):
+        Settings(chat_model="a", guard_model="b", embed_model="c", timezone="Mars/Olympus")
+
+
+def test_content_paths_resolve_from_repo_root(tmp_path: Path) -> None:
+    s = load_settings()
+    assert s.content_path(s.system_prompt_file).is_file()
+    assert s.content_path(s.lines_file).is_file()
+    assert s.content_path(str(tmp_path)) == tmp_path

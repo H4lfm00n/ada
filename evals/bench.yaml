@@ -1,6 +1,6 @@
 # Latency benchmark prompts for `make bench` (engineer-owned, not persona content).
-# The system prompt is a neutral stand-in of roughly realistic length; M1 will
-# bench against the designer's real prompts/system_prompt.md instead.
+# Since M1, `make bench` uses the designer's real prompts/system_prompt.md.
+# This short neutral prompt is only used with `--neutral-prompt` (M0 comparison).
 system: >-
   You are a friendly, helpful assistant on a screen in a university AI lab.
   Visitors are students, faculty, and guests. Keep answers to 1-3 short sentences

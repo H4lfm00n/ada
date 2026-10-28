@@ -1,7 +1,8 @@
 """Stable interfaces between pipeline stages.
 
 These are the hooks voice (M6) and the robot arm (M7) will plug into, so keep the
-signatures stable. M0 implements only ChatModel (see app/ollama_client.py).
+signatures stable. Implemented so far: ChatModel (app/ollama_client.py), SessionManager
+(app/sessions.py), OutputSink + ActionHandler stub (app/sinks.py).
 """
 
 from __future__ import annotations
@@ -11,6 +12,9 @@ from dataclasses import dataclass, field
 from typing import Literal, Protocol, runtime_checkable
 
 Role = Literal["system", "user", "assistant"]
+
+# Named actions sent to ActionHandler. The robot arm (M7) maps these to motions.
+ACTION_WAVE = "wave"  # a new visitor started talking
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +76,7 @@ class ActionHandler(Protocol):
 
 
 @runtime_checkable
-class SessionManager(Protocol):  # implemented in M1
+class SessionManager(Protocol):
     def create(self) -> str: ...
     def get(self, session_id: str) -> list[Message] | None: ...
     def reset(self, session_id: str) -> None: ...

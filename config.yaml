@@ -24,6 +24,12 @@ max_reply_tokens: 256
 
 # --- Sessions -----------------------------------------------------------------
 session_timeout_s: 120        # new visitor = fresh context. TODO(PM): confirm
+max_history_messages: 20      # oldest turns dropped beyond this (user + assistant messages)
+
+# --- Content (designer-owned files, relative to repo root) ---------------------
+system_prompt_file: prompts/system_prompt.md
+lines_file: content/lines.yaml
+timezone: America/Los_Angeles  # fills {{current_time}} in the system prompt
 
 # --- Latency targets (brief section 8) -----------------------------------------
 target_first_token_s: 1.5

@@ -1,9 +1,12 @@
 """`make bench`: first-token latency and decode speed for the chat model (thinking off).
 
-Usage: python -m app.bench [--runs N] [--strict] [--no-overhead]
+Usage: python -m app.bench [--runs N] [--strict] [--no-overhead] [--neutral-prompt]
   Override the model under test with ADA_CHAT_MODEL=<tag>.
 
 Method
+  * System prompt = the designer's real prompts/system_prompt.md, rendered with empty
+    lab docs (about 2,200 tokens of prefill). --neutral-prompt uses the short stand-in
+    from evals/bench.yaml instead, for comparison with M0 numbers.
   * One warmup request loads the model (reported as cold load, excluded from stats).
   * TTFT = client wall clock from request start to the first non-empty reply text.
   * Decode tok/s = Ollama's own eval_count / eval_duration (server-side, no HTTP noise).
@@ -29,6 +32,7 @@ import yaml
 from app.config import REPO_ROOT, Settings, load_settings
 from app.interfaces import Message
 from app.ollama_client import OllamaClient, OllamaError, normalize_tag
+from app.prompt import PromptBuilder
 
 BENCH_FILE = REPO_ROOT / "evals" / "bench.yaml"
 REPORT_DIR = REPO_ROOT / "reports" / "bench"
@@ -136,10 +140,22 @@ def _ok(flag: bool) -> str:
     return "PASS" if flag else "MISS"
 
 
+def bench_system_prompt(settings: Settings, bench: dict[str, Any], neutral: bool) -> str:
+    if neutral:
+        return str(bench["system"])
+    builder = PromptBuilder.from_settings(settings)
+    return builder.system.render(builder.now_text(), "")
+
+
 async def run_bench(
-    settings: Settings, client: OllamaClient, runs: int, overhead: bool
+    settings: Settings,
+    client: OllamaClient,
+    runs: int,
+    overhead: bool,
+    neutral_prompt: bool = False,
 ) -> dict[str, Any]:
     bench = load_bench()
+    system = bench_system_prompt(settings, bench, neutral_prompt)
     installed = {normalize_tag(t) for t in await client.list_models()}
     if normalize_tag(settings.chat_model) not in installed:
         raise OllamaError(f"chat model {settings.chat_model} not installed")
@@ -149,8 +165,9 @@ async def run_bench(
         f"Ollama v{version} | chat={settings.chat_model} | think={settings.think}"
         f" | num_ctx={settings.num_ctx} | max_reply_tokens={settings.max_reply_tokens}"
     )
+    print(f"system prompt: {'neutral stand-in' if neutral_prompt else settings.system_prompt_file}")
 
-    warm = await time_chat(client, settings, bench["system"], "Say hello.")
+    warm = await time_chat(client, settings, system, "Say hello.")
     print(f"warmup (incl. model load): {warm.total_s:.2f}s\n")
 
     results: list[RunResult] = []
@@ -161,7 +178,7 @@ async def run_bench(
     print("-" * len(header))
     for _ in range(runs):
         for q in bench["questions"]:
-            r = await time_chat(client, settings, bench["system"], q)
+            r = await time_chat(client, settings, system, q)
             results.append(r)
             think = "LEAK" if (r.thinking_chars or r.think_tag_in_reply) else "off"
             print(
@@ -218,6 +235,7 @@ async def run_bench(
             "num_ctx": settings.num_ctx,
             "max_reply_tokens": settings.max_reply_tokens,
             "temperature": settings.temperature,
+            "system_prompt": "neutral" if neutral_prompt else settings.system_prompt_file,
         },
         "warmup_s": warm.total_s,
         "summary": summary,
@@ -234,11 +252,11 @@ def write_report(report: dict[str, Any]) -> Path:
     return path
 
 
-async def _amain(runs: int, strict: bool, overhead: bool) -> int:
+async def _amain(runs: int, strict: bool, overhead: bool, neutral: bool) -> int:
     settings = load_settings()
     async with OllamaClient.from_settings(settings) as client:
         try:
-            report = await run_bench(settings, client, runs, overhead)
+            report = await run_bench(settings, client, runs, overhead, neutral)
         except OllamaError as exc:
             print(f"BENCH ERROR: {exc}", file=sys.stderr)
             return 1
@@ -253,8 +271,15 @@ def main() -> None:
     parser.add_argument("--runs", type=int, default=1, help="passes over the question set")
     parser.add_argument("--strict", action="store_true", help="exit 1 if a target is missed")
     parser.add_argument("--no-overhead", action="store_true", help="skip guard/embed timing")
+    parser.add_argument(
+        "--neutral-prompt", action="store_true", help="short stand-in prompt (M0 comparison)"
+    )
     args = parser.parse_args()
-    sys.exit(asyncio.run(_amain(max(1, args.runs), args.strict, not args.no_overhead)))
+    sys.exit(
+        asyncio.run(
+            _amain(max(1, args.runs), args.strict, not args.no_overhead, args.neutral_prompt)
+        )
+    )
 
 
 if __name__ == "__main__":
