@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-10-29 by DES (lab docs + evals); engineer sections last updated 2026-10-28 (M1)._
+_Last updated: 2026-10-29 by DES (real lab docs); engineer sections last updated 2026-10-28 (M1)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -98,6 +98,12 @@ _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-e
 - `content/lines.yaml`: 3 `medical_legal` lines reworded to cover health **and** legal (DES18).
 - Decisions DES12–DES20 in `docs/DECISIONS.md`.
 
+- Real lab docs v1 (`task/des-lab-docs-content`): 16 files in `lab_docs/` built from the PM's
+  public-source research (lab, Student AI Commons, AI Studio, MakerSpace, SFSU services,
+  emergency, calendar, AT, AI programs, AI policies). Every section has a `Source:` line.
+  41 `TODO(PM)` markers for the PM to resolve (`grep -n "TODO(PM)" lab_docs/[a-z]*.md`).
+  Decisions DES21–DES25.
+
 ### Engineer needs to wire up (M2/M4)
 - M2 ingest: skip `README.md` and `_*` files, strip `<!-- -->` comments, chunk by `##`,
   carry file + title + heading + `Last updated` on each chunk, warn on leftover `TODO(`.
@@ -110,6 +116,10 @@ _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-e
   `expected_behavior` answer/refuse/redirect or a `judge` note.
 - M4: `make eval-lint` (no model needed, runs in the sandbox). Checks listed in `evals/README.md`.
 - `prompt_canaries` in `shared.yaml` must track `prompts/system_prompt.md`.
+- M2 ingest: keep each section's `Source:` line in the chunk (the model uses it to
+  attribute), and strip HTML comments (they hold notes for humans).
+- M3 output guard: if it blocks phone numbers or emails, allow the ones that appear in the
+  retrieved docs, or the kiosk can't give University Police's 415-338-2222 or an office email.
 - Farewell list: "bye" is enough for the golden session cases; no additions needed.
 
 ### Next
@@ -129,4 +139,10 @@ _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-e
 8. Should the roles doc name the founder? Is there a public lab contact (email, Discord)?
 9. Approve DES15: any failed critical red-team case fails `make eval`?
 10. Lab docs: OK to publish that the lab has a GB10 and an SO-ARM101 kit (planned)?
-11. Who fills in the real `lab_docs/`, and by when? M2 can only be demoed on real facts.
+11. ~~Who fills in the real `lab_docs/`?~~ Drafted from the PM's research; PM to resolve the TODOs.
+12. Is the AI Lab the SFSU Student AI Commons (same group, part of it, or separate)? This
+    is the biggest TODO; it decides the bot's wording about "the lab" (DES25).
+13. Approve a system prompt tweak so the bot can relay SFSU office info with attribution (DES21)?
+14. Q6 is now partly answerable: add University Police (415-338-2222 from a cell) to the
+    `emergency` lines and CAPS (415-338-2208) to `crisis_support`? Both are lines changes
+    and need `make eval`.

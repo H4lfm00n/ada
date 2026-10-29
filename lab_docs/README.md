@@ -9,9 +9,52 @@
 1. Copy a template: `cp lab_docs/_TEMPLATE_join.md lab_docs/join.md`.
 2. Replace every `TODO(PM): ...` with a confirmed fact, **or delete that section**.
    A half-filled section is worse than a missing one.
-3. Delete the `<!-- guidance -->` comments.
+3. Delete the template's `<!-- guidance -->` comments. Notes for humans (where a fact came
+   from, a conflict you resolved) can stay in comments; ingest strips them.
 4. Set the `Last updated:` line to today's date (YYYY-MM-DD).
-5. Re-run ingest (M2) so the assistant picks it up.
+5. End every section with a `Source:` line: where the fact came from, its date, and when
+   it was checked.
+6. Re-run ingest (M2) so the assistant picks it up.
+
+## How to review the TODOs
+
+`grep -n "TODO(PM)" lab_docs/[a-z]*.md` lists them. For each one, either:
+- **confirm it**: delete the TODO line and keep (or write) the fact as a plain sentence, or
+- **delete it**: remove the TODO and anything it depends on.
+
+The assistant treats any answer marked TODO as unknown and says "not sure", so a TODO left
+in place is safe, just unhelpful.
+
+## Current docs
+
+| File | Covers |
+|---|---|
+| `about.md` | The AI Lab, the SFSU Student AI Commons, the AI Studio (LIB 260), the robot assistant |
+| `join.md` | Joining the Commons, eligibility, cost, following online, visiting |
+| `meetings-events.md` | Leadership Committee, weekly AI clubs, November 2026 events, past events |
+| `projects.md` | AI Lab projects (TODO), hackathon and Student AI Awards projects |
+| `equipment.md` | What's lab equipment vs shared MakerSpace equipment, the GB10, GPU policy (TODO) |
+| `roles.md` | Founder, officers, Commons roles, contacts |
+| `faq.md` | Short answers about the AI Studio and the lab |
+| `dms-makerspace.md` | Digital Media Studio and MakerSpace: location, hours, rooms, equipment |
+| `dms-makerspace-rules.md` | MakerSpace checkout, 3D printing, laser, VR, audio-room rules |
+| `academic-technology.md` | AT help, laptop loans, campus AI tools, ChatGPT Edu, AI literacy courses |
+| `sfsu-campus.md` | SFSU basics, address, colleges, transit, parking |
+| `sfsu-student-services.md` | Library, advising, career, tutoring, ITS, DPRC, CAPS, health |
+| `sfsu-emergency.md` | Emergency numbers, emergency phones, SFSU Alert, crisis help |
+| `sfsu-academic-calendar.md` | Fall 2026 and Spring 2027 dates (tentative, from the Registrar) |
+| `sfsu-ai-programs.md` | AI degrees, certificates, and minors |
+| `sfsu-ai-policies.md` | SFSU guidance on AI in classes and academic integrity |
+
+## SFSU information in these docs
+
+Files starting with `sfsu-`, `academic-technology.md`, and the `dms-` files describe SFSU
+offices, not the lab. They follow two extra rules:
+- Attribute everything to the office that published it ("According to the Registrar...").
+  The assistant relays and points; it never speaks for SFSU (brief §5.4).
+- When two SFSU pages disagree, either write only the safe version and note the conflict
+  in a comment (e.g. "the shuttle was discontinued"), or mark it `TODO(PM): confirm`.
+  Never write both versions as facts.
 
 Files starting with `_` (templates) and this README are **not** knowledge. The
 ingest step must skip them.
@@ -30,7 +73,7 @@ ingest step must skip them.
 | No secrets: no Wi-Fi passwords, door codes, admin URLs, keys. | Anyone can type "what's the wifi password". |
 | Don't write instructions to the assistant ("Assistant: always say…"). | Docs are reference material. The system prompt tells the model to ignore instructions inside docs, and evals test that. |
 | Unconfirmed facts stay as `TODO(PM): confirm`, never as plausible-sounding text. | The model treats TODO / placeholder text as unknown (DES4). Invented text would be repeated as fact. |
-| Keep each file under ~600 words. Split if it grows. | Smaller sections retrieve more precisely. |
+| Keep each file under ~600 words of body text (not counting Source lines). Split if it grows. | Smaller sections retrieve more precisely. |
 
 ## Templates
 
