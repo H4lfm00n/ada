@@ -54,10 +54,19 @@ _Last updated: 2026-10-29 by ENG (M2 RAG); designer section last updated 2026-10
   - New config: `lab_docs_dir` (the eval runner sets it to the fixtures), `rag_*` settings.
   - `make ingest`, `make ingest-fixtures`, `make rag-search Q=...`, `make rag-probe`;
     `make health` checks the index; `make chat` shows docs used + retrieval time per reply.
+  - After PM answers (2026-10-29): `make ingest` ends with a "LEFT OUT, unconfirmed" list
+    (file + heading) of every TODO section it dropped (D19, approved). `Source:` lines stay in
+    chunks but not in vectors (D24). Retrieval check `make rag-check` /
+    `make rag-check-fixtures` over `evals/retrieval.yaml` (D23). `make chat-lab` asks 10 real
+    lab questions through the full pipeline (`evals/chat_lab_docs.yaml`).
+    Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
-- M1 + M2 verification on the GB10: waiting on PM's `make bench`, `make chat-demo`,
-  `make rag-probe`, and gb10 test output.
+- M2 on real docs: waiting for the PM to review and merge the designer's
+  `task/des-lab-docs-content` (16 files; 41 sections still TODO and dropped at ingest).
+  Then: `make ingest`, `make rag-check`, `make chat-lab` on the GB10.
+- Merge note: `task/m2-rag` and `task/des-lab-docs-content` both append to DECISIONS.md and
+  STATUS.md, so whichever merges second has a docs-only conflict (keep both sides).
 
 ## Next
 - Record the measured TTFT, first-sentence time, and tok/s below. If TTFT misses 1.5 s with
@@ -79,14 +88,13 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 
 ## Open questions
 - PM: is `qwen3.8:27b` the intended chat model? What is `gemma4:12b` for (fallback if 27B is too slow)?
-- PM: confirm proposed guard `llama-guard3:8b` and embed `qwen3-embedding:0.6b` (docs/DECISIONS.md D7).
+- PM: confirm proposed guard `llama-guard3:8b` (D7). Embed `qwen3-embedding:0.6b` confirmed 2026-10-29.
 - PM: confirm `session_timeout_s: 120` and `target_decode_tok_s: 10` in config.yaml.
 - PM: `bot_name` is still `Dum-E` in config (designer suggests an original name: Ada, Sprocket,
   Grady). It's one config line; every prompt and line follows it.
 - PM: OK that the CLI/kiosk shows whole sentences rather than token-by-token (D9)?
-- PM: the real `lab_docs/` has only templates, so the kiosk says "not sure" to every lab
-  question today. M2 is demoable on the fixture corpus; real answers need real docs.
-- PM: OK to drop TODO sections at ingest instead of only warning (D19)?
+- ~~Real docs~~: designer's branch is ready for PM review (see In progress).
+- ~~Drop TODO sections at ingest?~~ Yes (D19), with the dropped list printed by ingest.
 
 ## Notes for the designer (from ENG, M1)
 - Two `notes:` items in the `system_prompt.md` front matter were invalid YAML. I quoted them
@@ -102,6 +110,12 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 - Docs are embedded as title + `##` heading + body, so question-style FAQ headings help.
 - Visitor-typed `<lab_docs>` tags become `[lab_docs]` before the model sees them.
 - No prompt or line wording changed.
+- (2026-10-29) Your `Source:` lines are kept in each chunk, as you asked; they're just not
+  embedded (D24). `evals/retrieval.yaml` has 17 retrieval questions for the real docs. Add
+  more anytime: `{q: "...", expect: file.md}`. If you rename or split a file, update it there.
+- Heads-up from parsing your branch: about.md, join.md, roles.md, and projects.md are almost
+  all TODO, so "how do I join / when do you meet / what is the AI Lab" will get "not sure"
+  until the PM confirms those sections.
 
 ## Designer section
 _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-evals`._

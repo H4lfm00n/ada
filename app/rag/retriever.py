@@ -17,7 +17,7 @@ from pathlib import Path
 from app.config import Settings
 from app.interfaces import Chunk
 from app.ollama_client import OllamaClient
-from app.rag.ingest import parse_corpus
+from app.rag.ingest import DroppedSection, parse_corpus
 from app.rag.store import Index, IndexedChunk, RagIndexError, dot, normalize
 
 log = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ class EmptyRetriever:
 class IngestReport:
     files: int
     chunks: int
-    skipped_sections: int
+    dropped: list[DroppedSection]
     warnings: list[str]
     index_path: Path
     dims: int
@@ -162,7 +162,7 @@ async def build_index(client: OllamaClient, settings: Settings) -> IngestReport:
     return IngestReport(
         files=len(corpus.file_hashes),
         chunks=len(entries),
-        skipped_sections=corpus.skipped_sections,
+        dropped=corpus.dropped,
         warnings=[str(w) for w in corpus.warnings],
         index_path=path,
         dims=dims,

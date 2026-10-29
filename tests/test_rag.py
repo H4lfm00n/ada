@@ -132,7 +132,7 @@ It costs TODO(PM): confirm.
 
 
 def test_parse_doc_sections_metadata_comments_and_todo() -> None:
-    chunks, warnings, skipped = parse_doc(DOC, "join.md")
+    chunks, warnings, dropped = parse_doc(DOC, "join.md")
 
     assert [c.heading for c in chunks] == ["How to join the AI Lab", "How to join the AI Lab"]
     intro, join = chunks
@@ -144,11 +144,11 @@ def test_parse_doc_sections_metadata_comments_and_todo() -> None:
     assert all("<!--" not in c.text and "guidance" not in c.text for c in chunks)
     assert [c.id for c in chunks] == ["join.md#0", "join.md#1"]
     # The TODO section is left out and reported with file + heading.
-    assert skipped == 1
-    assert not any("TODO" in c.text for c in chunks)
-    assert [str(w) for w in warnings] == [
-        "join.md > Does joining cost money?: has TODO(...): left out"
+    assert [(d.source_file, d.heading) for d in dropped] == [
+        ("join.md", "Does joining cost money?")
     ]
+    assert not any("TODO" in c.text for c in chunks)
+    assert not any("TODO" in w.message for w in warnings)  # reported in the dropped list
     # Title and heading are both embedded; the title alone when they're the same.
     assert join.embed_text.startswith("How to join the AI Lab\nCome to")
 
@@ -518,3 +518,125 @@ async def test_pipeline_end_to_end_with_dead_embed_model(
     assert r.source == "model" and r.retrieved == []
     assert r.retrieval_error and "model not found" in r.retrieval_error
     await retriever._client.aclose()
+
+
+# -- D19: dropped-section summary, Source lines ----------------------------------------
+
+
+def test_source_lines_stay_in_the_chunk_but_not_in_the_vector() -> None:
+    doc = (
+        "# T\nLast updated: 2026-10-29\n\n## Where\n\nIt's in LIB 260.\n\n"
+        "Source: at.sfsu.edu/x (checked 2026-10-29).\n"
+    )
+    (chunk,), _, _ = parse_doc(doc, "faq.md")
+    assert "Source: at.sfsu.edu/x" in chunk.text  # the model can attribute
+    assert "at.sfsu.edu" not in chunk.embed_text and "LIB 260" in chunk.embed_text
+
+
+def test_ingest_prints_every_dropped_section(capsys: pytest.CaptureFixture[str]) -> None:
+    from app.rag.__main__ import print_dropped
+    from app.rag.ingest import DroppedSection
+
+    print_dropped(
+        [
+            DroppedSection("join.md", "How to join the AI Lab"),
+            DroppedSection("about.md", "What the AI Lab is"),
+            DroppedSection("join.md", "Does joining cost money?"),
+        ]
+    )
+    out = capsys.readouterr().out
+    assert "3 sections in 2 files" in out
+    assert out.index("about.md") < out.index("join.md")
+    for heading in ["How to join the AI Lab", "What the AI Lab is", "Does joining cost money?"]:
+        assert f"- {heading}" in out
+    print_dropped([])
+    assert "none" in capsys.readouterr().out
+
+
+# -- D23: retrieval check ------------------------------------------------------------
+
+
+def test_retrieval_check_file_loads_and_every_expected_file_exists(repo_root: Path) -> None:
+    from app.rag.check import load_check_file
+
+    checks = load_check_file(repo_root / "evals" / "retrieval.yaml")
+    assert 0 < checks.pass_bar <= 1
+    fixture = checks.suite_for("evals/fixtures/lab_docs")
+    real = checks.suite_for("lab_docs/")
+    assert fixture and real and len(real.cases) >= 10
+    for suite in (fixture, real):
+        root = repo_root / suite.lab_docs_dir
+        names = {p.relative_to(root).as_posix() for p in doc_files(root)}
+        if not names:
+            continue  # real docs not merged yet
+        for case in suite.cases:
+            assert set(case.expect) & names or case.expect_none, (case.question, case.expect)
+
+
+def test_retrieval_check_file_rejects_bad_cases(tmp_path: Path) -> None:
+    from app.rag.check import CheckFileError, load_check_file
+
+    bad = tmp_path / "r.yaml"
+    for body in [
+        "suites: []",
+        "suites: [{cases: []}]",
+        "suites: [{lab_docs_dir: d, cases: [{q: x}]}]",
+        "suites: [{lab_docs_dir: d, cases: [{q: x, expect: a.md, expect_none: true}]}]",
+    ]:
+        bad.write_text(body)
+        with pytest.raises(CheckFileError):
+            load_check_file(bad)
+
+
+def test_case_diagnosis_separates_cutoff_from_embedding_misses() -> None:
+    from app.rag.check import CheckSummary, RetrievalCase, score_case
+
+    def chunk(f: str) -> Chunk:
+        return Chunk("t", f, "h")
+
+    ranked = [("a.md", 0.6), ("b.md", 0.4), ("c.md", 0.3), ("d.md", 0.1)]
+    ok = score_case(RetrievalCase("q", ("a.md",)), [chunk("a.md")], ranked, k=3)
+    cutoff = score_case(RetrievalCase("q", ("c.md",)), [chunk("a.md")], ranked, k=3)
+    embed = score_case(RetrievalCase("q", ("d.md",)), [chunk("a.md")], ranked, k=3)
+    nothing = score_case(RetrievalCase("q", (), True), [], ranked, k=3)
+    leaked = score_case(RetrievalCase("q", (), True), [chunk("a.md")], ranked, k=3)
+
+    assert ok.hit and ok.hit_at_1 and ok.diagnosis == "ok"
+    assert not cutoff.hit and cutoff.diagnosis.startswith("cutoff too high (expected file ranked 3")
+    assert not embed.hit and embed.diagnosis.startswith("embedding miss (expected file ranked 4")
+    assert nothing.hit and not leaked.hit and leaked.diagnosis.startswith("cutoff too low")
+
+    s = CheckSummary([ok, cutoff, embed, nothing, leaked], pass_bar=0.9)
+    assert s.recall_at_k == pytest.approx(1 / 3)
+    assert s.recall_ignoring_cutoff == pytest.approx(2 / 3)
+    assert s.mrr == pytest.approx((1 + 1 / 3 + 1 / 4) / 3)
+    assert s.none_ok == (1, 2) and not s.passed
+
+
+async def test_rag_check_command_end_to_end(
+    rag_settings: Settings, bow: BowOllama, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import app.rag.__main__ as cli
+
+    await indexed(rag_settings, bow)
+    checks = tmp_path / "retrieval.yaml"
+    checks.write_text(
+        f"pass_bar: 0.5\nsuites:\n  - lab_docs_dir: {rag_settings.lab_docs_dir}\n    cases:\n"
+        "      - {q: 'does joining cost money? membership fee', expect: join.md}\n"
+        "      - {q: 'who holds the AI Lab officer roles? president', expect: roles.md}\n"
+        "      - {q: 'wifi password parking garage', expect_none: true}\n"
+    )
+    real_from_settings = OllamaClient.from_settings
+    monkeypatch.setattr(
+        cli.OllamaClient,
+        "from_settings",
+        classmethod(lambda cls, s, transport=None: real_from_settings(s, bow.transport)),
+    )
+    monkeypatch.setattr(cli, "REPORT_DIR", tmp_path / "reports")
+    assert await cli.cmd_check(rag_settings, checks) == 0
+    report = json.loads(next((tmp_path / "reports").glob("check-*.json")).read_text())
+    assert report["recall_at_k"] == 1.0
+    assert [c["diagnosis"] for c in report["cases"]] == ["ok", "ok", "ok"]
+
+    other = rag_settings.model_copy(update={"lab_docs_dir": "somewhere/else"})
+    assert await cli.cmd_check(other, checks) == 1  # no suite for this folder

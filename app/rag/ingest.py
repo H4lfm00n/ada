@@ -6,9 +6,9 @@ Follows the rules in lab_docs/README.md (designer-owned):
   * one chunk per "##" section, carrying file, "#" title, "##" heading, "Last updated",
   * warn on leftover TODO( markers, listing file + heading.
 
-Grounding (DECISIONS D19): a section that still contains "TODO(" is left out of the
-index entirely, so a placeholder can never reach the model. The designer's own rule is
-"a half-filled section is worse than a missing one".
+Grounding (DECISIONS D19, PM-approved): a section that still contains "TODO(" is left
+out of the index entirely, so an unconfirmed fact can never reach the public kiosk. Every
+dropped section is listed (file + heading) so the PM can see what still needs confirming.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from pathlib import Path
 
 COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 TITLE_RE = re.compile(r"^#[ \t]+(.+?)[ \t]*#*[ \t]*$")
+SOURCE_LINE_RE = re.compile(r"^\s*Sources?\s*:", re.IGNORECASE)
 SECTION_RE = re.compile(r"^##[ \t]+(.+?)[ \t]*#*[ \t]*$")
 UPDATED_RE = re.compile(r"^\s*last updated\s*:\s*(.*?)\s*$", re.IGNORECASE)
 TODO_RE = re.compile(r"TODO\s*\(", re.IGNORECASE)
@@ -41,9 +42,14 @@ class DocChunk:
 
     @property
     def embed_text(self) -> str:
-        """What gets embedded: title + heading give short sections their subject."""
+        """What gets embedded: title + heading + body, minus the "Source:" lines.
+
+        Source lines stay in the chunk text (the model attributes facts with them, DES23)
+        but are left out of the vector: URLs and dates add noise, not meaning.
+        """
         head = self.title if self.heading == self.title else f"{self.title}\n{self.heading}"
-        return f"{head}\n{self.text}"
+        body = "\n".join(ln for ln in self.text.split("\n") if not SOURCE_LINE_RE.match(ln))
+        return f"{head}\n{body.strip()}"
 
 
 @dataclass(slots=True)
@@ -57,12 +63,20 @@ class IngestWarning:
         return f"{where}: {self.message}"
 
 
+@dataclass(frozen=True, slots=True)
+class DroppedSection:
+    """A section left out of the index because it still has a TODO (unconfirmed fact)."""
+
+    source_file: str
+    heading: str
+
+
 @dataclass(slots=True)
 class ParsedCorpus:
     chunks: list[DocChunk] = field(default_factory=list)
     warnings: list[IngestWarning] = field(default_factory=list)
     file_hashes: dict[str, str] = field(default_factory=dict)  # every eligible file
-    skipped_sections: int = 0
+    dropped: list[DroppedSection] = field(default_factory=list)
 
 
 def is_doc_file(path: Path, root: Path) -> bool:
@@ -111,8 +125,10 @@ def _split_long(text: str, limit: int = MAX_CHUNK_CHARS) -> list[str]:
     return parts
 
 
-def parse_doc(text: str, source_file: str) -> tuple[list[DocChunk], list[IngestWarning], int]:
-    """Parse one Markdown doc. Returns (chunks, warnings, sections skipped for TODO)."""
+def parse_doc(
+    text: str, source_file: str
+) -> tuple[list[DocChunk], list[IngestWarning], list[DroppedSection]]:
+    """Parse one Markdown doc. Returns (chunks, warnings, sections dropped for TODO)."""
     text = COMMENT_RE.sub("", text.replace("\r\n", "\n"))
     title = ""
     last_updated = "unknown"
@@ -142,15 +158,14 @@ def parse_doc(text: str, source_file: str) -> tuple[list[DocChunk], list[IngestW
         warnings.append(IngestWarning(source_file, "", "no 'Last updated: YYYY-MM-DD' line"))
 
     chunks: list[DocChunk] = []
-    skipped = 0
+    dropped: list[DroppedSection] = []
     for heading, body_lines in sections:
         body = _clean(body_lines)
         if not body:
             continue
         heading = heading or title
         if TODO_RE.search(body) or TODO_RE.search(heading):
-            skipped += 1
-            warnings.append(IngestWarning(source_file, heading, "has TODO(...): left out"))
+            dropped.append(DroppedSection(source_file, heading))
             continue
         for part in _split_long(body):
             chunks.append(
@@ -163,7 +178,7 @@ def parse_doc(text: str, source_file: str) -> tuple[list[DocChunk], list[IngestW
                     last_updated=last_updated,
                 )
             )
-    return chunks, warnings, skipped
+    return chunks, warnings, dropped
 
 
 def parse_corpus(root: Path) -> ParsedCorpus:
@@ -171,10 +186,11 @@ def parse_corpus(root: Path) -> ParsedCorpus:
     for path in doc_files(root):
         rel = path.relative_to(root).as_posix()
         corpus.file_hashes[rel] = file_hash(path)
-        chunks, warnings, skipped = parse_doc(path.read_text(encoding="utf-8"), rel)
+        chunks, warnings, dropped = parse_doc(path.read_text(encoding="utf-8"), rel)
         corpus.chunks.extend(chunks)
         corpus.warnings.extend(warnings)
-        corpus.skipped_sections += skipped
+        corpus.dropped.extend(dropped)
         if not chunks:
-            corpus.warnings.append(IngestWarning(rel, "", "no usable sections"))
+            why = "every section has a TODO" if dropped else "no usable sections"
+            corpus.warnings.append(IngestWarning(rel, "", why))
     return corpus

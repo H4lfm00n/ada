@@ -1,0 +1,63 @@
+# Retrieval check: does the right lab doc come back for each test question?
+# Owner: engineer (format, runner) + designer (cases welcome). Run: `make rag-check`
+# (real docs) or `make rag-check-fixtures` (eval corpus). DECISIONS D23.
+#
+# This tests retrieval only, not the reply: no chat model is called.
+#   expect: file or [files]  -> passes if a chunk from any of them clears rag_min_score
+#   expect_none: true        -> passes if NOTHING clears the cutoff (the bot says "not sure")
+# The suite used is the one whose lab_docs_dir matches config (ADA_LAB_DOCS_DIR overrides).
+# Questions about sections still marked TODO don't belong here: ingest leaves those out,
+# so there is no right doc to find. `make chat-lab` covers how the bot answers them.
+
+version: 1
+pass_bar: 0.9  # recall@k over `expect` cases. Below this, propose a fix (D23) before demos.
+
+suites:
+
+  - lab_docs_dir: evals/fixtures/lab_docs
+    note: INVENTED corpus. Mirrors golden.yaml grounding + dont_know cases.
+    cases:
+      - {q: "how do I join the lab?", expect: join.md}
+      - {q: "does it cost anything to join?", expect: [join.md, faq.md]}
+      - {q: "do I need to already know AI to join?", expect: [join.md, faq.md]}
+      - {q: "I'm a biology major, can I still join?", expect: join.md}
+      - {q: "when are the general meetings?", expect: meetings-events.md}
+      - {q: "what room does the lab meet in?", expect: meetings-events.md}
+      - {q: "is there a meeting during finals week?", expect: meetings-events.md}
+      - {q: "what projects is the lab working on?", expect: projects.md}
+      - {q: "what kind of computer do you run on?", expect: [equipment.md, about.md]}
+      - {q: "can I use the lab's equipment?", expect: equipment.md}
+      - {q: "who's the president of the lab?", expect: roles.md}
+      - {q: "how can I get in touch with the lab?", expect: roles.md}
+      - {q: "what's Build Night?", expect: meetings-events.md}
+      - {q: "can I bring my roommate to a meeting?", expect: faq.md}
+      - {q: "may faculty attend lab meetings?", expect: join.md}
+      - {q: "what's the next big lab event?", expect: meetings-events.md}
+      - {q: "when can I use the 3D printer?", expect: [equipment.md, faq.md]}
+      # Nothing in the corpus answers these. They set the floor for rag_min_score.
+      - {q: "what's the wifi password here", expect_none: true}
+      - {q: "where should I park when I come to meetings?", expect_none: true}
+      - {q: "how much are the lab hoodies?", expect_none: true}
+
+  - lab_docs_dir: lab_docs
+    note: >-
+      Real docs. Drafted against the designer's task/des-lab-docs-content (3516021) before
+      PM review; re-check file names after it merges.
+    cases:
+      - {q: "Where is the AI Studio?", expect: [faq.md, about.md]}
+      - {q: "Is the AI Studio the same as the Digital Media Studio?", expect: faq.md}
+      - {q: "Can I just stop by the AI Studio?", expect: [faq.md, join.md]}
+      - {q: "What AI clubs meet every week?", expect: meetings-events.md}
+      - {q: "What AI events are coming up in November?", expect: meetings-events.md}
+      - {q: "What did students build at the AI hackathon?", expect: [projects.md, meetings-events.md]}
+      - {q: "Where can I 3D print something on campus?", expect: [dms-makerspace-rules.md, equipment.md, dms-makerspace.md]}
+      - {q: "Can I borrow a camera?", expect: dms-makerspace-rules.md}
+      - {q: "What are the MakerSpace hours?", expect: dms-makerspace.md}
+      - {q: "Can I use ChatGPT on my homework?", expect: sfsu-ai-policies.md}
+      - {q: "Does SFSU have a master's degree in AI?", expect: sfsu-ai-programs.md}
+      - {q: "What free AI tools does SFSU give students?", expect: academic-technology.md}
+      - {q: "How do I get to campus from BART?", expect: sfsu-campus.md}
+      - {q: "I forgot my SFSU password, who can help?", expect: [sfsu-student-services.md, academic-technology.md]}
+      - {q: "What's the campus police non-emergency number?", expect: sfsu-emergency.md}
+      - {q: "When does the fall semester end?", expect: sfsu-academic-calendar.md}
+      - {q: "Where can I get free counseling on campus?", expect: [sfsu-student-services.md, sfsu-emergency.md]}

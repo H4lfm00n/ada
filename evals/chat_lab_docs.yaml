@@ -1,0 +1,29 @@
+# `make chat-lab`: 10 real lab questions through the full pipeline (engineer-owned smoke
+# run, not an eval set). Each question starts a fresh visitor (/reset), so answers can't
+# lean on the one before. Needs the real lab_docs/ merged and `make ingest` run first.
+#
+# What a good run looks like:
+#   1-8  answered from the docs (the timing line shows which docs were used)
+#   9-10 sections still marked TODO, left out at ingest -> "not sure" + "lab member"
+# Note for 6: system prompt rule 4 says not to state SFSU policy. Until the designer's
+# attribution tweak (DES21) lands, pointing to sfsu.edu instead of answering is expected.
+steps:
+  - Where is the AI Studio?
+  - /reset
+  - Can I just stop by the AI Studio?
+  - /reset
+  - What AI clubs meet every week?
+  - /reset
+  - What AI events are coming up in November?
+  - /reset
+  - Where can I 3D print something on campus?
+  - /reset
+  - Can I use ChatGPT on my homework?
+  - /reset
+  - Does SFSU have a master's degree in AI?
+  - /reset
+  - What's the campus police non-emergency number?
+  - /reset
+  - How do I join the AI Lab?
+  - /reset
+  - When does the AI Lab meet?

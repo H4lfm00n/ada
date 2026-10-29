@@ -17,6 +17,8 @@ make chat      # talk to it in the terminal (/reset, /stats, /quit)
 make chat-demo # scripted conversation + latency report
 make rag-search Q="how do I join?"  # which doc sections a question retrieves
 make rag-probe # score golden lab questions on the eval corpus (run make ingest-fixtures first)
+make rag-check # does the right doc come back for each test question? (evals/retrieval.yaml)
+make chat-lab  # 10 real lab questions through the full pipeline
 make test      # unit tests (Ollama mocked)
 make test-gb10 # live tests against local Ollama
 ```

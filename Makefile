@@ -1,4 +1,4 @@
-.PHONY: setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe run test test-gb10 lint format eval help
+.PHONY: setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe rag-check rag-check-fixtures chat-lab run test test-gb10 lint format eval help
 
 UV ?= uv
 PY := $(UV) run python
@@ -14,6 +14,9 @@ help:
 	@echo "ingest-fixtures  index the INVENTED eval corpus (evals/fixtures/lab_docs)"
 	@echo "rag-search Q=\"...\"  show which doc sections a question retrieves"
 	@echo "rag-probe    score golden lab questions against the fixture corpus (calibrates rag_min_score)"
+	@echo "rag-check    does the right doc come back for each test question? (evals/retrieval.yaml)"
+	@echo "rag-check-fixtures  same, on the eval corpus"
+	@echo "chat-lab     ask 10 real lab questions through the full pipeline (evals/chat_lab_docs.yaml)"
 	@echo "test         unit tests, Ollama mocked"
 	@echo "test-gb10    tests that need the real GB10 + Ollama"
 	@echo "lint         ruff check + format check"
@@ -64,6 +67,15 @@ rag-search:
 
 rag-probe:
 	ADA_LAB_DOCS_DIR=$(FIXTURE_DOCS) $(PY) -m app.rag probe
+
+rag-check:
+	$(PY) -m app.rag check
+
+rag-check-fixtures:
+	ADA_LAB_DOCS_DIR=$(FIXTURE_DOCS) $(PY) -m app.rag check
+
+chat-lab:
+	$(PY) -m app.chat --script evals/chat_lab_docs.yaml
 
 run:
 	@echo "make run: arrives with the server (M3/M5)"; exit 2

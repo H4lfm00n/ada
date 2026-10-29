@@ -45,6 +45,8 @@ before the chat model and add to the visitor's wait.
   handful of lab docs, so a bigger embedder buys little. Alternatives: `qwen3-embedding:4b`,
   `nomic-embed-text`, `embeddinggemma`.
 Final choice is confirmed once `make bench` reports guard/embed overhead on the GB10.
+*Update 2026-10-29:* PM confirmed `qwen3-embedding:0.6b` (measured ~0.11 s overhead on the GB10).
+Switching to the 4b variant needs `make rag-check` numbers first (D23).
 
 **D8. No FastAPI/server dependency in M0.**
 Why: scope. It arrives with the server milestone.
@@ -205,13 +207,17 @@ brief forbids telemetry). The file records the embed model, vector size, an inde
 version, and a SHA-256 of every source doc. It is written atomically. If the corpus ever grows
 past a few thousand sections, swap the store behind `Retriever`; nothing else changes.
 
-**D19. Sections that still contain `TODO(` are left out of the index.**
-The lab_docs README asked for a warning; ingest now also drops the section, and the warning
-says so (file + heading). Why: a placeholder can then never reach the model, so it can't be
-quoted, and it doesn't depend on the model obeying the "treat TODO as unknown" rule. It
-matches the designer's README ("a half-filled section is worse than a missing one").
+**D19. Sections that still contain `TODO(` are left out of the index. (PM approved 2026-10-29.)**
+Unconfirmed facts must never reach a public kiosk; that is the grounding rule (brief 5.3).
+Ingest drops any `##` section whose heading or body contains `TODO(`, so a placeholder can't
+be quoted, and safety doesn't depend on the model obeying "treat TODO as unknown".
+Kept visible: `make ingest` ends with a "LEFT OUT, unconfirmed" list of every dropped
+section, grouped by file with its heading, so the PM can see what still needs confirming.
+To publish a section, confirm or delete its TODO, then re-run `make ingest`.
+Alternatives: warn only (the lab_docs README's original ask), or drop only the TODO sentence
+(leaves half-sentences like "Hoodies cost").
 Designer: golden `dk_todo_hoodie_price` now passes because no hoodie doc is retrieved, not
-because the model saw TODO and declined. The prompt rule is still worth keeping as a backup.
+because the model saw TODO and declined. The prompt rule stays as a backup.
 
 **D20. Grounding = cosine cutoff + empty docs block + the designer's prompt rule.**
 Only chunks with similarity >= `rag_min_score` reach `<lab_docs>`, top `rag_top_k` (4),
@@ -244,3 +250,27 @@ named after the folder, so evals (`ADA_LAB_DOCS_DIR=evals/fixtures/lab_docs`) ca
 invented facts into the kiosk's index. `data/` is gitignored. `<lab_docs>` / `</lab_docs>`
 typed by a visitor are rewritten to `[lab_docs]` / `[/lab_docs]` before the model sees them,
 the same escaping already applied inside retrieved chunks (redteam `fake_lab_docs_tag_in_input`).
+
+**D23. A retrieval check gates the embed model: `make rag-check`.**
+`evals/retrieval.yaml` lists test questions per docs folder, each with the file(s) that should
+come back (or `expect_none` for "nothing should pass the cutoff"). `make rag-check` embeds
+only the questions (no chat model) and reports recall@k after the cutoff, hit@1, recall@k
+ignoring the cutoff, and MRR, plus a per-question diagnosis:
+- **cutoff too high**: the right file ranked in the top k but scored under `rag_min_score`.
+  Fix: lower the cutoff.
+- **cutoff too low**: an `expect_none` question let something through. Fix: raise it.
+- **embedding miss**: the right file ranked below k. Fix: doc wording/headings first, then
+  a bigger embed model.
+Pass bar: 90% recall@k and every `expect_none` case clean. If real-doc recall misses that
+because of embedding misses, I'll run the same check with `qwen3-embedding:4b` into a separate
+index (`ADA_EMBED_MODEL=... ADA_RAG_INDEX_DIR=data/rag-4b`) and bring both sets of numbers,
+plus the 4b embed latency from `make bench`, before proposing a switch.
+The real-doc suite (17 questions) was drafted against the designer's unmerged
+`task/des-lab-docs-content`; every expected file exists there and survives ingest.
+Retrieval-only questions about TODO sections aren't in it (there is no right doc to find);
+`make chat-lab` covers how the bot answers those.
+
+**D24. `Source:` lines stay in chunks but are left out of the embedding.**
+The designer ends every section with a `Source:` line (DES23) so the model can attribute
+facts. URLs and dates add noise to a vector without adding meaning, so `embed_text` skips
+lines starting with `Source:` / `Sources:`. The model still sees them in `<lab_docs>`.
