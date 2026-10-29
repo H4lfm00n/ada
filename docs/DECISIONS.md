@@ -193,3 +193,37 @@ strip. Ingest should skip `_*` files and README, and warn on leftover `TODO(`.
 prompt canaries (`shared.yaml: always`).**
 The canaries are distinctive phrases from `prompts/system_prompt.md`. Whoever edits the
 prompt updates the list in the same PR.
+
+## 2026-10-29 · Designer: real lab docs v1 (from the PM's research)
+
+**DES21. The knowledge base now covers SFSU offices, not just the lab.**
+The PM's research includes campus services, the academic calendar, Academic Technology, the
+MakerSpace, AI programs, and AI policies. These live in their own files (`sfsu-*`,
+`academic-technology.md`, `dms-*`) and are written as attributed statements ("According to
+the Registrar..."), so the assistant relays and points instead of speaking for SFSU.
+Follow-up: system prompt rule 4 still says "don't state SFSU policy". It needs a line
+allowing attributed relaying of these docs. That's a prompt change, so it waits for
+`make eval` (brief 5.9).
+
+**DES22. Unconfirmed facts get `TODO(PM): confirm` on the sentence; conflicts are never written twice.**
+When two sources disagree, the doc either states only the safe version and explains in an
+HTML comment (shuttle discontinued; hackathon "early October"; colleges listed without a
+count), or marks it TODO. Writing both values would make the assistant say "not sure"
+anyway, and invites it to pick one.
+
+**DES23. Every section ends with a short visible `Source:` line (domain/path, source date, checked date).**
+Alternatives: full URLs, or sources only in comments. Why: the model needs the source to
+attribute ("SFSU's AI site says..."), but long URLs are useless on a kiosk and awkward for
+TTS later. Full URLs stay in the PM's research files.
+
+**DES24. Deliberately left out of the docs:**
+the AI Commons Coordinator's name (undated LinkedIn post, no consent); the College of
+Business AI Hub GB10 systems (not connected to the Commons); the 415-388-2222 typo on one
+health page; AI-detection guidance (conflicting, and not kiosk material); the raw join-form
+URL (pointed to ai.sfsu.edu/ai-students instead).
+
+**DES25. "AI Lab" ↔ "SFSU Student AI Commons" stays a TODO until the PM confirms it.**
+The research couldn't establish that the student-founded AI Lab is the Commons. Until
+confirmed, the assistant can describe the Commons and the AI Studio but will say it's not
+sure how they relate to the AI Lab. If they're the same, the system prompt and persona
+should probably use the Commons' name too.
