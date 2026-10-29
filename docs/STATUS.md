@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-10-28 by ENG (M1 text chat)._
+_Last updated: 2026-10-29 by DES (lab docs + evals); engineer sections last updated 2026-10-28 (M1)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -71,46 +71,62 @@ _Last updated: 2026-10-28 by ENG (M1 text chat)._
 - Farewell triggers are an exact list in `app/pipeline.py` (`FAREWELLS`). Send additions.
 
 ## Designer section
-_Last updated: 2026-10-28 by DES (persona v1), branch `task/des-persona-v1`._
+_Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-evals`._
 
 ### Done
-- `content/persona.md`: persona bible v1 (traits, lore, 5 running jokes, 10 testable
-  voice rules, 14 do/don't pairs).
-- `prompts/system_prompt.md`: system prompt v1. Slots `{{bot_name}}`, `{{current_time}}`,
-  `{{retrieved_context}}`. YAML front matter is loader metadata, not for the model.
-  The static part is about 2,200 tokens, well inside `num_ctx: 8192`.
-- `content/lines.yaml`: 17 categories, 91 lines, 5–7 per category.
-- `content/samples/`: 3 annotated sample conversations, each listing eval seeds.
-- Designer decisions DES1–DES11 in `docs/DECISIONS.md`.
+- Persona v1, system prompt v1, lines v1, 3 samples (branch `task/des-persona-v1`, merged).
+  Decisions DES1–DES11.
+- Lab docs (`task/des-lab-docs-evals`):
+  - `lab_docs/README.md`: how to write docs, privacy rules, ingest notes.
+  - 7 templates: `_TEMPLATE_{about,join,meetings-events,projects,equipment,faq,roles}.md`.
+    Every unknown fact is `TODO(PM)`. The only pre-filled facts come from the brief
+    (GB10, SO-ARM101, the assistant), and each is marked "confirm OK to publish".
+- Evals (`task/des-lab-docs-evals`):
+  - `evals/README.md`: case format, matching rules, scoring, report, proposed `make eval-lint`.
+  - `evals/shared.yaml`: thresholds, default + always-on checks, phrase sets, plain-text
+    patterns, judge rubric.
+  - `evals/golden.yaml`: **63 cases** (17 lab facts, 8 "not sure", 12 AI chat, persona,
+    identity, sessions, emergency/crisis/medical/legal/SFSU/privacy good behavior), 7 multi-turn.
+  - `evals/redteam.yaml`: **87 cases** (31 critical, 44 high, 12 medium), 13 multi-turn:
+    10 hidden injections inside normal questions, 10 slow escalations, 2 indirect injections
+    via a poisoned doc, encodings (base64, leetspeak, reversed, acrostic, zero-width),
+    role-play, slurs/hate, real people, personal info, speaking for SFSU, unsafe how-tos,
+    5 over-refusal checks.
+  - `evals/fixtures/lab_docs/`: invented corpus for eval retrieval (DES12). Not real.
+  - All checks lint clean by hand: YAML loads, ids unique, sets/regexes resolve, every
+    allowed canned line passes its case, grounding facts exist in the fixtures.
+- `content/lines.yaml`: 3 `medical_legal` lines reworded to cover health **and** legal (DES18).
+- Decisions DES12–DES20 in `docs/DECISIONS.md`.
 
-### Engineer needs to wire up (M1/M3)
-- Prompt: strip the front matter, fill slots (`bot_name` from config), format
-  `retrieved_context` as described in the front matter, and escape `</lab_docs>` inside chunks.
-- Lines: map guard and session events to categories via `used_when`. Pick at random,
-  without repeating the last line per session, and fill `{{bot_name}}`.
-- `guard_fallback` covers guard errors/timeouts **and** blocked outputs.
-- `out_of_order` replaces every reply while the kill switch is on (model not called).
-- `goodbye` fires on reset, "bye", and the inactivity timeout.
-- `public_screen_privacy` needs an input-side check for the visitor's own phone, email,
-  student ID, or address.
-- Llama Guard hazard codes → lines: S1/S2/S9 (violent, non-violent crimes, weapons) →
-  `unsafe_request`; S10 (hate) / S12 (sexual) → `hate_or_harassment`; S11 (self-harm) →
-  `crisis_support`; S5 (defamation) → `about_real_people`; S7 (privacy) → `personal_info`;
-  S6 (specialized advice) → `medical_legal`; any other code → `unsafe_request`. Emergency detection needs its own rule; the
-  guard won't flag "someone collapsed" as unsafe.
-- Measure prefill/TTFT with the full system prompt, not a bare question.
+### Engineer needs to wire up (M2/M4)
+- M2 ingest: skip `README.md` and `_*` files, strip `<!-- -->` comments, chunk by `##`,
+  carry file + title + heading + `Last updated` on each chunk, warn on leftover `TODO(`.
+- M2: a `lab_docs_dir` setting so evals can point retrieval at `evals/fixtures/lab_docs/`.
+  The fixture folder must never be ingested into the real index.
+- M4 runner per `evals/README.md`: full pipeline per case, fresh session per case,
+  `assistant:` seeded turns, `control: reset|timeout`, `{{bot_name}}` substitution in
+  checks, sentence counting with `app/sentences.py`, pipeline `source` (model vs
+  `line:<category>`) exposed to the scorer, LLM judge only for model replies with
+  `expected_behavior` answer/refuse/redirect or a `judge` note.
+- M4: `make eval-lint` (no model needed, runs in the sandbox). Checks listed in `evals/README.md`.
+- `prompt_canaries` in `shared.yaml` must track `prompts/system_prompt.md`.
+- Farewell list: "bye" is enough for the golden session cases; no additions needed.
 
 ### Next
-- `DES – lab docs + evals`: `lab_docs/_TEMPLATE_*.md`, `evals/golden.yaml` (40+),
-  `evals/redteam.yaml` (60+).
+- After M2/M4 land: run `make eval` on the GB10, then `DES – fix evals` on the failures.
+- Kiosk UI spec + mockups (M5).
+- Once the PM fills real `lab_docs/`, add golden cases for the real facts.
 
 ### Open questions for PM
-1. Public name: config says `bot_name: Dum-E`, but that's a film character's name.
+1. Public name: config still says `bot_name: Dum-E` (a film character's name).
    Suggested originals: Ada, Sprocket, Grady.
 2. OK to tease a future robot arm ("arms on backorder")?
-3. Academic integrity: "explain concepts, don't write graded work" OK?
-4. English-only for v1 OK?
+3. Academic integrity: "explain concepts, don't write graded work" OK? (`mt_homework_slicing` assumes yes.)
+4. English-only for v1 OK? (`non_english_question` assumes yes.)
 5. Is "built by people in the lab" accurate enough as the origin line?
 6. Confirmed names and numbers for SFSU campus police, counseling, and the health center.
 7. Transcript retention period and who can read logs.
 8. Should the roles doc name the founder? Is there a public lab contact (email, Discord)?
+9. Approve DES15: any failed critical red-team case fails `make eval`?
+10. Lab docs: OK to publish that the lab has a GB10 and an SO-ARM101 kit (planned)?
+11. Who fills in the real `lab_docs/`, and by when? M2 can only be demoed on real facts.
