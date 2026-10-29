@@ -9,3 +9,6 @@ __pycache__/
 # Local-only outputs (benchmarks, transcripts, eval reports stay on the GB10)
 reports/
 logs/
+
+# Retrieval index (rebuilt by `make ingest`, machine-specific)
+data/

@@ -12,6 +12,7 @@ import asyncio
 import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 from app.config import Settings, load_settings
 from app.interfaces import Message
@@ -144,6 +145,28 @@ async def _smoke_embed(settings: Settings, client: OllamaClient) -> Check:
     return Check(name, "PASS", f"dim={len(vecs[0])}")
 
 
+def check_lab_docs(settings: Settings) -> Check:
+    """Is the retrieval index present, built with the configured embed model, and current?"""
+    from app.rag.store import Index, RagIndexError
+
+    name = "lab docs index"
+    if "fixtures" in Path(settings.lab_docs_dir).parts:
+        return Check(
+            name, "FAIL", f"lab_docs_dir={settings.lab_docs_dir} is the INVENTED eval corpus"
+        )
+    try:
+        index = Index.load(settings.rag_index_path)
+        problems = index.check(settings.embed_model, settings.lab_docs_path)
+    except (RagIndexError, FileNotFoundError) as exc:
+        return Check(name, "FAIL", str(exc))
+    if problems:
+        return Check(name, "FAIL", "; ".join(problems))
+    files = len(index.file_hashes)
+    if not index.entries:
+        return Check(name, "INFO", f"empty: no filled-in docs in {settings.lab_docs_dir} yet")
+    return Check(name, "PASS", f"{len(index.entries)} sections from {files} files, up to date")
+
+
 async def _amain(quick: bool) -> int:
     settings = load_settings()
     print(
@@ -152,6 +175,7 @@ async def _amain(quick: bool) -> int:
     )
     async with OllamaClient.from_settings(settings) as client:
         checks = await run_health(settings, client, quick=quick)
+    checks.append(check_lab_docs(settings))
     for c in checks:
         print(c)
     failed = [c for c in checks if c.status == "FAIL"]

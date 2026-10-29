@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
+import re
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -46,6 +48,16 @@ class Settings(BaseSettings):
     lines_file: str = "content/lines.yaml"
     timezone: str = "America/Los_Angeles"
 
+    # Lab knowledge (RAG). The index lives at rag_index_path, one file per docs folder,
+    # so the eval fixture corpus can never end up in the real index.
+    lab_docs_dir: str = "lab_docs"
+    rag_index_dir: str = "data/rag"
+    rag_top_k: int = Field(4, ge=1, le=20)
+    rag_min_score: float = Field(0.35, ge=-1, le=1)
+    rag_max_context_chars: int = Field(3000, gt=0)
+    rag_timeout_s: float = Field(5.0, gt=0)
+    rag_query_instruction: str = ""
+
     target_first_token_s: float = Field(1.5, gt=0)
     target_decode_tok_s: float = Field(10.0, gt=0)
 
@@ -78,6 +90,21 @@ class Settings(BaseSettings):
     def content_path(self, rel: str) -> Path:
         p = Path(rel)
         return p if p.is_absolute() else REPO_ROOT / p
+
+    @property
+    def lab_docs_path(self) -> Path:
+        return self.content_path(self.lab_docs_dir)
+
+    @property
+    def rag_index_path(self) -> Path:
+        """data/rag/<docs dir as a slug>.json, e.g. lab_docs.json, evals_fixtures_lab_docs.json."""
+        docs = self.lab_docs_path.resolve()
+        try:
+            rel = docs.relative_to(REPO_ROOT.resolve()).as_posix()
+        except ValueError:  # a folder outside the repo: name + short hash of the full path
+            rel = f"{docs.name}-{hashlib.sha1(str(docs).encode()).hexdigest()[:8]}"
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", rel).strip("_") or "root"
+        return self.content_path(self.rag_index_dir) / f"{slug}.json"
 
     @property
     def model_tags(self) -> dict[str, str]:

@@ -63,3 +63,47 @@ async def test_pipeline_live_in_character_and_reset() -> None:
 
         bye = await pipeline.handle(sid, "bye")
         assert bye.session_reset and sessions.get(sid) == []
+
+
+async def test_rag_on_fixture_corpus_live(tmp_path) -> None:
+    """M2: real embed model + chat model, INVENTED fixture docs, isolated temp index."""
+    from app.lines import LineBook
+    from app.pipeline import ChatPipeline
+    from app.prompt import PromptBuilder
+    from app.rag.retriever import OllamaRetriever, build_index
+    from app.sessions import InMemorySessionManager
+    from app.sinks import CollectingSink, NoopActionHandler
+
+    s = load_settings().model_copy(
+        update={"lab_docs_dir": "evals/fixtures/lab_docs", "rag_index_dir": str(tmp_path)}
+    )
+    async with OllamaClient.from_settings(s) as client:
+        report = await build_index(client, s)
+        assert report.chunks > 20 and report.dims > 0
+        retriever, problems = OllamaRetriever.open(client, s)
+        assert problems == []
+
+        chunks = await retriever.search("how do I join the lab?", s.rag_top_k)
+        assert chunks and chunks[0].source_file == "join.md", retriever.last_hits[:3]
+
+        pipeline = ChatPipeline(
+            OllamaChatModel(client, s),
+            PromptBuilder.from_settings(s),
+            LineBook.from_settings(s),
+            InMemorySessionManager.from_settings(s),
+            CollectingSink(),
+            NoopActionHandler(),
+            reply_timeout_s=s.request_timeout_s,
+            retriever=retriever,
+            rag_top_k=s.rag_top_k,
+            retrieval_timeout_s=s.rag_timeout_s,
+        )
+        sid = pipeline.sessions.create()
+        r = await pipeline.handle(sid, "what room does the lab meet in?")
+        assert r.source == "model", r.error
+        assert "E-217" in r.text, (r.text, [c.metadata for c in r.retrieved])
+
+        sid = pipeline.sessions.create()
+        r = await pipeline.handle(sid, "what's the wifi password here?")
+        low = r.text.lower()
+        assert "not sure" in low and "lab member" in low, r.text

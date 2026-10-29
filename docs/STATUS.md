@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-10-29 by DES (lab docs + evals); engineer sections last updated 2026-10-28 (M1)._
+_Last updated: 2026-10-29 by ENG (M2 RAG); designer section last updated 2026-10-29 (lab docs + evals)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -40,20 +40,42 @@ _Last updated: 2026-10-29 by DES (lab docs + evals); engineer sections last upda
     in `reports/chat/`).
   - `make bench` now uses the real system prompt (`--neutral-prompt` for the M0 stand-in).
 
+- M2 RAG on branch `task/m2-rag` (sandbox: ruff clean, 145 pass, 4 gb10 skipped):
+  - `app/rag/ingest.py`: skips `README.md` and `_*`, strips `<!-- -->`, one chunk per `##`
+    with file, title, heading, `Last updated`; warns on TODO and **leaves TODO sections out** (D19).
+  - `app/rag/store.py`: JSON index per docs folder in `data/rag/` (gitignored), records embed
+    model, dims, file hashes; detects model swaps and edited/added/deleted docs (D18, D22).
+  - `app/rag/retriever.py`: `OllamaRetriever` (cosine, `rag_min_score` cutoff, `rag_top_k`,
+    `rag_max_context_chars`, Qwen3 query instruction), `EmptyRetriever`, `open_retriever`.
+  - Pipeline: retrieval wired in; follow-up retry with the previous question; any retrieval
+    failure or timeout -> no docs, visitor still gets a reply (D20, D21). `TurnResult` now has
+    `retrieved`, `retrieval_s`, `retrieval_query`, `retrieval_error` (M4 can score grounding).
+  - Visitor-typed `<lab_docs>` tags are neutralized (D22).
+  - New config: `lab_docs_dir` (the eval runner sets it to the fixtures), `rag_*` settings.
+  - `make ingest`, `make ingest-fixtures`, `make rag-search Q=...`, `make rag-probe`;
+    `make health` checks the index; `make chat` shows docs used + retrieval time per reply.
+
 ## In progress
-- M1 verification on the GB10: waiting on PM's `make bench`, `make chat-demo`, and gb10 test output.
+- M1 + M2 verification on the GB10: waiting on PM's `make bench`, `make chat-demo`,
+  `make rag-probe`, and gb10 test output.
 
 ## Next
 - Record the measured TTFT, first-sentence time, and tok/s below. If TTFT misses 1.5 s with
   the ~2.2k-token prompt, options are trimming the prompt (designer), checking prefix-cache
   reuse, or a smaller chat model (PM decision).
-- M2 (RAG) can start: plug a `Retriever` into `ChatPipeline._retrieve`. The formatting already exists.
-- M3 guards plug into the two marked hooks; transcript logging + kill switch with them.
+- Set `rag_min_score` from `make rag-probe` (lowest score of answerable questions vs highest
+  of "don't know" questions). Until then 0.35 is a guess.
+- M3 guards plug into the two marked hooks; transcript logging + kill switch with them. Then
+  add the `dont_know` line short-circuit for guard-classified lab questions with no docs (D20).
+- M4 runner: set `ADA_LAB_DOCS_DIR=evals/fixtures/lab_docs`, run `make ingest-fixtures` first.
 
 ## Measured on GB10
 | date | chat model | prompt | TTFT median | first sentence | decode tok/s | guard | embed | notes |
 |------|-----------|--------|-------------|----------------|--------------|-------|-------|-------|
 | _pending_ | | | | | | | | |
+
+RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable top-1 min,
+"don't know" top-1 max, chosen `rag_min_score`: _pending_
 
 ## Open questions
 - PM: is `qwen3.8:27b` the intended chat model? What is `gemma4:12b` for (fallback if 27B is too slow)?
@@ -62,6 +84,9 @@ _Last updated: 2026-10-29 by DES (lab docs + evals); engineer sections last upda
 - PM: `bot_name` is still `Dum-E` in config (designer suggests an original name: Ada, Sprocket,
   Grady). It's one config line; every prompt and line follows it.
 - PM: OK that the CLI/kiosk shows whole sentences rather than token-by-token (D9)?
+- PM: the real `lab_docs/` has only templates, so the kiosk says "not sure" to every lab
+  question today. M2 is demoable on the fixture corpus; real answers need real docs.
+- PM: OK to drop TODO sections at ingest instead of only warning (D19)?
 
 ## Notes for the designer (from ENG, M1)
 - Two `notes:` items in the `system_prompt.md` front matter were invalid YAML. I quoted them
@@ -69,6 +94,14 @@ _Last updated: 2026-10-29 by DES (lab docs + evals); engineer sections last upda
 - Wired so far: `goodbye` (bye / reset / idle timeout), `guard_fallback` (model error, timeout,
   empty reply), `idle_greetings` (CLI start + after timeout). Guard categories land in M3.
 - Farewell triggers are an exact list in `app/pipeline.py` (`FAREWELLS`). Send additions.
+
+## Notes for the designer (from ENG, M2)
+- Ingest follows `lab_docs/README.md` exactly, with one addition: a section that still has
+  `TODO(` is left out of the index, not just warned about (D19). So `dk_todo_hoodie_price`
+  now tests the retrieval layer; the prompt's TODO rule stays as a backup.
+- Docs are embedded as title + `##` heading + body, so question-style FAQ headings help.
+- Visitor-typed `<lab_docs>` tags become `[lab_docs]` before the model sees them.
+- No prompt or line wording changed.
 
 ## Designer section
 _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-evals`._

@@ -4,11 +4,15 @@ M1 stages (brief section 4); later milestones slot in at the marked hooks:
 
     farewell? ---------------------------> goodbye line, fresh context
     1. input guard                         (M3 hook: _check_input)
-    2. retrieve lab docs                   (M2 hook: _retrieve)
+    2. retrieve lab docs                   (M2: Retriever, see _retrieve)
     3. build prompt (persona + context)
     4. stream from the chat model
     5. output guard, per sentence          (M3 hook: _emit)
     6. emit sentences to the OutputSink
+
+Grounding (M2): only retrieved lab-doc chunks above the score cutoff reach the prompt.
+If retrieval fails or finds nothing, the prompt's <lab_docs> block is empty and the
+designer's prompt rule makes the model say "not sure" + "lab member".
 
 Fail safe: if the model errors, times out, or says nothing, the visitor gets a
 `guard_fallback` line from content/lines.yaml instead of an exception.
@@ -23,7 +27,15 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
-from app.interfaces import ACTION_WAVE, ActionHandler, ChatModel, Chunk, Message, OutputSink
+from app.interfaces import (
+    ACTION_WAVE,
+    ActionHandler,
+    ChatModel,
+    Chunk,
+    Message,
+    OutputSink,
+    Retriever,
+)
 from app.lines import GOODBYE, GUARD_FALLBACK, LineBook
 from app.ollama_client import ChatStats
 from app.prompt import PromptBuilder
@@ -67,6 +79,11 @@ class TurnResult:
     stats: ChatStats | None = None
     error: str | None = None
     session_reset: bool = False
+    # Retrieval (M2): which chunks reached the prompt, and how long the search took.
+    retrieved: list[Chunk] = field(default_factory=list)
+    retrieval_s: float | None = None
+    retrieval_query: str | None = None  # the query that produced `retrieved`
+    retrieval_error: str | None = None
 
     @property
     def text(self) -> str:
@@ -83,6 +100,9 @@ class ChatPipeline:
         sink: OutputSink,
         actions: ActionHandler,
         reply_timeout_s: float | None = None,
+        retriever: Retriever | None = None,
+        rag_top_k: int = 4,
+        retrieval_timeout_s: float | None = 5.0,
         clock: Callable[[], float] = time.perf_counter,
     ) -> None:
         self.model = model
@@ -92,6 +112,9 @@ class ChatPipeline:
         self.sink = sink
         self.actions = actions
         self.reply_timeout_s = reply_timeout_s
+        self.retriever = retriever
+        self.rag_top_k = rag_top_k
+        self.retrieval_timeout_s = retrieval_timeout_s
         self._clock = clock
 
     async def handle(self, session_id: str, user_text: str) -> TurnResult:
@@ -111,7 +134,7 @@ class ChatPipeline:
                 await self.actions.on_action(session_id, ACTION_WAVE)
 
             # M3 hook: input guard runs here, before the model sees anything.
-            chunks = await self._retrieve(text)
+            chunks = await self._retrieve(session.history, text, result)
             messages = self.prompt.build(session.history, text, chunks)
 
             try:
@@ -158,8 +181,35 @@ class ChatPipeline:
 
     # -- stages ---------------------------------------------------------------------
 
-    async def _retrieve(self, text: str) -> list[Chunk]:
-        return []  # M2 hook: Retriever.search(text, k)
+    async def _retrieve(self, history: list[Message], text: str, result: TurnResult) -> list[Chunk]:
+        """Search the lab docs. Never raises: a failure means no docs, so "not sure".
+
+        A follow-up like "and where is it?" retrieves nothing on its own, so if the
+        message alone finds nothing, retry once with the previous visitor message
+        prepended (DECISIONS D21).
+        """
+        if self.retriever is None:
+            return []
+        t0 = self._clock()
+        queries = [text]
+        prev = next((m.content for m in reversed(history) if m.role == "user"), None)
+        if prev:
+            queries.append(f"{prev}\n{text}")
+        chunks: list[Chunk] = []
+        try:
+            async with asyncio.timeout(self.retrieval_timeout_s):
+                for q in queries:
+                    chunks = await self.retriever.search(q, self.rag_top_k)
+                    if chunks:
+                        result.retrieval_query = q
+                        break
+        except Exception as exc:  # fail safe: no docs rather than no reply
+            chunks = []
+            result.retrieval_error = f"{type(exc).__name__}: {exc}"
+            log.warning("retrieval failed (session %s): %s", result.session_id, exc)
+        result.retrieval_s = self._clock() - t0
+        result.retrieved = chunks
+        return chunks
 
     async def _stream_reply(self, messages: list[Message], result: TurnResult, t0: float) -> None:
         splitter = SentenceSplitter()

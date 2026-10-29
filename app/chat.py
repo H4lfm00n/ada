@@ -33,6 +33,7 @@ from app.lines import IDLE_GREETINGS, LineBook
 from app.ollama_client import OllamaChatModel, OllamaClient, OllamaError, normalize_tag
 from app.pipeline import ChatPipeline, TurnResult
 from app.prompt import PromptBuilder
+from app.rag.retriever import open_retriever
 from app.sessions import InMemorySessionManager
 from app.sinks import ConsoleSink, NoopActionHandler
 
@@ -50,6 +51,7 @@ class App:
     sink: ConsoleSink
     actions: NoopActionHandler
     model: OllamaChatModel
+    rag_warnings: list[str]
 
 
 def build_app(settings: Settings, client: OllamaClient) -> App:
@@ -58,6 +60,7 @@ def build_app(settings: Settings, client: OllamaClient) -> App:
     sessions = InMemorySessionManager.from_settings(settings)
     actions = NoopActionHandler()
     model = OllamaChatModel(client, settings)
+    retriever, rag_warnings = open_retriever(client, settings)
     pipeline = ChatPipeline(
         model=model,
         prompt=PromptBuilder.from_settings(settings),
@@ -66,14 +69,27 @@ def build_app(settings: Settings, client: OllamaClient) -> App:
         sink=sink,
         actions=actions,
         reply_timeout_s=settings.request_timeout_s,
+        retriever=retriever,
+        rag_top_k=settings.rag_top_k,
+        retrieval_timeout_s=settings.rag_timeout_s,
     )
-    return App(settings, pipeline, sessions, sink, actions, model)
+    return App(settings, pipeline, sessions, sink, actions, model, rag_warnings)
+
+
+def print_rag_warnings(app: App) -> None:
+    for w in app.rag_warnings:
+        print(f"WARN {w}", file=sys.stderr)
 
 
 def timing_line(r: TurnResult) -> str:
     parts = []
     if r.source != "model":
         parts.append(r.source)
+    if r.retrieval_s is not None:
+        docs = ",".join(c.metadata.get("id", c.source_file) for c in r.retrieved) or "none"
+        parts.append(f"docs {docs} in {r.retrieval_s * 1000:.0f}ms")
+    if r.retrieval_error:
+        parts.append(f"RETRIEVAL ERROR {r.retrieval_error}")
     if r.ttft_s is not None:
         parts.append(f"first token {r.ttft_s:.2f}s")
     if r.first_sentence_s is not None:
@@ -94,6 +110,7 @@ def summarize(results: list[TurnResult], settings: Settings) -> dict[str, Any]:
     tfs = [r.first_sentence_s for r in model_turns if r.first_sentence_s is not None]
     rates = [r.stats.decode_tok_s for r in model_turns if r.stats and r.stats.decode_tok_s]
     prompt_toks = [r.stats.prompt_eval_count for r in model_turns if r.stats]
+    rag = [r.retrieval_s for r in results if r.retrieval_s is not None]
 
     def med(xs: list[float]) -> float | None:
         return statistics.median(xs) if xs else None
@@ -107,6 +124,9 @@ def summarize(results: list[TurnResult], settings: Settings) -> dict[str, Any]:
         "first_sentence_max_s": max(tfs) if tfs else None,
         "decode_tok_s_median": med(rates),
         "prompt_tokens_max": max(prompt_toks) if prompt_toks else None,
+        "retrieval_median_s": med(rag),
+        "retrieval_max_s": max(rag) if rag else None,
+        "retrieval_errors": sum(1 for r in results if r.retrieval_error),
         "target_first_token_s": settings.target_first_token_s,
         "meets_ttft_target": bool(ttft) and med(ttft) <= settings.target_first_token_s,
     }
@@ -130,6 +150,11 @@ def print_summary(summary: dict[str, Any], thinking_chars: int) -> None:
     rate = summary["decode_tok_s_median"]
     print(f"decode         median {'n/a' if rate is None else f'{rate:.1f} tok/s'}")
     print(f"largest prompt {summary['prompt_tokens_max']} tokens")
+    if summary.get("retrieval_median_s") is not None:
+        print(
+            f"retrieval      median {f(summary['retrieval_median_s'])}"
+            f"  max {f(summary['retrieval_max_s'])}  errors {summary['retrieval_errors']}"
+        )
     print(f"thinking: {'LEAKED (' + str(thinking_chars) + ' chars)' if thinking_chars else 'off'}")
 
 
@@ -173,7 +198,11 @@ async def run_script(
         app = build_app(settings, client)
         try:
             await check_model(app, client)
-            print(f"chat={settings.chat_model} | think={settings.think} | bot={settings.bot_name}")
+            print(
+                f"chat={settings.chat_model} | think={settings.think} | bot={settings.bot_name}"
+                f" | docs={settings.lab_docs_dir}"
+            )
+            print_rag_warnings(app)
             if do_warmup:
                 print(f"warmup (model load + prompt cache): {await warmup(app):.2f}s")
         except OllamaError as exc:
@@ -217,6 +246,12 @@ async def run_script(
                     "first_sentence_s": r.first_sentence_s,
                     "total_s": r.total_s,
                     "error": r.error,
+                    "retrieved": [
+                        {"id": c.metadata.get("id"), "score": round(c.score, 4)}
+                        for c in r.retrieved
+                    ],
+                    "retrieval_s": r.retrieval_s,
+                    "retrieval_error": r.retrieval_error,
                 }
                 for r in results
             ],
@@ -249,6 +284,7 @@ async def run_interactive(settings: Settings, *, do_warmup: bool, show_stats: bo
         app = build_app(settings, client)
         try:
             await check_model(app, client)
+            print_rag_warnings(app)
             if do_warmup:
                 print(f"{DIM}warming up {settings.chat_model}...{RESET}", flush=True)
                 print(f"{DIM}ready in {await warmup(app):.1f}s{RESET}")

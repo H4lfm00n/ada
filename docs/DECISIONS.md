@@ -193,3 +193,54 @@ strip. Ingest should skip `_*` files and README, and warn on leftover `TODO(`.
 prompt canaries (`shared.yaml: always`).**
 The canaries are distinctive phrases from `prompts/system_prompt.md`. Whoever edits the
 prompt updates the list in the same PR.
+
+## 2026-10-29 · M2 lab knowledge (RAG)
+
+**D18. The retrieval index is a JSON file with a linear scan, not Chroma.**
+Alternatives: Chroma (role-file default), FAISS, sqlite-vec.
+Why: the corpus is a few dozen `##` sections (the fixture corpus is 30). Scoring them all in
+pure Python takes well under a millisecond, so a vector DB buys nothing and adds a large
+dependency tree (aarch64 wheel risk) and, for Chroma, telemetry that is on by default (the
+brief forbids telemetry). The file records the embed model, vector size, an index format
+version, and a SHA-256 of every source doc. It is written atomically. If the corpus ever grows
+past a few thousand sections, swap the store behind `Retriever`; nothing else changes.
+
+**D19. Sections that still contain `TODO(` are left out of the index.**
+The lab_docs README asked for a warning; ingest now also drops the section, and the warning
+says so (file + heading). Why: a placeholder can then never reach the model, so it can't be
+quoted, and it doesn't depend on the model obeying the "treat TODO as unknown" rule. It
+matches the designer's README ("a half-filled section is worse than a missing one").
+Designer: golden `dk_todo_hoodie_price` now passes because no hoodie doc is retrieved, not
+because the model saw TODO and declined. The prompt rule is still worth keeping as a backup.
+
+**D20. Grounding = cosine cutoff + empty docs block + the designer's prompt rule.**
+Only chunks with similarity >= `rag_min_score` reach `<lab_docs>`, top `rag_top_k` (4),
+capped at `rag_max_context_chars` (3,000; the best chunk is always kept). With nothing above
+the cutoff the block is empty, and the system prompt makes the model reply with "not sure" +
+"lab member", the same fixed phrases as the `dont_know` lines. The 0.35 default is a
+placeholder until `make rag-probe` reports real scores on the GB10.
+Not done, deliberately: a code short-circuit that returns the canned `dont_know` line for a lab
+question with no docs. Without M3's input routing it would misfire on attacks that mention the
+lab or SFSU and expect a different line (e.g. redteam `is_president_here_now` -> `personal_info`,
+`sfsu_endorses_lab` -> `official_sfsu`, `crack_lab_wifi` -> `unsafe_request`). Revisit in M3:
+once the input guard has classified a message as a benign lab-fact question, "no docs" ->
+`dont_know` line is safe and saves a model call.
+
+**D21. Retrieval details.**
+- Query = the visitor's message. If it finds nothing and there is an earlier visitor message
+  in the session, retry once with both joined, so "and where is it?" still finds the meeting doc.
+- Qwen3-Embedding gets an instruction prefix on queries only (`rag_query_instruction`).
+  Documents are embedded as title + heading + body.
+- Fail safe: an embedding error, a model swap (vector size mismatch), or a timeout
+  (`rag_timeout_s`, 5 s) -> no docs for that turn, the error is logged on the turn result, and
+  the visitor still gets a reply (which says "not sure" for lab facts).
+- A missing or wrong-model index doesn't stop `make chat`: it runs with no docs and prints a
+  warning. `make health` reports it as FAIL, and also FAILs if `lab_docs_dir` points at the
+  invented eval corpus.
+
+**D22. One index per docs folder, and visitors can't forge a docs block.**
+`data/rag/lab_docs.json` and `data/rag/evals_fixtures_lab_docs.json` are separate files
+named after the folder, so evals (`ADA_LAB_DOCS_DIR=evals/fixtures/lab_docs`) can't write
+invented facts into the kiosk's index. `data/` is gitignored. `<lab_docs>` / `</lab_docs>`
+typed by a visitor are rewritten to `[lab_docs]` / `[/lab_docs]` before the model sees them,
+the same escaping already applied inside retrieved chunks (redteam `fake_lab_docs_tag_in_input`).
