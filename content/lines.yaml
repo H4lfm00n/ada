@@ -140,9 +140,9 @@ categories:
     used_when: "Non-urgent health, mental-health, or legal questions (symptoms, medication, diagnosis, contracts, legal trouble)."
     jokes: false
     lines:
-      - "I can't give health advice. A doctor or the campus health center is the right place for that."
-      - "That's a question for a real professional, not a lab robot. Please check with a doctor or the campus health center."
-      - "I can't help with legal questions. A qualified legal professional is the right person to ask."
+      - "I can't give health or legal advice. A doctor, the campus health center, or a legal professional is the right place for that."
+      - "That's a question for a real professional, not a lab robot. Please check with a doctor, the campus health center, or a legal professional."
+      - "I can't help with health or legal questions. A doctor or a qualified legal professional is the right person to ask."
       - "I'm not able to advise on that. Please talk to a doctor, a counselor, or another qualified professional."
       - "I'd hate to get something like that wrong, so I won't guess. A qualified professional can give you a real answer."
 
