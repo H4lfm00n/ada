@@ -227,3 +227,29 @@ The research couldn't establish that the student-founded AI Lab is the Commons. 
 confirmed, the assistant can describe the Commons and the AI Studio but will say it's not
 sure how they relate to the AI Lab. If they're the same, the system prompt and persona
 should probably use the Commons' name too.
+
+## 2026-11-10 · Designer: real lab docs v1 restructure (`task/des-lab-docs-v1`)
+
+**DES26. Twelve files, one topic each, per the PM:** `about`, `join`, `meetings-events`,
+`projects`, `equipment`, `rules`, `roles`, `faq`, plus `sfsu`, `academic-technology`, `dms`,
+`ai-policy`. The six `sfsu-*` files and two `dms-makerspace*` files are merged into `sfsu.md`
+and `dms.md`/`rules.md`. `sfsu.md` (~1,500 words) breaks the ~600-word guide on purpose;
+every `##` section stands alone, so retrieval isn't affected.
+
+**DES27. The PM confirmed the research except CONFLICT / PRIVATE? items. TODOs now exist only for conflicts.**
+Gaps (things no source covers: founding date, dues, GPU policy, officers...) are simply not
+written, so the assistant says "not sure". They're listed in STATUS.md, not as TODOs.
+No PRIVATE? items existed in the research.
+
+**DES28. Ingest drops any `##` section containing `TODO(`** (PM rule). So every TODO sits in
+its own section, and confirmed facts never share a section with one. This replaces the
+"warn on leftover TODO" note in the old README. Safety-critical facts (University Police
+415-338-2222) are in confirmed sections, never next to a TODO.
+
+**DES29. Templates moved to `docs/lab_doc_templates/`**, outside `lab_docs/`, so no ingest
+bug can index them.
+
+**DES30. The docs describe the SFSU Student AI Commons and the AI Studio; they never say "the AI Lab is the Commons".**
+The research still doesn't establish that relationship (DES25 stands). Also dropped vs v1:
+the "robot assistant" and GB10 sections, which came from the brief, not the research, and
+the AI Commons Coordinator's name (a personal LinkedIn; the role is kept without a name).
