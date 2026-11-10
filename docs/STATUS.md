@@ -128,7 +128,13 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
     verdict ("A") was too coarse; it now reports PARTIAL. Likely cause (unconfirmed): how
     Ollama's cache handles this model (slots, or cache checkpoints if the architecture is
     hybrid). Shrinking the docs alone saves at most ~0.3 to 0.4 s, not enough for 1.5 s.
-  - Waiting on (GB10 run 6): `ollama show` for the model architecture, Ollama's environment,
+  - **Cause found (run 6, `ollama show`):** `qwen3.8:27b` is architecture `qwen35` (Qwen3.5
+    family). Qwen3.5 is a hybrid model: about 3 of every 4 layers are Gated DeltaNet
+    (recurrent state), the rest full attention. A recurrent state can't be rolled back to an
+    arbitrary prefix, so inference engines only reuse the cache from saved checkpoints. That
+    matches run 5's partial reuse exactly. This is the model's architecture, not our code or
+    prompt order. The model also loads a vision projector (clip, 461M) that we don't use.
+  - Waiting on (GB10 run 6b; the run 6 paste stopped at a `systemctl` pager): Ollama's environment,
     the k3-small latency from run 3, and a diagnose pass with `gemma4:12b` for a quality and
     latency comparison. **No model change without the PM.** M2's functional goal is met;
     merging doesn't depend on latency.
@@ -170,7 +176,10 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
   until M4's evals give a bigger sample. No change made.
 - PM: **first token for a lab question is ~2.5 s, target 1.5 s.** Cause (run 5): processing
   runs at 783 tok/s and each new question redoes ~900 to 1,200 tokens. Options:
-  (1) an Ollama cache setting, if run 6 shows one applies (cheap, no quality cost);
+  (1) an Ollama cache setting: unlikely to help much, since the hybrid architecture limits
+      prefix reuse in every engine (llama.cpp, vLLM and SGLang have open issues on it);
+  (1b) a non-hybrid dense model (a Qwen3-generation dense model, or another full-attention
+      model) gets normal prefix caching: only ~500 new tokens per lab question;
   (2) a smaller chat model (`gemma4:12b`): run 6 measures quality and speed, your decision;
   (3) a shorter static system prompt (designer, ~2,100 tokens now);
   (4) accept ~2.5 s for lab questions and let the kiosk show its "thinking" state (M5).
