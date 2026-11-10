@@ -143,7 +143,22 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
     gemma4:12b is the only option that meets 1.5 s. It's untested on persona, AI chat,
     and red-team behavior; a smaller model may be easier to jailbreak, and M3 guards + M4
     evals must confirm before any demo. **No config change yet; PM decision.**
-  - Waiting on (GB10 run 7): gemma4:12b with each question asked 3 times, its Q18 answer, and chat-demo (persona + decode speed).
+  - **GB10 run 7, gemma4:12b (each question asked 3 times, plus chat-demo):** 59/63 answers OK.
+    First token: new lab question 1.10 s median, 1.20 s max; chat 0.94 s median, 1.29 s max
+    (all PASS). Decode 50.5 tok/s (qwen: ~28). In character, grounded, and it gave ai@sfsu.edu
+    with the meeting room (the Q12 fix works on gemma).
+    - Q14: 1 real narration slip ("as the docs do not say"). 1 correct answer my hint missed
+      ("does not say"); hint fixed.
+    - **Q18 hedges:** 2 of 3 answers open "I am not sure about that" and then give the right
+      answer (no remote access; overnight jobs only if started in person). gemma follows the
+      "not sure" rule more eagerly than qwen.
+    - **Stiffer voice:** gemma avoids contractions ("that is what I am here for", "I do not
+      know"). The persona wants warm and casual. It also said "Oops, I fumbled that" when
+      nothing had gone wrong.
+    - Both are prompt-level (designer): "use contractions"; "say 'not sure' only when the
+      docs don't answer; if they do, answer plainly".
+  - **PM decision pending: switch `chat_model` to `gemma4:12b`?** Not yet tested on red-team
+    behavior. M3 guards + M4 evals gate any demo either way.
     Earlier list, still open: Ollama's environment,
     the k3-small latency from run 3, and a diagnose pass with `gemma4:12b` for a quality and
     latency comparison. **No model change without the PM.** M2's functional goal is met;
