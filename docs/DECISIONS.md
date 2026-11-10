@@ -394,3 +394,22 @@ cover joining, events, clubs, and the Leadership Committee. Retrieval can't fix 
 phrasing; a doc section can. Every fact in it is copied from `join.md` and
 `meetings-events.md`, with their `Source:` lines. No new facts. An HTML comment flags it for
 the designer, who owns the wording.
+
+**D29. The bot speaks as if it knows lab facts, never "the docs say". (PM request, 2026-11-10; ENG edit to a designer-owned file.)**
+In runs 1 to 3 many correct answers opened with "The docs say..." or "The docs don't
+mention...". The PM: the assistant should speak like it knows things, not like it's
+retrieving them. Nothing in the prompt said otherwise, and the docs block is literally
+labelled `<lab_docs>`, so the model narrated it. Two bullets added to `prompts/system_prompt.md`
+under "Lab facts come only from the lab docs". Nothing else was reworded, and no grounding
+rule was loosened:
+1. Talk about lab facts as things you simply know. Never mention docs, documents, notes,
+   sources, context, or looking things up. When attribution helps, name the real source
+   ("SFSU's AI site"), which keeps rule 4: it still doesn't speak for SFSU.
+2. When not sure but the docs name a contact for the topic, give it alongside "lab member"
+   (Q12 skipped ai@sfsu.edu 6 of 7 times).
+The "not sure" + "lab member" fixed phrases are unchanged. `real_docs_qa.yaml` gains
+`always_avoid`, which checks every answer for narration. Designer: please sync
+`content/persona.md` (the prompt front matter says to keep them in sync) and reword freely.
+Brief 5.9 says prompt changes pass the eval suite before merging. M4 doesn't exist yet, so
+the gate for now is `make rag-diagnose` plus `make chat-demo` (persona and safety smoke run).
+`make eval` follows when M4 lands.

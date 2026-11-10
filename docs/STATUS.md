@@ -98,8 +98,14 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
       misleading: repeats of the same question hit Ollama's prompt cache. First asks were
       2.27 to 2.68s (4 visible samples), against a 1.5s target. Diagnose now reports new
       questions separately, with prefill token counts.
-  - Waiting on: GB10 run 3. It measures new-question first-token time and prefill tokens,
-    and compares a smaller docs block (k=3, 1,500 chars) on accuracy and latency.
+  - **GB10 run 3 (partial paste):** the smaller docs block (k=3, 1,500 chars) scored 20/21,
+    the same quality as k=4. Q12 is still the only miss. The coffee-machine case is OK ("not
+    sure"). Latency lines weren't pasted.
+  - **PM feedback: answers say "the docs say...", which sounds like retrieval, not like the
+    assistant knowing things.** Prompt fix (D29, PM-requested edit to the designer's
+    prompt), plus the Q12 contact rule. Every diagnose answer is now checked for narration
+    (`always_avoid`).
+  - Waiting on: GB10 run 4 (diagnose + chat-demo on the new prompt, plus latency lines).
 
 ## Next
 - Record the measured TTFT, first-sentence time, and tok/s below. If TTFT misses 1.5 s with
@@ -166,7 +172,10 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 - I added one section to `lab_docs/faq.md`: "How can I get involved if I don't have a
   project yet?" (D28). It only copies facts from join.md and meetings-events.md, and it has
   an HTML comment. Reword it freely.
-- Prompt suggestions from GB10 run 1 (your call; any prompt change needs `make eval`):
+- **D29 (2026-11-10): at the PM's request I edited `prompts/system_prompt.md`.** I added two
+  bullets: speak as if you know lab facts and never mention "the docs"; give the contact the
+  docs name when not sure. Please sync `content/persona.md` and reword as you like.
+- Prompt suggestions from GB10 run 1 (items 1 and 2 are now covered by D29):
   1. **Most important (the only real miss in run 2).** When the docs don't answer but **name
      a contact** ("contact the AI Commons team, ai@sfsu.edu"), give that contact as well
      as "not sure + lab member". Q12 skipped it 5 of 6 times; Q13 and Q15 included it.

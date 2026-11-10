@@ -15,6 +15,14 @@
 version: 1
 lab_docs_dir: lab_docs
 
+# Checked on EVERY answer, on top of each case's own `avoid` (PM, 2026-11-10, D29): the bot
+# talks like it knows things. It never narrates retrieval ("the docs say...").
+always_avoid:
+  - '\b(?:the|my|our|these|those|lab) (?:lab )?docs?\b'
+  - '\bdocuments?\b'
+  - '\baccording to (?:my|the) (?:info|information|notes|sources?|records)\b'
+  - '\b(?:retriev|looked (?:it|that) up)'
+
 cases:
   - n: 0
     q: What is the AI Commons, and who is it for?

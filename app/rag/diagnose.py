@@ -82,6 +82,7 @@ _NoDupLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _no
 
 def load_cases(path: Path) -> list[QACase]:
     data = yaml.load(path.read_text(encoding="utf-8"), Loader=_NoDupLoader) or {}
+    always = tuple(str(p) for p in data.get("always_avoid") or [])
     cases = []
     for raw in data.get("cases") or []:
         want = raw.get("want", "answer")
@@ -95,7 +96,7 @@ def load_cases(path: Path) -> list[QACase]:
                 expect=tuple([expect] if isinstance(expect, str) else expect),
                 want=want,
                 facts=tuple(_group(f) for f in raw.get("facts") or []),
-                avoid=tuple(raw.get("avoid") or []),
+                avoid=tuple(raw.get("avoid") or []) + always,
                 note=str(raw.get("note") or ""),
             )
         )

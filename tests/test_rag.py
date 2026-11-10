@@ -808,3 +808,18 @@ def test_latency_counts_only_first_asks_against_the_target(
     assert "new question: median 2.50s" in out and "[MISS]" in out
     assert "cached repeat: median 0.50s" in out
     assert "median 1000 uncached tokens in 2.00s  (500 tok/s)" in out
+
+
+def test_always_avoid_catches_retrieval_narration(repo_root: Path) -> None:
+    from app.rag.diagnose import judge, load_cases
+
+    case = next(c for c in load_cases(repo_root / "evals" / "real_docs_qa.yaml") if c.n == 11)
+    bad = judge(case, "The docs say meetings are in LIB 260.", [], [])
+    assert bad.avoided_hits
+    also_bad = judge(case, "According to my info, it's LIB 260.", [], [])
+    assert also_bad.avoided_hits
+    good = judge(case, "Meetings are in the Digital Media Studio, LIB 260.", [], [])
+    assert not good.avoided_hits
+    # Real names are fine: "Google Docs" isn't narration, and neither is a real source.
+    ok = judge(case, "SFSU's AI site says it's LIB 260; you can use Google Docs there.", [], [])
+    assert not ok.avoided_hits
