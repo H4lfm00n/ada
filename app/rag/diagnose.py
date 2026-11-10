@@ -250,13 +250,11 @@ def print_latency(answers: list[dict[str, Any]], target_s: float) -> None:
         if x.get("first_ask") and x.get("prefill_tokens") and x.get("prefill_s")
     ]
     if pre:
+        # Ollama's prompt_eval_count includes cached tokens: it is the prompt size, not
+        # the work done. prompt_eval_duration is the work. (`make prefill-probe` splits them.)
         toks = statistics.median(t for t, _ in pre)
         secs = statistics.median(d for _, d in pre)
-        rate = sum(t for t, _ in pre) / sum(d for _, d in pre)
-        print(
-            f"prefill, new question: median {toks:.0f} uncached tokens in {secs:.2f}s"
-            f"  ({rate:.0f} tok/s)"
-        )
+        print(f"new question: prompt median {toks:.0f} tokens, prefill median {secs:.2f}s")
 
 
 STAGE_ORDER = ("ok", "answer", "retrieval")
@@ -312,7 +310,7 @@ async def run_diagnose(
                         "ttft_s": r.ttft_s,
                         "retrieval_s": r.retrieval_s,
                         "first_ask": run == 0,
-                        # Ollama counts only tokens it had to prefill (not cache hits).
+                        # prompt size incl. cached tokens; prefill_s is the work done
                         "prefill_tokens": r.stats.prompt_eval_count if r.stats else None,
                         "prefill_s": r.stats.prompt_eval_duration / 1e9 if r.stats else None,
                     }

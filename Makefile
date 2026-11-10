@@ -1,4 +1,4 @@
-.PHONY: setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe rag-check rag-check-fixtures rag-diagnose ingest-report chat-lab run test test-gb10 lint format eval help
+.PHONY: setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe rag-check rag-check-fixtures rag-diagnose ingest-report prefill-probe chat-lab run test test-gb10 lint format eval help
 
 UV ?= uv
 PY := $(UV) run python
@@ -18,6 +18,7 @@ help:
 	@echo "rag-check-fixtures  same, on the eval corpus"
 	@echo "ingest-report  ingest + list every section ingested, dropped, or skipped (and why)"
 	@echo "rag-diagnose  real-docs questions: top 3 chunks + the bot's answer (evals/real_docs_qa.yaml)"
+	@echo "prefill-probe  why lab questions are slow: is the cached system prompt reused when docs change?"
 	@echo "chat-lab     ask 10 real lab questions through the full pipeline (evals/chat_lab_docs.yaml)"
 	@echo "test         unit tests, Ollama mocked"
 	@echo "test-gb10    tests that need the real GB10 + Ollama"
@@ -69,6 +70,9 @@ ingest-report:
 
 rag-diagnose:
 	$(PY) -m app.rag diagnose $(ARGS)
+
+prefill-probe:
+	$(PY) -m app.prefill_probe
 
 rag-search:
 	$(PY) -m app.rag search "$(Q)"
