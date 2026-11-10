@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-11-10 by DES (lab docs v1 restructure); engineer sections last updated 2026-10-28 (M1)._
+_Last updated: 2026-11-10 by ENG (M2 on real docs)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -40,28 +40,74 @@ _Last updated: 2026-11-10 by DES (lab docs v1 restructure); engineer sections la
     in `reports/chat/`).
   - `make bench` now uses the real system prompt (`--neutral-prompt` for the M0 stand-in).
 
+- M2 RAG on branch `task/m2-rag` (sandbox: ruff clean, 145 pass, 4 gb10 skipped):
+  - `app/rag/ingest.py`: skips `README.md` and `_*`, strips `<!-- -->`, one chunk per `##`
+    with file, title, heading, `Last updated`; warns on TODO and **leaves TODO sections out** (D19).
+  - `app/rag/store.py`: JSON index per docs folder in `data/rag/` (gitignored), records embed
+    model, dims, file hashes; detects model swaps and edited/added/deleted docs (D18, D22).
+  - `app/rag/retriever.py`: `OllamaRetriever` (cosine, `rag_min_score` cutoff, `rag_top_k`,
+    `rag_max_context_chars`, Qwen3 query instruction), `EmptyRetriever`, `open_retriever`.
+  - Pipeline: retrieval wired in; follow-up retry with the previous question; any retrieval
+    failure or timeout -> no docs, visitor still gets a reply (D20, D21). `TurnResult` now has
+    `retrieved`, `retrieval_s`, `retrieval_query`, `retrieval_error` (M4 can score grounding).
+  - Visitor-typed `<lab_docs>` tags are neutralized (D22).
+  - New config: `lab_docs_dir` (the eval runner sets it to the fixtures), `rag_*` settings.
+  - `make ingest`, `make ingest-fixtures`, `make rag-search Q=...`, `make rag-probe`;
+    `make health` checks the index; `make chat` shows docs used + retrieval time per reply.
+  - After PM answers (2026-10-29): `make ingest` ends with a "LEFT OUT, unconfirmed" list
+    (file + heading) of every TODO section it dropped (D19, approved). `Source:` lines stay in
+    chunks but not in vectors (D24). Retrieval check `make rag-check` /
+    `make rag-check-fixtures` over `evals/retrieval.yaml` (D23). `make chat-lab` asks 10 real
+    lab questions through the full pipeline (`evals/chat_lab_docs.yaml`).
+    Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
+
 ## In progress
-- M1 verification on the GB10: waiting on PM's `make bench`, `make chat-demo`, and gb10 test output.
+- **M2 on real docs** (branch `task/m2-real-docs`, 2026-11-10). Found at start: `task/m2-rag`
+  was never merged, so `main` had the real docs but no RAG code (no ingest, no retriever).
+  This branch = current `main` + `task/m2-rag` (docs-only conflicts in STATUS/DECISIONS,
+  both sides kept) + the real-docs diagnostics below. Merging it supersedes `task/m2-rag`.
+  - `make ingest-report`: per file, every section INGESTED / DROPPED (TODO or empty heading)
+    / SKIPPED file (README, `_*`, hidden, non-Markdown), each with its reason. Sandbox parse
+    of `lab_docs/`: 12 files, 133 sections, 0 dropped, README skipped.
+  - `make rag-diagnose` (`evals/real_docs_qa.yaml`, the PM's 20 questions): per question,
+    top 3 chunks (file > heading, score, `*` = reached the prompt), the bot's real answer,
+    and a hint saying whether a miss is `retrieval` or `answer` (D25). JSON in `reports/rag/`.
+  - `evals/retrieval.yaml` real suite rewritten for the 12-file layout (the old one named
+    files that no longer exist): 29 questions + 2 `expect_none`.
+  - Prompt experiment (D26): `prompts/experiments/system_prompt_docs_example.md` = the real
+    prompt with one few-shot example swapped. **Not used by config.** Diagnose runs both.
+  - Sandbox: ruff clean, 156 pass, 4 gb10 skipped.
+  - Waiting on: PM's GB10 output of `make ingest-report`, `make rag-check`, and both
+    `make rag-diagnose` runs. Then fix what it shows.
 
 ## Next
 - Record the measured TTFT, first-sentence time, and tok/s below. If TTFT misses 1.5 s with
   the ~2.2k-token prompt, options are trimming the prompt (designer), checking prefix-cache
   reuse, or a smaller chat model (PM decision).
-- M2 (RAG) can start: plug a `Retriever` into `ChatPipeline._retrieve`. The formatting already exists.
-- M3 guards plug into the two marked hooks; transcript logging + kill switch with them.
+- Set `rag_min_score` from the real-docs `make rag-check` + `make rag-diagnose` scores (the
+  fixture probe is the wrong corpus now). Until then 0.35 is a guess.
+- M3 guards plug into the two marked hooks; transcript logging + kill switch with them. Then
+  add the `dont_know` line short-circuit for guard-classified lab questions with no docs (D20).
+- M4 runner: set `ADA_LAB_DOCS_DIR=evals/fixtures/lab_docs`, run `make ingest-fixtures` first.
 
 ## Measured on GB10
 | date | chat model | prompt | TTFT median | first sentence | decode tok/s | guard | embed | notes |
 |------|-----------|--------|-------------|----------------|--------------|-------|-------|-------|
 | _pending_ | | | | | | | | |
 
+RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable top-1 min,
+"don't know" top-1 max, chosen `rag_min_score`: _pending_
+
 ## Open questions
 - PM: is `qwen3.8:27b` the intended chat model? What is `gemma4:12b` for (fallback if 27B is too slow)?
-- PM: confirm proposed guard `llama-guard3:8b` and embed `qwen3-embedding:0.6b` (docs/DECISIONS.md D7).
+- PM: confirm proposed guard `llama-guard3:8b` (D7). Embed `qwen3-embedding:0.6b` confirmed 2026-10-29.
 - PM: confirm `session_timeout_s: 120` and `target_decode_tok_s: 10` in config.yaml.
 - PM: `bot_name` is still `Dum-E` in config (designer suggests an original name: Ada, Sprocket,
   Grady). It's one config line; every prompt and line follows it.
 - PM: OK that the CLI/kiosk shows whole sentences rather than token-by-token (D9)?
+- ~~Real docs~~: merged to `main` 2026-11-10 (12 files, 0 TODOs).
+- PM: merge `task/m2-real-docs` (not `task/m2-rag`) once the GB10 run looks right.
+- ~~Drop TODO sections at ingest?~~ Yes (D19), with the dropped list printed by ingest.
 
 ## Notes for the designer (from ENG, M1)
 - Two `notes:` items in the `system_prompt.md` front matter were invalid YAML. I quoted them
@@ -69,6 +115,31 @@ _Last updated: 2026-11-10 by DES (lab docs v1 restructure); engineer sections la
 - Wired so far: `goodbye` (bye / reset / idle timeout), `guard_fallback` (model error, timeout,
   empty reply), `idle_greetings` (CLI start + after timeout). Guard categories land in M3.
 - Farewell triggers are an exact list in `app/pipeline.py` (`FAREWELLS`). Send additions.
+
+## Notes for the designer (from ENG, M2)
+- Ingest follows `lab_docs/README.md` exactly, with one addition: a section that still has
+  `TODO(` is left out of the index, not just warned about (D19). So `dk_todo_hoodie_price`
+  now tests the retrieval layer; the prompt's TODO rule stays as a backup.
+- Docs are embedded as title + `##` heading + body, so question-style FAQ headings help.
+- Visitor-typed `<lab_docs>` tags become `[lab_docs]` before the model sees them.
+- No prompt or line wording changed.
+- (2026-10-29) Your `Source:` lines are kept in each chunk, as you asked; they're just not
+  embedded (D24). `evals/retrieval.yaml` has 17 retrieval questions for the real docs. Add
+  more anytime: `{q: "...", expect: file.md}`. If you rename or split a file, update it there.
+- Heads-up from parsing your branch: about.md, join.md, roles.md, and projects.md are almost
+  all TODO, so "how do I join / when do you meet / what is the AI Lab" will get "not sure"
+  until the PM confirms those sections.
+
+## Notes for the designer (from ENG, M2 real docs, 2026-11-10)
+- Prompt: the few-shot example "what room do you guys meet in" -> "I'm not sure" now
+  contradicts the docs (meetings: DMS, LIB 260). I made an experiment copy that swaps only
+  that example for "how much are the lab hoodies" (D26); `make rag-diagnose` compares both.
+  Your call whether it goes in `prompts/system_prompt.md` (and `make eval` after).
+- Doc gap: no section says where the **AI Lab** itself is. about.md only says the Lab gives
+  access to resources "in the Digital Media Studio (DMS) in LIB 260". Q3 "Where is the AI
+  Lab located?" depends on the model inferring it. Consider a one-line FAQ section.
+- The prompt's identity is "the AI Lab"; the docs are almost all "Student AI Commons". Watch
+  the diagnose output for the bot treating Commons facts as "not about this lab".
 
 ## Designer section
 _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-evals`._

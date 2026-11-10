@@ -4,7 +4,8 @@ The designer owns the wording. This module only:
   * strips the YAML front matter (loader metadata, never sent to the model),
   * fills {{bot_name}}, {{current_time}}, {{retrieved_context}},
   * formats retrieved chunks the way the front matter specifies, escaping any
-    "<lab_docs>" / "</lab_docs>" inside a chunk so docs can't break out of their block.
+    "<lab_docs>" / "</lab_docs>" inside a chunk so docs can't break out of their block,
+    and in visitor messages so nobody can forge a docs block.
 
 Unknown or unfilled slots raise PromptError: a typo in the template should fail at
 startup, not leak "{{bot_name}}" onto the kiosk.
@@ -143,4 +144,11 @@ class PromptBuilder:
         now: datetime | None = None,
     ) -> list[Message]:
         system = self.system.render(self.now_text(now), format_chunks(chunks))
-        return [Message("system", system), *history, Message("user", user_text)]
+        # A visitor typing "<lab_docs>...</lab_docs>" must not be able to forge or close
+        # the docs block (red team: fake_lab_docs_tag_in_input).
+        convo = [Message(m.role, escape_lab_docs_tags(m.content)) for m in history]
+        return [
+            Message("system", system),
+            *convo,
+            Message("user", escape_lab_docs_tags(user_text)),
+        ]

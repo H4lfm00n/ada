@@ -1,0 +1,143 @@
+# Real-docs smoke questions for `make rag-diagnose` (engineer-owned diagnostic, not an
+# eval set). Each runs on a fresh session through the full pipeline, against lab_docs/.
+#
+#   expect: file(s) in lab_docs/ that hold the answer
+#   want:   answer  -> the docs answer it; saying "not sure" is a miss
+#           unknown -> the docs say it isn't published / contact the team; the bot should
+#                      say so (and give the contact), never invent it
+#   facts:  every item must appear in the answer (case-insensitive substring);
+#           a list item means "any of these"
+#   avoid:  regexes that must NOT appear (invented links, false promises)
+# Facts are the minimum a correct answer contains, checked against lab_docs/ on 2026-11-10.
+# If a doc changes, update the case. Hints only: M4 does real scoring.
+
+version: 1
+lab_docs_dir: lab_docs
+
+cases:
+  - n: 0
+    q: What is the AI Commons, and who is it for?
+    expect: [about.md, faq.md]
+    facts: [student, [organization, "student org"]]
+    note: about.md "What the SFSU Student AI Commons is". Must not describe the CSU AI Commons.
+
+  - n: 1
+    q: How does the AI Lab relate to the Student AI Commons?
+    expect: [faq.md, about.md]
+    facts: [support]
+
+  - n: 2
+    q: What does DMS stand for?
+    expect: dms.md
+    facts: [Digital Media Studio]
+
+  - n: 3
+    q: Where is the AI Lab located?
+    expect: [about.md, faq.md, meetings-events.md]
+    facts: [LIB 260]
+    note: >-
+      Only implied: about.md says the AI Lab gives access to resources "in the Digital Media
+      Studio (DMS) in LIB 260". No section says "the AI Lab is in LIB 260" outright.
+
+  - n: 4
+    q: Are AT's support hours the same as DMS's opening hours?
+    expect: [academic-technology.md, dms.md, rules.md, about.md]
+    facts: [["no", "not the same", "different"]]
+    avoid: ['^\W*yes\b']
+    note: >-
+      Two-hop. AT (LIB 80): Mon-Thu 8 AM-8 PM, Fri 8-5. DMS: Mon-Thu 10 AM-7 PM, Fri 10-5.
+      Needs academic-technology.md AND one of dms/rules/about in the prompt.
+
+  - n: 5
+    q: How do I submit a project proposal?
+    expect: [join.md, faq.md, projects.md, equipment.md]
+    facts: [request form]
+    avoid: ['https?://', 'forms\.']
+    note: The form's URL is not in kiosk text (join.md comment). Must not invent one.
+
+  - n: 6
+    q: What happens after I submit the student request form?
+    expect: [faq.md, join.md, projects.md]
+    facts: [follow, software]
+
+  - n: 7
+    q: Can the team help identify the software my project needs?
+    expect: [join.md, faq.md, projects.md, equipment.md]
+    facts: [software, ["yes", "will", "follow"]]
+
+  - n: 8
+    q: What equipment is available in the Commons?
+    expect: [equipment.md, faq.md]
+    facts: [robotic dog, robotic arm, 3D printer]
+
+  - n: 9
+    q: Do you have robotic dogs and robotic arms?
+    expect: [equipment.md, faq.md]
+    facts: ["yes"]
+
+  - n: 10
+    q: How can I get involved without an existing project?
+    expect: [join.md, faq.md, meetings-events.md, roles.md]
+    facts: [[Join now, ai.sfsu.edu, Leadership Committee, club, event, Instagram]]
+    note: Several valid answers (join form, Leadership Committee, clubs, events). Any one counts.
+
+  - n: 11
+    q: Where do meetings take place?
+    expect: [meetings-events.md, faq.md]
+    facts: [LIB 260]
+    note: >-
+      The system prompt's few-shot example "what room do you guys meet in" answers
+      "I'm not sure". Watch this case: it now contradicts the docs.
+
+  - n: 12
+    q: What exact day and time do you meet every week?
+    want: unknown
+    expect: [meetings-events.md, faq.md]
+    facts: [ai@sfsu.edu]
+    avoid: ['\b(monday|tuesday|wednesday|thursday|friday)s?\b.{0,20}\d']
+    note: Not published; docs say contact the AI Commons team (ai@sfsu.edu). No invented slot.
+
+  - n: 13
+    q: How much are membership dues?
+    want: unknown
+    expect: [join.md, faq.md]
+    facts: [ai@sfsu.edu]
+    avoid: ['\$\s?\d', '\bfree\b']
+
+  - n: 14
+    q: Does submitting a proposal guarantee approval or software installation?
+    want: unknown
+    expect: [join.md, faq.md, projects.md, equipment.md]
+    facts: [["no", "not sure", "doesn't say", "not guaranteed", "isn't guaranteed"]]
+    avoid: ['^\W*yes\b']
+    note: Docs only say the team follows up to discuss. No guarantee either way.
+
+  - n: 15
+    q: Can I reserve a GPU online? Give me the booking link.
+    want: unknown
+    expect: [equipment.md, rules.md, faq.md]
+    facts: [ai@sfsu.edu]
+    avoid: ['https?://', 'www\.', '\.edu/']
+    note: Booking goes through the AI Lab team by email. There is no link. Must not invent one.
+
+  - n: 16
+    q: Can I access the lab's computers remotely from home?
+    expect: [equipment.md, rules.md, faq.md]
+    facts: [["no", "not available", "isn't available", "can't"]]
+
+  - n: 17
+    q: Can I start a training job in person and leave it running overnight?
+    expect: [equipment.md, rules.md, faq.md]
+    facts: [["yes", allowed, "can"]]
+    avoid: ['^\W*no\b']
+
+  - n: 18
+    q: Can I start an overnight job remotely?
+    expect: [equipment.md, rules.md, faq.md]
+    facts: [["no", "not available", "isn't", "can't", "in person"]]
+
+  - n: 19
+    q: Does the overnight computing rule also allow overnight 3D printing?
+    expect: [rules.md]
+    facts: [["no", "not allowed", "isn't allowed"], [seven, "7"]]
+    note: rules.md "3D printing rules" - prints must finish within seven hours, no overnight printing.

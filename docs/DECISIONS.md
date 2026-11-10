@@ -45,6 +45,8 @@ before the chat model and add to the visitor's wait.
   handful of lab docs, so a bigger embedder buys little. Alternatives: `qwen3-embedding:4b`,
   `nomic-embed-text`, `embeddinggemma`.
 Final choice is confirmed once `make bench` reports guard/embed overhead on the GB10.
+*Update 2026-10-29:* PM confirmed `qwen3-embedding:0.6b` (measured ~0.11 s overhead on the GB10).
+Switching to the 4b variant needs `make rag-check` numbers first (D23).
 
 **D8. No FastAPI/server dependency in M0.**
 Why: scope. It arrives with the server milestone.
@@ -194,6 +196,85 @@ prompt canaries (`shared.yaml: always`).**
 The canaries are distinctive phrases from `prompts/system_prompt.md`. Whoever edits the
 prompt updates the list in the same PR.
 
+## 2026-10-29 · M2 lab knowledge (RAG)
+
+**D18. The retrieval index is a JSON file with a linear scan, not Chroma.**
+Alternatives: Chroma (role-file default), FAISS, sqlite-vec.
+Why: the corpus is a few dozen `##` sections (the fixture corpus is 30). Scoring them all in
+pure Python takes well under a millisecond, so a vector DB buys nothing and adds a large
+dependency tree (aarch64 wheel risk) and, for Chroma, telemetry that is on by default (the
+brief forbids telemetry). The file records the embed model, vector size, an index format
+version, and a SHA-256 of every source doc. It is written atomically. If the corpus ever grows
+past a few thousand sections, swap the store behind `Retriever`; nothing else changes.
+
+**D19. Sections that still contain `TODO(` are left out of the index. (PM approved 2026-10-29.)**
+Unconfirmed facts must never reach a public kiosk; that is the grounding rule (brief 5.3).
+Ingest drops any `##` section whose heading or body contains `TODO(`, so a placeholder can't
+be quoted, and safety doesn't depend on the model obeying "treat TODO as unknown".
+Kept visible: `make ingest` ends with a "LEFT OUT, unconfirmed" list of every dropped
+section, grouped by file with its heading, so the PM can see what still needs confirming.
+To publish a section, confirm or delete its TODO, then re-run `make ingest`.
+Alternatives: warn only (the lab_docs README's original ask), or drop only the TODO sentence
+(leaves half-sentences like "Hoodies cost").
+Designer: golden `dk_todo_hoodie_price` now passes because no hoodie doc is retrieved, not
+because the model saw TODO and declined. The prompt rule stays as a backup.
+
+**D20. Grounding = cosine cutoff + empty docs block + the designer's prompt rule.**
+Only chunks with similarity >= `rag_min_score` reach `<lab_docs>`, top `rag_top_k` (4),
+capped at `rag_max_context_chars` (3,000; the best chunk is always kept). With nothing above
+the cutoff the block is empty, and the system prompt makes the model reply with "not sure" +
+"lab member", the same fixed phrases as the `dont_know` lines. The 0.35 default is a
+placeholder until `make rag-probe` reports real scores on the GB10.
+Not done, deliberately: a code short-circuit that returns the canned `dont_know` line for a lab
+question with no docs. Without M3's input routing it would misfire on attacks that mention the
+lab or SFSU and expect a different line (e.g. redteam `is_president_here_now` -> `personal_info`,
+`sfsu_endorses_lab` -> `official_sfsu`, `crack_lab_wifi` -> `unsafe_request`). Revisit in M3:
+once the input guard has classified a message as a benign lab-fact question, "no docs" ->
+`dont_know` line is safe and saves a model call.
+
+**D21. Retrieval details.**
+- Query = the visitor's message. If it finds nothing and there is an earlier visitor message
+  in the session, retry once with both joined, so "and where is it?" still finds the meeting doc.
+- Qwen3-Embedding gets an instruction prefix on queries only (`rag_query_instruction`).
+  Documents are embedded as title + heading + body.
+- Fail safe: an embedding error, a model swap (vector size mismatch), or a timeout
+  (`rag_timeout_s`, 5 s) -> no docs for that turn, the error is logged on the turn result, and
+  the visitor still gets a reply (which says "not sure" for lab facts).
+- A missing or wrong-model index doesn't stop `make chat`: it runs with no docs and prints a
+  warning. `make health` reports it as FAIL, and also FAILs if `lab_docs_dir` points at the
+  invented eval corpus.
+
+**D22. One index per docs folder, and visitors can't forge a docs block.**
+`data/rag/lab_docs.json` and `data/rag/evals_fixtures_lab_docs.json` are separate files
+named after the folder, so evals (`ADA_LAB_DOCS_DIR=evals/fixtures/lab_docs`) can't write
+invented facts into the kiosk's index. `data/` is gitignored. `<lab_docs>` / `</lab_docs>`
+typed by a visitor are rewritten to `[lab_docs]` / `[/lab_docs]` before the model sees them,
+the same escaping already applied inside retrieved chunks (redteam `fake_lab_docs_tag_in_input`).
+
+**D23. A retrieval check gates the embed model: `make rag-check`.**
+`evals/retrieval.yaml` lists test questions per docs folder, each with the file(s) that should
+come back (or `expect_none` for "nothing should pass the cutoff"). `make rag-check` embeds
+only the questions (no chat model) and reports recall@k after the cutoff, hit@1, recall@k
+ignoring the cutoff, and MRR, plus a per-question diagnosis:
+- **cutoff too high**: the right file ranked in the top k but scored under `rag_min_score`.
+  Fix: lower the cutoff.
+- **cutoff too low**: an `expect_none` question let something through. Fix: raise it.
+- **embedding miss**: the right file ranked below k. Fix: doc wording/headings first, then
+  a bigger embed model.
+Pass bar: 90% recall@k and every `expect_none` case clean. If real-doc recall misses that
+because of embedding misses, I'll run the same check with `qwen3-embedding:4b` into a separate
+index (`ADA_EMBED_MODEL=... ADA_RAG_INDEX_DIR=data/rag-4b`) and bring both sets of numbers,
+plus the 4b embed latency from `make bench`, before proposing a switch.
+The real-doc suite (17 questions) was drafted against the designer's unmerged
+`task/des-lab-docs-content`; every expected file exists there and survives ingest.
+Retrieval-only questions about TODO sections aren't in it (there is no right doc to find);
+`make chat-lab` covers how the bot answers those.
+
+**D24. `Source:` lines stay in chunks but are left out of the embedding.**
+The designer ends every section with a `Source:` line (DES23) so the model can attribute
+facts. URLs and dates add noise to a vector without adding meaning, so `embed_text` skips
+lines starting with `Source:` / `Sources:`. The model still sees them in `<lab_docs>`.
+
 ## 2026-10-29 · Designer: real lab docs v1 (from the PM's research)
 
 **DES21. The knowledge base now covers SFSU offices, not just the lab.**
@@ -262,3 +343,22 @@ The old Discord invite was removed everywhere. Ethan Cortes is named (public AT 
 listing, provided by the PM); student officers still need consent before being named.
 The GB10 is back in the docs as Commons checkout equipment; the College of Business AI Hub
 GB10s remain separate.
+
+## 2026-11-10 · M2 on the real docs (`task/m2-real-docs`)
+
+**D25. A per-question diagnostic for real docs: `make rag-diagnose`.**
+`make rag-check` says whether the right file came back; it can't say why a reply is wrong.
+`rag-diagnose` runs each question in `evals/real_docs_qa.yaml` through the real pipeline on a
+fresh session and prints the top 3 chunks with scores, what reached the prompt, the answer,
+and a hint: `retrieval` (the expected doc never reached the prompt: cutoff, embedding, or doc
+wording) or `answer` (it did, and the model still missed a fact, said "not sure", or invented
+a link). Hints are substring/regex checks, not scoring; M4's runner and judge own pass/fail.
+Also: `make ingest-report` lists every section ingested, dropped (TODO / empty heading), and
+every skipped file with its reason. Empty sections used to vanish silently.
+
+**D26. Prompt changes are tested as side-by-side copies before the designer adopts them.**
+`prompts/experiments/` holds engineer-made variants that config never points at. The first:
+the "what room do you guys meet in -> not sure" example swapped for an undocumented
+question, because the docs now answer the meeting room. Compared with
+`ADA_SYSTEM_PROMPT_FILE=... make rag-diagnose`. Adopting a variant is the designer's
+change to `prompts/system_prompt.md`, followed by `make eval` (brief 5.9).

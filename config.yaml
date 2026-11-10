@@ -31,6 +31,17 @@ system_prompt_file: prompts/system_prompt.md
 lines_file: content/lines.yaml
 timezone: America/Los_Angeles  # fills {{current_time}} in the system prompt
 
+# --- Lab knowledge (RAG, M2) ----------------------------------------------------
+# Re-run `make ingest` after editing any file in lab_docs_dir.
+lab_docs_dir: lab_docs                # evals point this at evals/fixtures/lab_docs
+rag_index_dir: data/rag               # one JSON index per docs folder; never committed
+rag_top_k: 4                          # max chunks per question
+rag_min_score: 0.35                   # cosine cutoff; calibrate with `make rag-probe`. TODO(PM): confirm after probe
+rag_max_context_chars: 3000           # cap on retrieved text per turn (prefill latency)
+rag_timeout_s: 5                      # embedding the question; on timeout: no docs ("not sure")
+# Qwen3-Embedding expects an instruction on queries (not on documents). "" disables it.
+rag_query_instruction: "Given a question from a visitor to a university AI lab, retrieve the lab document sections that answer it"
+
 # --- Latency targets (brief section 8) -----------------------------------------
 target_first_token_s: 1.5
 target_decode_tok_s: 10.0     # proposal: comfortably faster than reading speed. TODO(PM): confirm
