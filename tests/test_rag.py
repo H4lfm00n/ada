@@ -698,7 +698,7 @@ def test_diagnose_cases_load_and_point_at_real_files(repo_root: Path) -> None:
     from app.rag.diagnose import load_cases
 
     cases = load_cases(repo_root / "evals" / "real_docs_qa.yaml")
-    assert [c.n for c in cases] == list(range(20))
+    assert [c.n for c in cases] == list(range(21))
     from app.rag.diagnose import matches
 
     corpus = parse_corpus(repo_root / "lab_docs")
@@ -791,3 +791,20 @@ def test_diagnose_section_expectations_and_duplicate_keys(tmp_path: Path) -> Non
     bad.write_text("cases:\n  - {n: 0, q: x, avoid: [a], avoid: [b]}\n")
     with pytest.raises(ValueError, match="duplicate"):
         load_cases(bad)
+
+
+def test_latency_counts_only_first_asks_against_the_target(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from app.rag.diagnose import print_latency
+
+    answers = [
+        {"first_ask": True, "ttft_s": 2.5, "prefill_tokens": 1000, "prefill_s": 2.0},
+        {"first_ask": False, "ttft_s": 0.5, "prefill_tokens": 1, "prefill_s": 0.01},
+        {"first_ask": False, "ttft_s": 0.5, "prefill_tokens": 1, "prefill_s": 0.01},
+    ]
+    print_latency(answers, 1.5)
+    out = capsys.readouterr().out
+    assert "new question: median 2.50s" in out and "[MISS]" in out
+    assert "cached repeat: median 0.50s" in out
+    assert "median 1000 uncached tokens in 2.00s  (500 tok/s)" in out

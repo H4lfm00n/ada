@@ -116,7 +116,10 @@ cases:
     q: Does submitting a proposal guarantee approval or software installation?
     want: unknown
     expect: [join.md, faq.md, projects.md, equipment.md]
-    facts: [["no", "not sure", "doesn't say", "not guaranteed", "isn't guaranteed"]]
+    facts:
+      - ["no", "not sure", "not necessarily", "not guaranteed", "isn't guaranteed",
+         "doesn't guarantee", "does not guarantee", "don't mention", "doesn't mention",
+         "don't promise", "doesn't promise"]
     avoid: ['^\W*yes\b']
     note: Docs only say the team follows up to discuss. No guarantee either way.
 
@@ -151,3 +154,14 @@ cases:
     note: >-
       rules.md "3D printing rules": no overnight printing (prints must finish within seven
       hours). "No, overnight printing isn't allowed" is a full answer; the 7 hours is a bonus.
+
+  - n: 20
+    q: Does the lab have a coffee machine?
+    want: unknown
+    expect: []
+    facts: [["not sure", "don't know", "no coffee"]]
+    avoid: ['^\W*yes\b']
+    note: >-
+      Moved from retrieval.yaml (2026-11-10, D27): it scores 0.549 against equipment.md,
+      above the 0.50 gate, so retrieval can't screen it out. The bot must still say "not
+      sure" from docs that don't mention coffee. This is the prompt's grounding rule at work.

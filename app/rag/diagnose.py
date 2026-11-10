@@ -220,6 +220,44 @@ def print_answer(r: TurnResult, v: Verdict, run: int, repeat: int) -> None:
     )
 
 
+def print_latency(answers: list[dict[str, Any]], target_s: float) -> None:
+    """First token for a NEW question vs a repeat of the same one.
+
+    A repeat reuses Ollama's prompt cache for the whole prompt (same docs, same question),
+    so it says nothing about a real visitor. Only first asks count against the target.
+    """
+
+    def ttfts(first: bool) -> list[float]:
+        return sorted(
+            x["ttft_s"] for x in answers if x.get("first_ask") is first and x["ttft_s"] is not None
+        )
+
+    first, repeats = ttfts(True), ttfts(False)
+    if first:
+        verdict = "PASS" if statistics.median(first) <= target_s else "MISS"
+        print(
+            f"first token, new question: median {statistics.median(first):.2f}s"
+            f"  max {first[-1]:.2f}s  (target <= {target_s}s) [{verdict}]"
+        )
+    if repeats:
+        print(
+            f"first token, cached repeat: median {statistics.median(repeats):.2f}s (not a target)"
+        )
+    pre = [
+        (x["prefill_tokens"], x["prefill_s"])
+        for x in answers
+        if x.get("first_ask") and x.get("prefill_tokens") and x.get("prefill_s")
+    ]
+    if pre:
+        toks = statistics.median(t for t, _ in pre)
+        secs = statistics.median(d for _, d in pre)
+        rate = sum(t for t, _ in pre) / sum(d for _, d in pre)
+        print(
+            f"prefill, new question: median {toks:.0f} uncached tokens in {secs:.2f}s"
+            f"  ({rate:.0f} tok/s)"
+        )
+
+
 STAGE_ORDER = ("ok", "answer", "retrieval")
 
 
@@ -272,6 +310,10 @@ async def run_diagnose(
                         "problems": v.problems,
                         "ttft_s": r.ttft_s,
                         "retrieval_s": r.retrieval_s,
+                        "first_ask": run == 0,
+                        # Ollama counts only tokens it had to prefill (not cache hits).
+                        "prefill_tokens": r.stats.prompt_eval_count if r.stats else None,
+                        "prefill_s": r.stats.prompt_eval_duration / 1e9 if r.stats else None,
                     }
                 )
             rows.append(
@@ -307,12 +349,7 @@ async def run_diagnose(
         f"   answers ok {ok_answers}/{len(answers)}"
         f"   retrieval misses {counts['retrieval']}   answer misses {counts['answer']}"
     )
-    ttft = sorted(x["ttft_s"] for x in answers if x["ttft_s"] is not None)
-    if ttft:
-        print(
-            f"first token median {statistics.median(ttft):.2f}s  max {ttft[-1]:.2f}s"
-            f"  (target <= {settings.target_first_token_s}s)"
-        )
+    print_latency(answers, settings.target_first_token_s)
     print("(hints only; M4 scores for real)")
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)

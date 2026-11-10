@@ -379,6 +379,13 @@ can join. `rag_extra_min_score` unset = old single-cutoff behavior (fixture test
 Margins are about 0.06 to 0.07 either side of the gate on only 2 negatives, so the real-docs
 check now has 6 "nothing answers this" questions and 6 casually worded answerable ones.
 Re-tune if those overlap. The prompt rule ("not sure" + "lab member") stays as the backup.
+Run 2: 5 of 6 negatives screened out. "Does the lab have a coffee machine?" scored 0.549
+against equipment.md, above the gate and only 0.011 under the lowest answerable question
+(0.560). That's a real overlap: "does the lab have X" sits next to the equipment docs in
+embedding space whatever X is. Raising the gate to catch it would be fitting to one
+question. So the gate is a coarse filter, and for "does the lab have X?" the grounding
+guarantee is the prompt rule. The case moved to `real_docs_qa.yaml` (case 20), where the
+bot's reply ("not sure", never "yes") is what's checked.
 
 **D28. A real-docs FAQ section added by ENG: "How can I get involved if I don't have a project yet?"**
 "How can I get involved without an existing project?" pulled only the project-proposal

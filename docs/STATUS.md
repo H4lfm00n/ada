@@ -82,7 +82,24 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
     (D28). Diagnose cases fixed, plus checks for overclaims seen in run 1. `--repeat`.
     Section-level expectations. First-token median in the summary. Retrieval check grew to
     41 questions (6 negatives, 6 casual). Sandbox: ruff clean, 158 pass, 4 gb10 skipped.
-  - Waiting on: GB10 run 2. It includes a temperature 0.7 vs 0.3 comparison for a PM decision.
+  - **GB10 run 2 (2026-11-10, gate/floor 0.50/0.40, each question asked 3 times):**
+    - Real-docs retrieval: recall@4 100%, hit@1 100%, negatives 5/6. Fixture corpus: PASS,
+      100% recall, negatives 3/3.
+    - The one leak: "does the lab have a coffee machine?" scores 0.549 against equipment.md,
+      and the lowest answerable question scores 0.560. No cutoff separates them, so it moved
+      to the diagnose set (case 20), where the reply is checked (D27).
+    - Answers 56/60 at both temperature 0.7 and 0.3. Q10 fixed (3/3). Q4 and Q15 3/3.
+    - Q14 (proposal guarantee): every answer was correct; my hint was too narrow ("doesn't
+      guarantee", "not necessarily"). Fixed.
+    - **Q12 (weekly day and time) is the only real miss:** "not sure, ask a lab member"
+      without ai@sfsu.edu, which the doc in the prompt gives. 1/3 at 0.7, 0/3 at 0.3. Prompt
+      wording, so it goes to the designer (see designer notes).
+    - **Latency: misses the target for new questions.** The reported 0.60s median was
+      misleading: repeats of the same question hit Ollama's prompt cache. First asks were
+      2.27 to 2.68s (4 visible samples), against a 1.5s target. Diagnose now reports new
+      questions separately, with prefill token counts.
+  - Waiting on: GB10 run 3. It measures new-question first-token time and prefill tokens,
+    and compares a smaller docs block (k=3, 1,500 chars) on accuracy and latency.
 
 ## Next
 - Record the measured TTFT, first-sentence time, and tok/s below. If TTFT misses 1.5 s with
@@ -97,7 +114,7 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
 ## Measured on GB10
 | date | chat model | prompt | TTFT median | first sentence | decode tok/s | guard | embed | notes |
 |------|-----------|--------|-------------|----------------|--------------|-------|-------|-------|
-| _pending_ | | | | | | | | |
+| 2026-11-10 | qwen3.8:27b | real + RAG k=4 (<=3,000 chars) | ~2.3-2.7s new question (4 samples); 0.55s cached repeat | n/a | n/a | n/a | qwen3-embedding:0.6b | rag-diagnose run 2; full numbers in run 3 |
 
 RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable top-1 min,
 "don't know" top-1 max, chosen `rag_min_score`: _pending_
@@ -115,9 +132,13 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
   "the AI Lab is in the DMS, LIB 260" from "resources in the DMS in LIB 260". In one run it
   said "the AI Lab is in the AI Studio", which nothing states. If it's true, the designer adds
   a "Where is the AI Lab?" section; if not, the docs need to say where it is.
-- PM: chat `temperature` is 0.7. Run 1 had factual slips at 0.7 (a wrong closing time, "the
-  team helps with dues"). Run 2 compares 0.3 on the same questions. Lowering it is a model
-  setting change, so it needs `make eval` (brief 5.9).
+- PM: chat `temperature`. Run 2: 0.7 and 0.3 both scored 56/60. 0.3 gave near-identical
+  answers on repeats, which is more consistent but more robotic. Recommendation: keep 0.7
+  until M4's evals give a bigger sample. No change made.
+- PM: **first token for a new question is ~2.5s, target 1.5s.** Options, cheapest first:
+  (1) a smaller docs block (k=3, 1,500 chars), measured in run 3; (2) check whether the
+  static system prompt is really cached (run 3's prefill token count shows it); (3) a smaller
+  chat model (`gemma4:12b`), which is your decision. I won't change models without your OK.
 - ~~Drop TODO sections at ingest?~~ Yes (D19), with the dropped list printed by ingest.
 
 ## Notes for the designer (from ENG, M1)
@@ -146,9 +167,10 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
   project yet?" (D28). It only copies facts from join.md and meetings-events.md, and it has
   an HTML comment. Reword it freely.
 - Prompt suggestions from GB10 run 1 (your call; any prompt change needs `make eval`):
-  1. When the docs don't answer but **name a contact** ("contact the AI Commons team,
-     ai@sfsu.edu"), give that contact as well as "not sure + lab member". Q12 skipped it;
-     Q13 and Q15 included it.
+  1. **Most important (the only real miss in run 2).** When the docs don't answer but **name
+     a contact** ("contact the AI Commons team, ai@sfsu.edu"), give that contact as well
+     as "not sure + lab member". Q12 skipped it 5 of 6 times; Q13 and Q15 included it.
+     Your few-shot "not sure" example (no contact) is probably what the model copies.
   2. The bot tells visitors "the docs say / the docs only mention" (Q10, Q12, Q14). That
      breaks character; it should just know or not know.
   3. Overclaims seen: "the team also helps with costs or dues" (the docs only say contact

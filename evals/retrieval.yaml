@@ -84,7 +84,10 @@ suites:
       # every one must score under it, every answerable question above it.
       - {q: "how much are the lab hoodies?", expect_none: true}
       - {q: "who won the lab's chess tournament last spring?", expect_none: true}
-      - {q: "does the lab have a coffee machine?", expect_none: true}
+      # "does the lab have a coffee machine?" was here: it scores 0.549 against equipment.md,
+      # above the gate, and no cosine cutoff separates it from real equipment questions
+      # (lowest answerable: 0.560). It is now case 20 in real_docs_qa.yaml, where the reply
+      # is what's checked (D27).
       - {q: "what's the best pizza place near campus?", expect_none: true}
       - {q: "is there a lab trip to Tokyo this summer?", expect_none: true}
       - {q: "what's your favorite movie?", expect_none: true}
