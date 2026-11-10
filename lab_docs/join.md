@@ -1,71 +1,51 @@
-# How to join the AI Lab and the SFSU Student AI Commons
+# How to join the SFSU Student AI Commons
 
-Last updated: 2026-10-29
+Last updated: 2026-11-10
 
 <!--
-Compiled 2026-10-29 from public sources. The join form's questions could not be read, so
-everything after "fill out the form" is still unknown. Fill in the AI Lab's own steps if
-they differ from the Commons'.
+v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29).
+Not published anywhere, so not stated: eligibility rules, cost or dues, an approval step,
+onboarding, or what happens after the join form. The join-form questions couldn't be read.
+Full form URL (kept out of the kiosk text on purpose):
+https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=NeP72CyCqUGHdH8WcJqsn0dbUyhwlEJKt_nGmjk9QYhUNDJWT09OWVY1NDdaOElQUEw3UU5ORUlXMy4u
 -->
 
-## How to join the SFSU Student AI Commons
+## How to join the Student AI Commons
 
 To join the SFSU Student AI Commons, use the "Join now!" link on SFSU's AI for Students
-page, ai.sfsu.edu/ai-students. The link opens an online sign-up form.
-
-TODO(PM): confirm what happens after someone submits the form (a welcome email, a first
-meeting, a Discord invite).
+page, ai.sfsu.edu/ai-students. The link opens a Microsoft Forms sign-up form.
 
 Source: AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29).
 
-## How to join the AI Lab
+## Student AI Commons Discord and Instagram
 
-TODO(PM): confirm whether joining the AI Lab is the same as joining the Student AI
-Commons, or list the AI Lab's own steps here.
+The SFSU Student AI Commons has a Discord server at discord.gg/XSmfEh25 and an Instagram
+account, @sfsuaistudentcommons. Both are linked from SFSU's AI for Students page,
+ai.sfsu.edu/ai-students.
 
-## Who can join the SFSU Student AI Commons
+Source: AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29).
 
-The Student AI Commons Leadership Committee kickoff invited all students to meet others
-interested in AI and help decide the group's direction.
+## Helping decide the Student AI Commons' direction
 
-TODO(PM): confirm who is eligible to join (all SFSU students? any major? graduate
-students? alumni? non-SFSU visitors?).
+The Student AI Commons Leadership Committee invited all students to its kickoff on
+September 23, 2026, to meet others interested in AI and help decide the group's direction.
+The Leadership Committee meets monthly.
 
-Source: Leadership Committee kickoff, ai.sfsu.edu/event/sfsu-ai-student-commons-leadership-committee-kick (event 2026-09-23, historical, checked 2026-10-29).
+Source: Leadership Committee kickoff, ai.sfsu.edu/event/sfsu-ai-student-commons-leadership-committee-kick (event 2026-09-23, historical, checked 2026-10-29); President's Messages, planning.sfsu.edu/presidents-messages (source date 2026-10-01, checked 2026-10-29).
 
-## Does joining cost money?
+## Student AI clubs that work with the Commons
 
-TODO(PM): confirm whether joining the AI Lab or the Student AI Commons is free. Recent
-Commons events were listed as free, but no membership policy was found.
+Three student clubs hold weekly meetings in coordination with the SFSU Student AI Commons:
+the AI Agents Club, the AI Organization, and the Graduate Business AI Club. Their
+GatorXperience listings are linked from the Commons programming page,
+at.sfsu.edu/event/student-ai-commons.
 
-## Experience needed to join
-
-TODO(PM): confirm that no AI or programming experience is needed to join. An earlier
-Commons workshop said no experience was required for that event, and the fall 2026 AI
-hackathon was designed for beginners, but no general membership rule was found.
-
-Sources: AI Commons: ChatGPT 101, library.sfsu.edu/event/ai-commons-chatgpt-101 (event 2025-10-14, checked 2026-10-29); SFSU hosts inaugural AI hackathon, news.sfsu.edu/news/sfsu-hosts-inaugural-ai-hackathon (source date 2026-10-08, checked 2026-10-29).
+Source: SFSU Student AI Commons | Events, at.sfsu.edu/event/student-ai-commons (undated, checked 2026-10-29).
 
 ## Do I need to join to visit the AI Studio?
 
-No rule requiring membership to visit the AI Studio was found. The Digital Media Studio
-and MakerSpace, where the AI Studio is, offers drop-in exploration during its posted
-hours. Using specific equipment or rooms has its own rules, so ask the staff at the
-LIB 260 front desk.
+No membership rule for visiting the AI Studio has been published. The AI Studio is inside
+the Digital Media Studio and MakerSpace in LIB 260, which offers drop-in exploration during
+its posted hours. Ask the MakerSpace staff about access to specific equipment or rooms.
 
-Sources: Digital Media Studio and MakerSpace: November events, at.sfsu.edu/news/digital-media-studio-and-makerspace-november-events (source date 2026-10-28, checked 2026-10-29); AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29).
-
-## How to follow the SFSU Student AI Commons online
-
-SFSU's AI for Students page links the Student AI Commons Instagram account,
-@sfsuaistudentcommons, and a Discord server.
-
-TODO(PM): confirm the Discord invite (discord.gg/XSmfEh25) still works and is meant to be
-shared publicly. Discord invites often expire.
-
-Source: AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29).
-
-## Visiting as faculty or a guest
-
-TODO(PM): confirm whether faculty, prospective students, and community visitors may
-attend AI Lab or Student AI Commons meetings and events, and how.
+Source: AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29); Digital Media Studio and MakerSpace: November events, at.sfsu.edu/news/digital-media-studio-and-makerspace-november-events (source date 2026-10-28, checked 2026-10-29).

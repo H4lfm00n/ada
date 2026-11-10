@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-10-29 by DES (real lab docs); engineer sections last updated 2026-10-28 (M1)._
+_Last updated: 2026-11-10 by DES (lab docs v1 restructure); engineer sections last updated 2026-10-28 (M1)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -104,7 +104,14 @@ _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-e
   41 `TODO(PM)` markers for the PM to resolve (`grep -n "TODO(PM)" lab_docs/[a-z]*.md`).
   Decisions DES21–DES25.
 
+- Lab docs v1 restructure (`task/des-lab-docs-v1`, 2026-11-10): PM confirmed the research
+  except CONFLICT items. 12 files in `lab_docs/` (DES26). TODOs only for the 11 conflicts,
+  each in its own `##` section (DES27, DES28). Templates moved to `docs/lab_doc_templates/`
+  (DES29). Supersedes `task/des-lab-docs-content`.
+
 ### Engineer needs to wire up (M2/M4)
+- M2 ingest (updated 2026-11-10, see `lab_docs/README.md`): **drop** any `##` section that
+  contains `TODO(` and log it. Templates are no longer in `lab_docs/`.
 - M2 ingest: skip `README.md` and `_*` files, strip `<!-- -->` comments, chunk by `##`,
   carry file + title + heading + `Last updated` on each chunk, warn on leftover `TODO(`.
 - M2: a `lab_docs_dir` setting so evals can point retrieval at `evals/fixtures/lab_docs/`.
@@ -126,6 +133,27 @@ _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-e
 - After M2/M4 land: run `make eval` on the GB10, then `DES – fix evals` on the failures.
 - Kiosk UI spec + mockups (M5).
 - Once the PM fills real `lab_docs/`, add golden cases for the real facts.
+
+### Lab-doc TODOs (conflicts) for PM, 2026-11-10
+`grep -n "TODO(PM)" lab_docs/[a-z]*.md`:
+1. meetings-events.md: hackathon date (Oct 2 vs Oct 3), end time (6/7/8 PM), venue name.
+2. sfsu.md: number of SFSU colleges (seven vs six).
+3. sfsu.md: TASC online tutoring hours.
+4. sfsu.md: SHS emergency page 415-388-2222 typo fixed? (FYI; correct number is published.)
+5. sfsu.md: winter closure start (Dec 24 vs Dec 25).
+6. sfsu.md: shuttle discontinued?
+7. academic-technology.md: AT Friday/evening hours.
+8. academic-technology.md: short-term laptop loan length and due time.
+9. academic-technology.md: ChatGPT Edu after July 2026.
+10. academic-technology.md: Critical Analysis course required vs elective for the badge.
+11. ai-policy.md: AI-detection tools guidance.
+
+### Lab-doc gaps (not written; the bot says "not sure")
+AI Lab ↔ Student AI Commons relationship; founding date/story; eligibility, dues, what
+happens after the join form; regular meeting time and place; next Leadership Committee date;
+Commons projects; Commons-owned equipment, GPU booking, accounts, remote access, overnight
+jobs; lab-specific hours, guests, code of conduct; officer names (with consent); whether the
+Discord invite is permanent.
 
 ### Open questions for PM
 1. Public name: config still says `bot_name: Dum-E` (a film character's name).
