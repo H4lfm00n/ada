@@ -61,19 +61,31 @@ async def one_call(
     return Probe(name, stats.prompt_eval_count, stats.prompt_eval_duration / 1e9, wall)
 
 
+def reprocessed(p: Probe, rate: float) -> int:
+    """Tokens actually processed, from the time spent (the token count includes cache hits)."""
+    return round(p.prefill_s * rate)
+
+
 def verdict(swap: Probe, nodocs: Probe, rate: float) -> str:
     tail = max(swap.tokens - nodocs.tokens, 1) + 20  # the docs + question, roughly
     if_reuse = tail / rate
     if_full = swap.tokens / rate
-    mid = (if_reuse + if_full) / 2
-    which = (
-        "A: prefix reuse works; the docs block itself is the cost"
-        if swap.prefill_s < mid
-        else "B: prefix reuse BREAKS when the docs change; the whole prompt is re-processed"
-    )
+    done = reprocessed(swap, rate)
+    if swap.prefill_s <= if_reuse * 1.5:
+        which = "A: prefix reuse works; only the docs + question are processed"
+    elif swap.prefill_s >= if_full * 0.75:
+        which = "B: prefix reuse BREAKS when the docs change; the whole prompt is re-processed"
+    else:
+        which = (
+            f"PARTIAL: some of the cached system prompt is reused, but ~{done} tokens are"
+            f" re-processed vs ~{tail} new; part of the static prompt is redone each time"
+        )
     return (
-        f"swap took {swap.prefill_s:.2f}s. Predicted: {if_reuse:.2f}s if reuse works"
-        f" (~{tail} new tokens), {if_full:.2f}s if not ({swap.tokens} tokens).\n"
+        f"swap took {swap.prefill_s:.2f}s (~{done} tokens of work). Predicted:"
+        f" {if_reuse:.2f}s if reuse works (~{tail} new tokens), {if_full:.2f}s if not"
+        f" ({swap.tokens} tokens).\n"
+        f"no-docs call: {nodocs.prefill_s:.2f}s (~{reprocessed(nodocs, rate)} tokens of work;"
+        " ~50 if the static prompt were fully reused)\n"
         f"VERDICT {which}"
     )
 
