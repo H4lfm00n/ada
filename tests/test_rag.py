@@ -834,6 +834,9 @@ def test_prefill_probe_verdict_tells_reuse_from_full_reprocess() -> None:
     assert "VERDICT A" in reuse
     full = verdict(Probe("swap", 2900, 2.1, 2.2), nodocs, 1400)
     assert "VERDICT B" in full
+    # GB10 run 5: 783 tok/s, 481 new tokens predicted 0.61 s, took 1.20 s (~940 of work).
+    gb10 = verdict(Probe("swap", 2649, 1.20, 1.47), Probe("nd", 2188, 1.52, 1.78), 783)
+    assert "VERDICT PARTIAL" in gb10 and "~940 tokens" in gb10
 
 
 async def test_prefill_probe_runs_end_to_end(

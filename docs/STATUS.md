@@ -119,8 +119,19 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
     cached tokens, so the old "uncached tokens" label was wrong; fixed. `make prefill-probe`
     decides between (A) the cached system prompt is reused and the ~700 docs tokens are just
     slow to process, and (B) reuse breaks whenever the docs change.
-  - Waiting on: `make prefill-probe` output (GB10 run 5). M2's functional goal is met; merge
-    doesn't depend on latency.
+  - **GB10 run 5, `make prefill-probe`:** the prompt is processed at **783 tok/s** with nothing
+    cached (2,795 tokens in 3.57 s). Swapping docs took 1.20 s, about 940 tokens of work,
+    against ~480 new tokens. A no-docs call with the docs block as the only change took
+    1.52 s (~1,190 tokens of work) where ~50 were expected. An identical repeat took 0.19 s.
+    So **reuse is partial**: identical prompts are fully cached, but any change re-processes
+    roughly 900 to 1,200 tokens, including part of the static system prompt. The probe's first
+    verdict ("A") was too coarse; it now reports PARTIAL. Likely cause (unconfirmed): how
+    Ollama's cache handles this model (slots, or cache checkpoints if the architecture is
+    hybrid). Shrinking the docs alone saves at most ~0.3 to 0.4 s, not enough for 1.5 s.
+  - Waiting on (GB10 run 6): `ollama show` for the model architecture, Ollama's environment,
+    the k3-small latency from run 3, and a diagnose pass with `gemma4:12b` for a quality and
+    latency comparison. **No model change without the PM.** M2's functional goal is met;
+    merging doesn't depend on latency.
 
 ## Next
 - Record the measured TTFT, first-sentence time, and tok/s below. If TTFT misses 1.5 s with
@@ -157,10 +168,13 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 - PM: chat `temperature`. Run 2: 0.7 and 0.3 both scored 56/60. 0.3 gave near-identical
   answers on repeats, which is more consistent but more robotic. Recommendation: keep 0.7
   until M4's evals give a bigger sample. No change made.
-- PM: **first token for a new question is ~2.5s, target 1.5s.** Options, cheapest first:
-  (1) a smaller docs block (k=3, 1,500 chars), measured in run 3; (2) check whether the
-  static system prompt is really cached (run 3's prefill token count shows it); (3) a smaller
-  chat model (`gemma4:12b`), which is your decision. I won't change models without your OK.
+- PM: **first token for a lab question is ~2.5 s, target 1.5 s.** Cause (run 5): processing
+  runs at 783 tok/s and each new question redoes ~900 to 1,200 tokens. Options:
+  (1) an Ollama cache setting, if run 6 shows one applies (cheap, no quality cost);
+  (2) a smaller chat model (`gemma4:12b`): run 6 measures quality and speed, your decision;
+  (3) a shorter static system prompt (designer, ~2,100 tokens now);
+  (4) accept ~2.5 s for lab questions and let the kiosk show its "thinking" state (M5).
+  This changes a brief target (section 8), so it's your call.
 - ~~Drop TODO sections at ingest?~~ Yes (D19), with the dropped list printed by ingest.
 
 ## Notes for the designer (from ENG, M1)
