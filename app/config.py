@@ -53,7 +53,8 @@ class Settings(BaseSettings):
     lab_docs_dir: str = "lab_docs"
     rag_index_dir: str = "data/rag"
     rag_top_k: int = Field(4, ge=1, le=20)
-    rag_min_score: float = Field(0.35, ge=-1, le=1)
+    rag_min_score: float = Field(0.35, ge=-1, le=1)  # gate: the best chunk must reach it
+    rag_extra_min_score: float | None = Field(None, ge=-1, le=1)  # floor for chunks 2..k
     rag_max_context_chars: int = Field(3000, gt=0)
     rag_timeout_s: float = Field(5.0, gt=0)
     rag_query_instruction: str = ""

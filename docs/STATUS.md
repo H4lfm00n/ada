@@ -62,30 +62,34 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
-- **M2 on real docs** (branch `task/m2-real-docs`, 2026-11-10). Found at start: `task/m2-rag`
-  was never merged, so `main` had the real docs but no RAG code (no ingest, no retriever).
-  This branch = current `main` + `task/m2-rag` (docs-only conflicts in STATUS/DECISIONS,
-  both sides kept) + the real-docs diagnostics below. Merging it supersedes `task/m2-rag`.
-  - `make ingest-report`: per file, every section INGESTED / DROPPED (TODO or empty heading)
-    / SKIPPED file (README, `_*`, hidden, non-Markdown), each with its reason. Sandbox parse
-    of `lab_docs/`: 12 files, 133 sections, 0 dropped, README skipped.
-  - `make rag-diagnose` (`evals/real_docs_qa.yaml`, the PM's 20 questions): per question,
-    top 3 chunks (file > heading, score, `*` = reached the prompt), the bot's real answer,
-    and a hint saying whether a miss is `retrieval` or `answer` (D25). JSON in `reports/rag/`.
-  - `evals/retrieval.yaml` real suite rewritten for the 12-file layout (the old one named
-    files that no longer exist): 29 questions + 2 `expect_none`.
-  - Prompt experiment (D26): `prompts/experiments/system_prompt_docs_example.md` = the real
-    prompt with one few-shot example swapped. **Not used by config.** Diagnose runs both.
-  - Sandbox: ruff clean, 156 pass, 4 gb10 skipped.
-  - Waiting on: PM's GB10 output of `make ingest-report`, `make rag-check`, and both
-    `make rag-diagnose` runs. Then fix what it shows.
+- **M2 on real docs** (branch `task/m2-real-docs`). `task/m2-rag` was never merged, so `main`
+  had the docs but no RAG; this branch = `main` + `task/m2-rag` + the work below. Merging it
+  supersedes `task/m2-rag`.
+  - Tools: `make ingest-report` (every section ingested / dropped / skipped, with reasons),
+    `make rag-diagnose` (D25; per question: top 3 chunks, the answer, a retrieval-vs-answer
+    hint; `ARGS="--repeat 3"` asks each question 3 times), real-docs `evals/retrieval.yaml`.
+  - **GB10 run 1 (2026-11-10):** ingest 12 files, 133 sections, 0 dropped, README skipped.
+    Retrieval: recall@4 100%, hit@1 100% on 29 questions. Both "nothing" questions leaked
+    through the 0.35 cutoff (0.389, 0.432). Answers: 17/20 OK on the baseline prompt.
+    - Q10 (get involved without a project): retrieval pulled only proposal sections and the
+      bot said "not sure". Fixed with a FAQ section (D28).
+    - Q12 (weekly day and time): "not sure, ask a lab member" but no ai@sfsu.edu, though
+      the doc in the prompt names it. Prompt wording (see designer notes).
+    - Q19 (overnight 3D printing): the answer was right; my hint wrongly required "seven
+      hours". Case fixed.
+    - The prompt experiment (D26) didn't help (15/20). Deleted.
+  - **Fixes in run 2:** two-tier cutoff, gate 0.50 / floor 0.40 (D27). Q10 FAQ section
+    (D28). Diagnose cases fixed, plus checks for overclaims seen in run 1. `--repeat`.
+    Section-level expectations. First-token median in the summary. Retrieval check grew to
+    41 questions (6 negatives, 6 casual). Sandbox: ruff clean, 158 pass, 4 gb10 skipped.
+  - Waiting on: GB10 run 2. It includes a temperature 0.7 vs 0.3 comparison for a PM decision.
 
 ## Next
 - Record the measured TTFT, first-sentence time, and tok/s below. If TTFT misses 1.5 s with
   the ~2.2k-token prompt, options are trimming the prompt (designer), checking prefix-cache
   reuse, or a smaller chat model (PM decision).
-- Set `rag_min_score` from the real-docs `make rag-check` + `make rag-diagnose` scores (the
-  fixture probe is the wrong corpus now). Until then 0.35 is a guess.
+- Confirm the D27 gate/floor (0.50/0.40) on run 2's 6 negatives. Then check the fixture
+  corpus (`make rag-check-fixtures`), because M4's golden set runs on it with the same cutoffs.
 - M3 guards plug into the two marked hooks; transcript logging + kill switch with them. Then
   add the `dont_know` line short-circuit for guard-classified lab questions with no docs (D20).
 - M4 runner: set `ADA_LAB_DOCS_DIR=evals/fixtures/lab_docs`, run `make ingest-fixtures` first.
@@ -107,6 +111,13 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 - PM: OK that the CLI/kiosk shows whole sentences rather than token-by-token (D9)?
 - ~~Real docs~~: merged to `main` 2026-11-10 (12 files, 0 TODOs).
 - PM: merge `task/m2-real-docs` (not `task/m2-rag`) once the GB10 run looks right.
+- PM: is the AI Lab physically in LIB 260 / the AI Studio? No doc says so. The bot infers
+  "the AI Lab is in the DMS, LIB 260" from "resources in the DMS in LIB 260". In one run it
+  said "the AI Lab is in the AI Studio", which nothing states. If it's true, the designer adds
+  a "Where is the AI Lab?" section; if not, the docs need to say where it is.
+- PM: chat `temperature` is 0.7. Run 1 had factual slips at 0.7 (a wrong closing time, "the
+  team helps with dues"). Run 2 compares 0.3 on the same questions. Lowering it is a model
+  setting change, so it needs `make eval` (brief 5.9).
 - ~~Drop TODO sections at ingest?~~ Yes (D19), with the dropped list printed by ingest.
 
 ## Notes for the designer (from ENG, M1)
@@ -131,15 +142,22 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
   until the PM confirms those sections.
 
 ## Notes for the designer (from ENG, M2 real docs, 2026-11-10)
-- Prompt: the few-shot example "what room do you guys meet in" -> "I'm not sure" now
-  contradicts the docs (meetings: DMS, LIB 260). I made an experiment copy that swaps only
-  that example for "how much are the lab hoodies" (D26); `make rag-diagnose` compares both.
-  Your call whether it goes in `prompts/system_prompt.md` (and `make eval` after).
-- Doc gap: no section says where the **AI Lab** itself is. about.md only says the Lab gives
-  access to resources "in the Digital Media Studio (DMS) in LIB 260". Q3 "Where is the AI
-  Lab located?" depends on the model inferring it. Consider a one-line FAQ section.
-- The prompt's identity is "the AI Lab"; the docs are almost all "Student AI Commons". Watch
-  the diagnose output for the bot treating Commons facts as "not about this lab".
+- I added one section to `lab_docs/faq.md`: "How can I get involved if I don't have a
+  project yet?" (D28). It only copies facts from join.md and meetings-events.md, and it has
+  an HTML comment. Reword it freely.
+- Prompt suggestions from GB10 run 1 (your call; any prompt change needs `make eval`):
+  1. When the docs don't answer but **name a contact** ("contact the AI Commons team,
+     ai@sfsu.edu"), give that contact as well as "not sure + lab member". Q12 skipped it;
+     Q13 and Q15 included it.
+  2. The bot tells visitors "the docs say / the docs only mention" (Q10, Q12, Q14). That
+     breaks character; it should just know or not know.
+  3. Overclaims seen: "the team also helps with costs or dues" (the docs only say contact
+     them); "the AI Lab is in the AI Studio" (not stated); "Yes, I have robotic dogs" (the
+     Commons has them, not the bot).
+- The "what room do you guys meet in -> not sure" example didn't hurt in practice (D26).
+  It still contradicts the docs, so changing it some time is fine; it isn't urgent.
+- The persona says "the AI Lab"; the docs say "Student AI Commons". It held up: Q1 and Q11
+  answered correctly.
 
 ## Designer section
 _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-evals`._

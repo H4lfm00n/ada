@@ -54,7 +54,7 @@ suites:
       - {q: "Can the team help identify the software my project needs?", expect: [join.md, faq.md, projects.md, equipment.md]}
       - {q: "What equipment is available in the Commons?", expect: [equipment.md, faq.md]}
       - {q: "Do you have robotic dogs and robotic arms?", expect: [equipment.md, faq.md]}
-      - {q: "How can I get involved without an existing project?", expect: [join.md, faq.md, meetings-events.md]}
+      - {q: "How can I get involved without an existing project?", expect: [join.md, faq.md, meetings-events.md]}  # file-level only; rag-diagnose checks the section
       - {q: "Where do meetings take place?", expect: [meetings-events.md, faq.md]}
       - {q: "What exact day and time do you meet every week?", expect: [meetings-events.md, faq.md]}
       - {q: "How much are membership dues?", expect: [join.md, faq.md]}
@@ -73,6 +73,18 @@ suites:
       - {q: "What's the campus police non-emergency number?", expect: sfsu.md}
       - {q: "When does the fall semester end?", expect: sfsu.md}
       - {q: "Who should I email about a partnership with the Commons?", expect: roles.md}
-      # Nothing in the docs answers these. They set the floor for rag_min_score.
+      # Casual phrasing: answerable questions must still clear the gate (D27).
+      - {q: "yo where do you guys meet", expect: [meetings-events.md, faq.md]}
+      - {q: "is there a fee to join", expect: [join.md, faq.md]}
+      - {q: "can i use the gpus from my dorm", expect: [equipment.md, rules.md, faq.md]}
+      - {q: "who do i email about the commons", expect: [roles.md, join.md, faq.md]}
+      - {q: "can i just walk into the ai studio", expect: [faq.md, join.md, dms.md]}
+      - {q: "I don't have a project idea, can I still join?", expect: [faq.md, join.md]}
+      # Nothing in the docs answers these. They set the gate (rag_min_score, D27):
+      # every one must score under it, every answerable question above it.
       - {q: "how much are the lab hoodies?", expect_none: true}
       - {q: "who won the lab's chess tournament last spring?", expect_none: true}
+      - {q: "does the lab have a coffee machine?", expect_none: true}
+      - {q: "what's the best pizza place near campus?", expect_none: true}
+      - {q: "is there a lab trip to Tokyo this summer?", expect_none: true}
+      - {q: "what's your favorite movie?", expect_none: true}

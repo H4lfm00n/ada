@@ -28,7 +28,7 @@ from app.config import REPO_ROOT, Settings, load_settings
 from app.ollama_client import OllamaClient, OllamaError
 from app.rag.check import CheckSummary, load_check_file, score_case
 from app.rag.ingest import DROP_TODO, DroppedSection
-from app.rag.retriever import IngestReport, OllamaRetriever, build_index
+from app.rag.retriever import IngestReport, OllamaRetriever, build_index, cutoff_str
 from app.rag.store import RagIndexError
 
 GOLDEN = REPO_ROOT / "evals" / "golden.yaml"
@@ -158,7 +158,7 @@ async def cmd_probe(settings: Settings) -> int:
 
     print(
         f"docs={settings.lab_docs_dir} embed={settings.embed_model} "
-        f"cutoff={settings.rag_min_score} k={settings.rag_top_k}\n"
+        f"cutoff={cutoff_str(settings)} k={settings.rag_top_k}\n"
     )
     print(f"{'case':<30} {'kind':<9} {'top1':>6} {'top2':>6} {'#in':>3}  top heading")
     for r in rows:
@@ -213,7 +213,7 @@ async def cmd_check(settings: Settings, path: Path = RETRIEVAL_CHECKS) -> int:
 
     print(
         f"docs={settings.lab_docs_dir} embed={settings.embed_model}"
-        f" cutoff={settings.rag_min_score} k={k}"
+        f" cutoff={cutoff_str(settings)} k={k}"
     )
     if suite.note:
         print(f"note: {suite.note}")
@@ -285,6 +285,7 @@ def main() -> None:
     d.add_argument("--file", type=Path, default=DIAGNOSE_FILE)
     d.add_argument("--only", type=str, default="", help="comma-separated case numbers")
     d.add_argument("--label", default="", help="tag for the report (e.g. which prompt)")
+    d.add_argument("--repeat", type=int, default=1, help="ask each question N times")
     args = parser.parse_args()
     settings = load_settings()
     try:
@@ -298,7 +299,9 @@ def main() -> None:
             from app.rag.diagnose import run_diagnose
 
             only = {int(x) for x in args.only.split(",") if x.strip()}
-            code = asyncio.run(run_diagnose(settings, args.file, only=only, label=args.label))
+            code = asyncio.run(
+                run_diagnose(settings, args.file, only=only, label=args.label, repeat=args.repeat)
+            )
         else:
             code = asyncio.run(cmd_probe(settings))
     except (OllamaError, RagIndexError, FileNotFoundError, ValueError) as exc:

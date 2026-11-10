@@ -362,3 +362,28 @@ the "what room do you guys meet in -> not sure" example swapped for an undocumen
 question, because the docs now answer the meeting room. Compared with
 `ADA_SYSTEM_PROMPT_FILE=... make rag-diagnose`. Adopting a variant is the designer's
 change to `prompts/system_prompt.md`, followed by `make eval` (brief 5.9).
+**Result (GB10, 2026-11-10): no gain, variant deleted.** Baseline 17/20 vs variant 15/20.
+With the docs in the prompt, the baseline already answered "where do meetings take place"
+from them, so the old example did no harm. The variant's extra misses (one wrong hours
+comparison, one dropped contact) look like sampling noise at temperature 0.7, which is why
+`rag-diagnose` now has `--repeat`.
+
+**D27. Two-tier retrieval cutoff: a gate (0.50) for the best chunk, a floor (0.40) for the rest.**
+Real-docs scores (GB10, qwen3-embedding:0.6b, 2026-11-10): every answerable question's best
+chunk scored 0.560 to 0.847; the two "nothing answers this" questions scored 0.389 and 0.432,
+so the old single 0.35 cutoff let both through. One cutoff can't fix that: raising it to
+0.50 would also drop supporting chunks the answer needs (the DMS hours, 0.496, in "are AT's
+hours the same as DMS's?"). So `rag_min_score` (0.50) now gates the turn: if the best chunk
+is under it, no docs at all. Once past the gate, chunks down to `rag_extra_min_score` (0.40)
+can join. `rag_extra_min_score` unset = old single-cutoff behavior (fixture tests use that).
+Margins are about 0.06 to 0.07 either side of the gate on only 2 negatives, so the real-docs
+check now has 6 "nothing answers this" questions and 6 casually worded answerable ones.
+Re-tune if those overlap. The prompt rule ("not sure" + "lab member") stays as the backup.
+
+**D28. A real-docs FAQ section added by ENG: "How can I get involved if I don't have a project yet?"**
+"How can I get involved without an existing project?" pulled only the project-proposal
+sections (nothing else is phrased that way), so the bot said "not sure", even though the docs
+cover joining, events, clubs, and the Leadership Committee. Retrieval can't fix missing
+phrasing; a doc section can. Every fact in it is copied from `join.md` and
+`meetings-events.md`, with their `Source:` lines. No new facts. An HTML comment flags it for
+the designer, who owns the wording.

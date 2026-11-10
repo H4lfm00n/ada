@@ -2,7 +2,8 @@
 
 OllamaRetriever embeds the question with the configured embed model and scans the index.
 Grounding guarantees that live here (brief 5.3, DECISIONS D19-D21):
-  * only chunks scoring >= rag_min_score are returned; below that, nothing is,
+  * nothing is returned unless the best chunk scores >= rag_min_score (the gate); then
+    further chunks down to rag_extra_min_score may join it (D27),
   * total returned text is capped at rag_max_context_chars (the best chunk is always kept),
   * TODO sections were already dropped at ingest.
 Errors propagate; the pipeline turns them into "no docs" (the model then says "not sure").
@@ -51,14 +52,27 @@ def to_chunk(e: IndexedChunk, score: float) -> Chunk:
 
 
 def select(
-    scored: list[tuple[float, IndexedChunk]], k: int, min_score: float, max_chars: int
+    scored: list[tuple[float, IndexedChunk]],
+    k: int,
+    min_score: float,
+    max_chars: int,
+    extra_min_score: float | None = None,
 ) -> list[Chunk]:
-    """Top-k above the cutoff, best first, within the character budget."""
+    """Top-k, best first, within the character budget, with a two-tier cutoff (D27).
+
+    The best chunk must reach `min_score` (the gate: is anything here relevant at all?).
+    Once it does, more chunks may join down to `extra_min_score` (supporting facts, e.g.
+    the second half of a "same hours?" comparison). None = same as min_score.
+    """
+    floor = min_score if extra_min_score is None else min(extra_min_score, min_score)
+    ranked = sorted(scored, key=lambda t: t[0], reverse=True)
+    if not ranked or ranked[0][0] < min_score:
+        return []
     out: list[Chunk] = []
     used = 0
     seen: set[str] = set()
-    for score, e in sorted(scored, key=lambda t: t[0], reverse=True):
-        if score < min_score or len(out) >= k:
+    for score, e in ranked:
+        if score < floor or len(out) >= k:
             break
         text = e.chunk.text.strip()
         if text in seen:
@@ -69,6 +83,14 @@ def select(
         used += len(text)
         out.append(to_chunk(e, score))
     return out
+
+
+def cutoff_str(settings: Settings) -> str:
+    """'0.5' or '0.5/0.4' (gate / floor for extra chunks, D27)."""
+    extra = settings.rag_extra_min_score
+    if extra is None or extra >= settings.rag_min_score:
+        return f"{settings.rag_min_score}"
+    return f"{settings.rag_min_score}/{extra}"
 
 
 class OllamaRetriever:
@@ -108,7 +130,8 @@ class OllamaRetriever:
         scored = [(dot(q, e.vector), e) for e in self.index.entries]
         scored.sort(key=lambda t: t[0], reverse=True)
         self.last_hits = [Hit(e.chunk.id, e.chunk.heading, s) for s, e in scored]
-        return select(scored, k, self._settings.rag_min_score, self._settings.rag_max_context_chars)
+        st = self._settings
+        return select(scored, k, st.rag_min_score, st.rag_max_context_chars, st.rag_extra_min_score)
 
 
 class EmptyRetriever:

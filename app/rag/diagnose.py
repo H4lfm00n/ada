@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import re
+import statistics
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -30,7 +31,7 @@ from app.lines import LineBook
 from app.ollama_client import OllamaChatModel, OllamaClient
 from app.pipeline import ChatPipeline, TurnResult
 from app.prompt import PromptBuilder
-from app.rag.retriever import Hit, open_retriever
+from app.rag.retriever import Hit, cutoff_str, open_retriever
 from app.sessions import InMemorySessionManager
 from app.sinks import CollectingSink, NoopActionHandler
 
@@ -49,7 +50,7 @@ NOT_SURE_RE = re.compile(
 class QACase:
     n: int
     question: str
-    expect: tuple[str, ...]  # files that hold the answer
+    expect: tuple[str, ...]  # "file.md" or "file.md > Heading start" that hold the answer
     want: str  # "answer" (docs answer it) | "unknown" (docs say it's not published)
     facts: tuple[tuple[str, ...], ...]  # every group must match; any alternative in a group
     avoid: tuple[str, ...]  # regexes that must not match the answer
@@ -64,8 +65,23 @@ def _group(item: Any) -> tuple[str, ...]:
     raise ValueError(f"fact must be a string or a list of strings, got {item!r}")
 
 
+class _NoDupLoader(yaml.SafeLoader):
+    """A repeated key (two `avoid:` lines) silently keeps only the last one. Refuse it."""
+
+
+def _no_dup_mapping(loader: yaml.SafeLoader, node: yaml.MappingNode) -> dict[Any, Any]:
+    keys = [loader.construct_object(k) for k, _ in node.value]
+    dups = sorted({str(k) for k in keys if keys.count(k) > 1})
+    if dups:
+        raise ValueError(f"duplicate key(s) {dups} near line {node.start_mark.line + 1}")
+    return yaml.SafeLoader.construct_mapping(loader, node)
+
+
+_NoDupLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _no_dup_mapping)
+
+
 def load_cases(path: Path) -> list[QACase]:
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    data = yaml.load(path.read_text(encoding="utf-8"), Loader=_NoDupLoader) or {}
     cases = []
     for raw in data.get("cases") or []:
         want = raw.get("want", "answer")
@@ -90,6 +106,18 @@ def load_cases(path: Path) -> list[QACase]:
 
 def hit_file(h: Hit) -> str:
     return h.chunk_id.rsplit("#", 1)[0]
+
+
+def matches(expect: str, source_file: str, heading: str) -> bool:
+    """ "faq.md" matches any section of faq.md; "faq.md > How can I" matches by heading start."""
+    file, _, head = expect.partition(" > ")
+    if file.strip() != source_file:
+        return False
+    return not head or heading.lower().startswith(head.strip().lower())
+
+
+def expected(case: QACase, source_file: str, heading: str) -> bool:
+    return any(matches(e, source_file, heading) for e in case.expect)
 
 
 @dataclass(slots=True)
@@ -129,9 +157,10 @@ def mentions(answer: str, fact: str) -> bool:
 
 
 def judge(case: QACase, answer: str, in_prompt: list[Chunk], hits: list[Hit]) -> Verdict:
-    files_in_prompt = {c.source_file for c in in_prompt}
-    retrieved_ok = not case.expect or bool(files_in_prompt & set(case.expect))
-    rank = next((i for i, h in enumerate(hits, 1) if hit_file(h) in case.expect), None)
+    retrieved_ok = not case.expect or any(
+        expected(case, c.source_file, c.heading) for c in in_prompt
+    )
+    rank = next((i for i, h in enumerate(hits, 1) if expected(case, hit_file(h), h.heading)), None)
     missing = [" | ".join(g) for g in case.facts if not any(mentions(answer, a) for a in g)]
     avoided = [p for p in case.avoid if re.search(p, answer, re.IGNORECASE)]
     said = bool(NOT_SURE_RE.search(answer))
@@ -164,31 +193,49 @@ def build_pipeline(
     return pipeline, sessions, retriever, model, warnings
 
 
-def print_case(case: QACase, r: TurnResult, hits: list[Hit], v: Verdict) -> None:
+def print_retrieval(case: QACase, r: TurnResult, hits: list[Hit]) -> None:
     passed = {c.metadata.get("id") for c in r.retrieved}
     want = "docs answer it" if case.want == "answer" else "docs say: not published"
     print(f"\n[{case.n:02d}] {case.question}")
-    print(f"     expect: {'|'.join(case.expect) or '(no doc)'} ({want})")
+    print(f"     expect: {' | '.join(case.expect) or '(no doc)'} ({want})")
     for i, h in enumerate(hits[:TOP_N], 1):
         mark = "*" if h.chunk_id in passed else " "
         print(f"     top{i} {mark}{h.score:.3f}  {hit_file(h)} > {h.heading}")
-    extra = [
-        c for c in r.retrieved if c.metadata.get("id") not in {h.chunk_id for h in hits[:TOP_N]}
-    ]
-    for c in extra:
-        print(f"     also  *{c.score:.3f}  {c.source_file} > {c.heading}")
+    shown = {h.chunk_id for h in hits[:TOP_N]}
+    for c in r.retrieved:
+        if c.metadata.get("id") not in shown:
+            print(f"     also  *{c.score:.3f}  {c.source_file} > {c.heading}")
+    err = f"   RETRIEVAL ERROR {r.retrieval_error}" if r.retrieval_error else ""
+    print(f"     in prompt: {len(r.retrieved)} chunk(s){err}")
+
+
+def print_answer(r: TurnResult, v: Verdict, run: int, repeat: int) -> None:
+    tag = f"answer{run + 1}" if repeat > 1 else "answer"
+    ttft = f"{r.ttft_s:.2f}s" if r.ttft_s is not None else "-"
+    src = "" if r.source == "model" else f" [{r.source}]"
+    err = f" ERROR {r.error}" if r.error else ""
+    print(f"     {tag} ({ttft}){src}{err}: {r.text}")
     print(
-        f"     in prompt: {len(r.retrieved)} chunk(s)   source: {r.source}"
-        + (f"   RETRIEVAL ERROR {r.retrieval_error}" if r.retrieval_error else "")
-        + (f"   ERROR {r.error}" if r.error else "")
+        f"       -> {v.stage.upper()}" + ("" if not v.problems else ": " + " / ".join(v.problems))
     )
-    print(f"     answer: {r.text}")
-    print(f"     -> {v.stage.upper()}" + ("" if not v.problems else ": " + " / ".join(v.problems)))
+
+
+STAGE_ORDER = ("ok", "answer", "retrieval")
+
+
+def worst(stages: Any) -> str:
+    return max(stages, key=STAGE_ORDER.index, default="ok")
 
 
 async def run_diagnose(
-    settings: Settings, path: Path, *, only: set[int] | None = None, label: str = ""
+    settings: Settings,
+    path: Path,
+    *,
+    only: set[int] | None = None,
+    label: str = "",
+    repeat: int = 1,
 ) -> int:
+    repeat = max(1, repeat)
     cases = [c for c in load_cases(path) if not only or c.n in only]
     rows: list[dict[str, Any]] = []
     async with OllamaClient.from_settings(settings) as client:
@@ -197,7 +244,8 @@ async def run_diagnose(
             print(f"WARN {w}")
         print(
             f"docs={settings.lab_docs_dir} embed={settings.embed_model} chat={settings.chat_model}"
-            f" cutoff={settings.rag_min_score} k={settings.rag_top_k}"
+            f" cutoff={cutoff_str(settings)}"
+            f" k={settings.rag_top_k} temp={settings.temperature} repeat={repeat}"
             f" prompt={settings.system_prompt_file}" + (f" label={label}" if label else "")
         )
         t0 = time.perf_counter()
@@ -206,12 +254,26 @@ async def run_diagnose(
         print(f"warmup {time.perf_counter() - t0:.1f}s")
 
         for case in cases:
-            sid = sessions.create()  # fresh visitor per question
-            r = await pipeline.handle(sid, case.question)
-            sessions.end(sid)
-            hits = list(getattr(retriever, "last_hits", []))
-            v = judge(case, r.text, r.retrieved, hits)
-            print_case(case, r, hits, v)
+            runs = []
+            for run in range(repeat):
+                sid = sessions.create()  # fresh visitor per question and per repeat
+                r = await pipeline.handle(sid, case.question)
+                sessions.end(sid)
+                hits = list(getattr(retriever, "last_hits", []))
+                v = judge(case, r.text, r.retrieved, hits)
+                if run == 0:
+                    print_retrieval(case, r, hits)
+                print_answer(r, v, run, repeat)
+                runs.append(
+                    {
+                        "answer": r.text,
+                        "source": r.source,
+                        "stage": v.stage,
+                        "problems": v.problems,
+                        "ttft_s": r.ttft_s,
+                        "retrieval_s": r.retrieval_s,
+                    }
+                )
             rows.append(
                 {
                     "n": case.n,
@@ -224,26 +286,34 @@ async def run_diagnose(
                     ],
                     "in_prompt": [c.metadata.get("id") for c in r.retrieved],
                     "expected_rank": v.expected_rank,
-                    "source": r.source,
-                    "answer": r.text,
-                    "stage": v.stage,
-                    "problems": v.problems,
-                    "ttft_s": r.ttft_s,
-                    "retrieval_s": r.retrieval_s,
+                    "ok_runs": sum(1 for x in runs if x["stage"] == "ok"),
+                    "stage": worst(x["stage"] for x in runs),
+                    "runs": runs,
                 }
             )
 
     print("\n--- summary ---")
-    print(f"{'#':>3} {'stage':<9} {'rank':>4} {'top1':>6}  question")
+    print(f"{'#':>3} {'stage':<9} {'ok':>5} {'rank':>4} {'top1':>6}  question")
     for row in rows:
         top1 = f"{row['top'][0]['score']:.3f}" if row["top"] else "  -  "
         rank = row["expected_rank"] or "-"
-        print(f"{row['n']:>3} {row['stage']:<9} {rank:>4} {top1:>6}  {row['q'][:60]}")
+        ok = f"{row['ok_runs']}/{repeat}"
+        print(f"{row['n']:>3} {row['stage']:<9} {ok:>5} {rank:>4} {top1:>6}  {row['q'][:58]}")
     counts = {s: sum(1 for r in rows if r["stage"] == s) for s in ("ok", "retrieval", "answer")}
+    answers = [x for r in rows for x in r["runs"]]
+    ok_answers = sum(1 for x in answers if x["stage"] == "ok")
     print(
-        f"ok {counts['ok']}/{len(rows)}   retrieval misses {counts['retrieval']}"
-        f"   answer misses {counts['answer']}   (hints only; M4 scores for real)"
+        f"questions ok on every run {counts['ok']}/{len(rows)}"
+        f"   answers ok {ok_answers}/{len(answers)}"
+        f"   retrieval misses {counts['retrieval']}   answer misses {counts['answer']}"
     )
+    ttft = sorted(x["ttft_s"] for x in answers if x["ttft_s"] is not None)
+    if ttft:
+        print(
+            f"first token median {statistics.median(ttft):.2f}s  max {ttft[-1]:.2f}s"
+            f"  (target <= {settings.target_first_token_s}s)"
+        )
+    print("(hints only; M4 scores for real)")
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     tag = f"-{label}" if label else ""
@@ -253,6 +323,9 @@ async def run_diagnose(
         "chat_model": settings.chat_model,
         "embed_model": settings.embed_model,
         "cutoff": settings.rag_min_score,
+        "extra_cutoff": settings.rag_extra_min_score,
+        "temperature": settings.temperature,
+        "repeat": repeat,
         "k": settings.rag_top_k,
         "prompt": settings.system_prompt_file,
     }

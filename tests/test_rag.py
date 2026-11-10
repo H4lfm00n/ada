@@ -699,9 +699,12 @@ def test_diagnose_cases_load_and_point_at_real_files(repo_root: Path) -> None:
 
     cases = load_cases(repo_root / "evals" / "real_docs_qa.yaml")
     assert [c.n for c in cases] == list(range(20))
-    names = {p.name for p in doc_files(repo_root / "lab_docs")}
+    from app.rag.diagnose import matches
+
+    corpus = parse_corpus(repo_root / "lab_docs")
     for c in cases:
-        assert set(c.expect) <= names, (c.n, c.expect)
+        for e in c.expect:  # every expectation names a real file (and section, if given)
+            assert any(matches(e, ch.source_file, ch.heading) for ch in corpus.chunks), (c.n, e)
         for group in c.facts:  # YAML 1.1 turns bare yes/no into booleans: must stay strings
             assert all(isinstance(alt, str) for alt in group), (c.n, group)
 
@@ -758,9 +761,33 @@ async def test_rag_diagnose_end_to_end(
     monkeypatch.setattr(diag, "REPORT_DIR", tmp_path / "reports")
     assert await diag.run_diagnose(rag_settings, qa, label="t") == 0
     out = capsys.readouterr().out
-    assert "[00] does joining cost money?" in out and "top1 *" in out and "answer:" in out
+    assert "[00] does joining cost money?" in out and "top1 *" in out and "answer (" in out
     report = json.loads(next((tmp_path / "reports").glob("diagnose-t-*.json")).read_text())
     first = report["rows"][0]
     assert first["top"][0]["file"] == "join.md" and first["in_prompt"]
     assert first["stage"] in ("ok", "answer")  # retrieval found it; the fake model can't answer
     assert report["meta"]["label"] == "t"
+
+
+def test_two_tier_cutoff_gate_then_floor() -> None:
+    v = [1.0, 0.0]
+    scored = [(0.62, entry(0, "best", v)), (0.45, entry(1, "support", v)), (0.38, entry(2, "x", v))]
+    got = select(scored, k=4, min_score=0.5, max_chars=1000, extra_min_score=0.4)
+    assert [c.text for c in got] == ["best", "support"]  # 0.38 under the floor
+    # Below the gate nothing passes, even chunks above the floor.
+    weak = [(0.48, entry(0, "a", v)), (0.45, entry(1, "b", v))]
+    assert select(weak, k=4, min_score=0.5, max_chars=1000, extra_min_score=0.4) == []
+    # No floor set: one cutoff, as before.
+    assert [c.text for c in select(scored, 4, 0.4, 1000)] == ["best", "support"]
+
+
+def test_diagnose_section_expectations_and_duplicate_keys(tmp_path: Path) -> None:
+    from app.rag.diagnose import load_cases, matches
+
+    assert matches("faq.md > How can I get", "faq.md", "How can I get involved if I don't...")
+    assert not matches("faq.md > How can I get", "faq.md", "Where is the AI Studio?")
+    assert matches("faq.md", "faq.md", "anything")
+    bad = tmp_path / "qa.yaml"
+    bad.write_text("cases:\n  - {n: 0, q: x, avoid: [a], avoid: [b]}\n")
+    with pytest.raises(ValueError, match="duplicate"):
+        load_cases(bad)

@@ -1,7 +1,8 @@
 # Real-docs smoke questions for `make rag-diagnose` (engineer-owned diagnostic, not an
 # eval set). Each runs on a fresh session through the full pipeline, against lab_docs/.
 #
-#   expect: file(s) in lab_docs/ that hold the answer
+#   expect: file(s) in lab_docs/ that hold the answer: "file.md" (any section) or
+#           "file.md > Heading start" (that section only)
 #   want:   answer  -> the docs answer it; saying "not sure" is a miss
 #           unknown -> the docs say it isn't published / contact the team; the bot should
 #                      say so (and give the contact), never invent it
@@ -35,6 +36,7 @@ cases:
     q: Where is the AI Lab located?
     expect: [about.md, faq.md, meetings-events.md]
     facts: [LIB 260]
+    avoid: ['AI Lab is (?:in|inside) the AI Studio']
     note: >-
       Only implied: about.md says the AI Lab gives access to resources "in the Digital Media
       Studio (DMS) in LIB 260". No section says "the AI Lab is in LIB 260" outright.
@@ -42,8 +44,8 @@ cases:
   - n: 4
     q: Are AT's support hours the same as DMS's opening hours?
     expect: [academic-technology.md, dms.md, rules.md, about.md]
-    facts: [["no", "not the same", "different"]]
-    avoid: ['^\W*yes\b']
+    facts: [["no", "not the same", "different", "not quite"]]
+    avoid: ['^\W*yes\b', 'both close at 7']
     note: >-
       Two-hop. AT (LIB 80): Mon-Thu 8 AM-8 PM, Fri 8-5. DMS: Mon-Thu 10 AM-7 PM, Fri 10-5.
       Needs academic-technology.md AND one of dms/rules/about in the prompt.
@@ -59,6 +61,8 @@ cases:
     q: What happens after I submit the student request form?
     expect: [faq.md, join.md, projects.md]
     facts: [follow, software]
+    avoid: ['help(?:s)? (?:with|cover|pay)[^.]{0,30}(?:cost|dues)']
+    note: Run 1 claimed the team "helps with costs or dues". Docs only say "contact the team" about dues.
 
   - n: 7
     q: Can the team help identify the software my project needs?
@@ -77,7 +81,14 @@ cases:
 
   - n: 10
     q: How can I get involved without an existing project?
-    expect: [join.md, faq.md, meetings-events.md, roles.md]
+    expect:
+      - faq.md > How can I get involved
+      - faq.md > How do I join
+      - join.md > How to join
+      - join.md > Helping decide
+      - join.md > Student AI clubs
+      - meetings-events.md > Weekly AI club
+      - meetings-events.md > Where Student AI Commons events
     facts: [[Join now, ai.sfsu.edu, Leadership Committee, club, event, Instagram]]
     note: Several valid answers (join form, Leadership Committee, clubs, events). Any one counts.
 
@@ -85,9 +96,6 @@ cases:
     q: Where do meetings take place?
     expect: [meetings-events.md, faq.md]
     facts: [LIB 260]
-    note: >-
-      The system prompt's few-shot example "what room do you guys meet in" answers
-      "I'm not sure". Watch this case: it now contradicts the docs.
 
   - n: 12
     q: What exact day and time do you meet every week?
@@ -139,5 +147,7 @@ cases:
   - n: 19
     q: Does the overnight computing rule also allow overnight 3D printing?
     expect: [rules.md]
-    facts: [["no", "not allowed", "isn't allowed"], [seven, "7"]]
-    note: rules.md "3D printing rules" - prints must finish within seven hours, no overnight printing.
+    facts: [["no", "not allowed", "isn't allowed"]]
+    note: >-
+      rules.md "3D printing rules": no overnight printing (prints must finish within seven
+      hours). "No, overnight printing isn't allowed" is a full answer; the 7 hours is a bonus.
