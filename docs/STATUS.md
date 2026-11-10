@@ -134,7 +134,17 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
     arbitrary prefix, so inference engines only reuse the cache from saved checkpoints. That
     matches run 5's partial reuse exactly. This is the model's architecture, not our code or
     prompt order. The model also loads a vision projector (clip, 461M) that we don't use.
-  - Waiting on (GB10 run 6b; the run 6 paste stopped at a `systemctl` pager): Ollama's environment,
+  - **GB10 run 6b, model comparison on the same 21 questions (one run each, temp 0.7):**
+    | chat model | answers ok | first token, new question | prefill median |
+    |---|---|---|---|
+    | qwen3.8:27b, k=4 | 38/42 (2 narration slips) | 2.48 s median, 2.69 s max [MISS] | 2.08 s |
+    | qwen3.8:27b, k=3 / 1,500 chars | 20/21 | 1.74 s median, 2.29 s max [MISS] | 1.29 s |
+    | **gemma4:12b**, k=4 | 20/21 (Q18 miss, answer not yet seen) | **1.15 s median, 1.27 s max [PASS]** | 0.63 s |
+    gemma4:12b is the only option that meets 1.5 s. It's untested on persona, AI chat,
+    and red-team behavior; a smaller model may be easier to jailbreak, and M3 guards + M4
+    evals must confirm before any demo. **No config change yet; PM decision.**
+  - Waiting on (GB10 run 7): gemma4:12b with each question asked 3 times, its Q18 answer, and chat-demo (persona + decode speed).
+    Earlier list, still open: Ollama's environment,
     the k3-small latency from run 3, and a diagnose pass with `gemma4:12b` for a quality and
     latency comparison. **No model change without the PM.** M2's functional goal is met;
     merging doesn't depend on latency.
@@ -180,7 +190,7 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
       prefix reuse in every engine (llama.cpp, vLLM and SGLang have open issues on it);
   (1b) a non-hybrid dense model (a Qwen3-generation dense model, or another full-attention
       model) gets normal prefix caching: only ~500 new tokens per lab question;
-  (2) a smaller chat model (`gemma4:12b`): run 6 measures quality and speed, your decision;
+  (2) **`gemma4:12b` (run 6b: 1.15 s median, 20/21 answers): the leading option**, your decision;
   (3) a shorter static system prompt (designer, ~2,100 tokens now);
   (4) accept ~2.5 s for lab questions and let the kiosk show its "thinking" state (M5).
   This changes a brief target (section 8), so it's your call.
