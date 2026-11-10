@@ -3,10 +3,11 @@
 Last updated: 2026-11-10
 
 <!--
-v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29).
-Events before 2026-11-10 are labeled "past". Not published, so not stated: a regular
-day/time/place for Commons meetings, the next Leadership Committee date, and the three
-clubs' individual schedules.
+v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29) plus the
+PM's answers of 2026-11-10 (Source: AI Lab PM).
+Events before 2026-11-10 are labeled "past". Meetings are in DMS, LIB 260; dates and
+times are not published (PM: contact the team). Hackathon end time and venue name were
+never resolved, so they're left out.
 -->
 
 ## Student AI Commons Leadership Committee meetings
@@ -17,6 +18,14 @@ meeting (past) was on October 27, 2026, from 2 to 3 PM, on Zoom. It was free and
 registration.
 
 Source: President's Messages, planning.sfsu.edu/presidents-messages (source date 2026-10-01, checked 2026-10-29); Leadership Committee October meeting, ai.sfsu.edu/event/sfsu-ai-student-commons-leadership-committee-october-meeting (event 2026-10-27, checked 2026-10-29).
+
+## Where Student AI Commons meetings take place
+
+Student AI Commons meetings take place in the Digital Media Studio (DMS), in LIB 260 on the
+second floor of the J. Paul Leonard Library. For current meeting dates and times, contact
+the AI Commons team (ai@sfsu.edu).
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
 
 ## Weekly AI club meetings
 
@@ -30,8 +39,7 @@ Source: SFSU Student AI Commons | Events, at.sfsu.edu/event/student-ai-commons (
 
 Student AI Commons events are listed on the Commons programming page,
 at.sfsu.edu/event/student-ai-commons, and on SFSU's AI site, ai.sfsu.edu. The Commons also
-has a Discord server (discord.gg/XSmfEh25) and an Instagram account
-(@sfsuaistudentcommons), both linked from ai.sfsu.edu/ai-students.
+has an Instagram account, @sfsuaistudentcommons, linked from ai.sfsu.edu/ai-students.
 
 Source: SFSU Student AI Commons | Events, at.sfsu.edu/event/student-ai-commons (undated, checked 2026-10-29); AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29).
 
@@ -43,21 +51,12 @@ Source: AI Studio Grand Opening, ai.sfsu.edu/event/ai-studio-grand-opening (even
 
 ## SF Hacks x GDG AI Hackathon (past)
 
-The SF Hacks x GDG AI Hackathon was SFSU's inaugural AI hackathon, in October 2026. It was
-organized by SF Hacks and SFSU's Google Developer Group, and sponsored by the SFSU Student
-AI Commons. Registration was free for currently enrolled college and university students.
-The hackathon was designed for beginners as well as experienced builders.
+The SF Hacks x GDG AI Hackathon was SFSU's inaugural AI hackathon, held on October 3, 2026.
+It was organized by SF Hacks and SFSU's Google Developer Group, and sponsored by the SFSU
+Student AI Commons. Registration was free for currently enrolled college and university
+students. The hackathon was designed for beginners as well as experienced builders.
 
-Source: SF Hacks x GDG AI Hackathon, ai.sfsu.edu/index.php/event/sf-hacks-x-gdg-ai-hackathon (undated, checked 2026-10-29); SFSU hosts inaugural AI hackathon, news.sfsu.edu/news/sfsu-hosts-inaugural-ai-hackathon (source date 2026-10-08, checked 2026-10-29).
-
-## SF Hacks x GDG AI Hackathon date, time, and place
-
-TODO(PM): confirm the hackathon's exact date, hours, and venue. Sources disagree:
-date October 2, 2026 (event page, recap) vs "Friday, Oct. 3" (SFSU News);
-end time 7 PM (event page header) vs 6 PM (event page body) vs 8 PM (October 5 recap);
-venue "SFSU Annex I" vs "SFSU Student Life Center Annex" (may be the same place).
-
-Source: SF Hacks x GDG AI Hackathon, ai.sfsu.edu/index.php/event/sf-hacks-x-gdg-ai-hackathon; Meet the winning teams, ai.sfsu.edu/news/meet-winning-teams-2026-sf-hacks-x-gdg-ai-hackathon (source date 2026-10-05); SFSU hosts inaugural AI hackathon, news.sfsu.edu/news/sfsu-hosts-inaugural-ai-hackathon (source date 2026-10-08). All checked 2026-10-29.
+Source: SFSU hosts inaugural AI hackathon, news.sfsu.edu/news/sfsu-hosts-inaugural-ai-hackathon (source date 2026-10-08, checked 2026-10-29); SF Hacks x GDG AI Hackathon, ai.sfsu.edu/index.php/event/sf-hacks-x-gdg-ai-hackathon (checked 2026-10-29); AI Lab PM, confirmed 2026-11-10 (date).
 
 ## MakerSpace Open House, November 5, 2026 (past)
 

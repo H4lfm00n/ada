@@ -3,11 +3,11 @@
 Last updated: 2026-11-10
 
 <!--
-v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29).
-These are the Digital Media Studio and MakerSpace's published rules for SHARED equipment.
-No Student AI Commons-specific rules exist publicly: no separate hours, room/key access,
-guest policy, GPU quotas, data retention, or code of conduct. Don't present the 3D-printing
-seven-hour rule as a GPU or compute rule.
+v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29) plus the
+PM's answers of 2026-11-10 (Source: AI Lab PM).
+Mostly the Digital Media Studio and MakerSpace's published rules for SHARED equipment,
+plus the PM-confirmed AI Lab compute rules. Don't present the 3D-printing seven-hour
+rule as a compute rule.
 -->
 
 ## AI Studio and MakerSpace hours
@@ -17,6 +17,14 @@ through Thursday, 10 AM to 7 PM, and Friday, 10 AM to 5 PM, during the semester.
 separate AI Studio hours have been published.
 
 Source: Digital Media Studio and MakerSpace: November events, at.sfsu.edu/news/digital-media-studio-and-makerspace-november-events (source date 2026-10-28, checked 2026-10-29).
+
+## AI Lab compute rules
+
+Remote access to AI Lab computers is not available. Overnight computing jobs are allowed
+only if they were started in person at the lab. GPU booking goes through the AI Lab team
+(ai@sfsu.edu).
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
 
 ## Borrowing cameras, microphones, and other A/V equipment
 

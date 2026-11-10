@@ -8,7 +8,7 @@ Every section is an attributed summary of what an SFSU office published. The ass
 relays it and never rules on a student's case or grants permission (brief 5.4).
 Older dated items kept with their dates: RS24-466 (Spring 2024), employee guidance
 announced 2025-03-03. Operative PolicyStat texts for S25-257, S22-298, RS24-466 weren't read.
-Sections containing TODO(PM) are dropped at ingest.
+No open PM questions remain in this file (2026-11-10).
 -->
 
 ## Using AI on SFSU coursework
@@ -97,16 +97,6 @@ SFSU Confidential Data, Academic Integrity policy S22-298, and the Spring 2024 A
 resolution.
 
 Source: Generative AI guidelines for SFSU employees, ai.sfsu.edu/index.php/generative-ai-guidelines-sfsu-employees; Working with AI, ai.sfsu.edu/index.php/working-ai (both undated, checked 2026-10-29).
-
-## AI detection tools
-
-TODO(PM): confirm SFSU's position on AI-detection tools. Student Conduct mentions an
-Academic Integrity report "from TurnItIn or another source" as possible evidence; the
-ChatGPT Edu page says SFSU provides no AI-text detector and instructors should not use
-ChatGPT or similar tools for detection. Recommend not answering detector questions either
-way until CEETL or Student Conduct clarifies.
-
-Source: Academic Integrity, conduct.sfsu.edu/academic-integrity-faculty; OpenAI ChatGPT Edu, ai.sfsu.edu/chatgpt-edu (both undated, checked 2026-10-29).
 
 ## Can I use ChatGPT on my homework?
 

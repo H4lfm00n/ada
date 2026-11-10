@@ -3,11 +3,11 @@
 Last updated: 2026-11-10
 
 <!--
-v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29).
-Privacy: no names. The only located role title came from a person's own LinkedIn profile
-(no consent to appear on a public screen, current status unverified), so the role is
-described without the person. Add names only with the person's consent (README rules).
-Not published, so not stated: officer list, responsibilities, terms.
+v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29) plus the
+PM's answers of 2026-11-10 (Source: AI Lab PM).
+Names: only Ethan Cortes (AT staff, public AT directory, provided by the PM). The
+Coordinator role came from a person's own LinkedIn, so it's described without a name.
+Add student officers only with their consent.
 -->
 
 ## Student AI Commons Leadership Committee
@@ -24,6 +24,14 @@ A public post has described an "AI Commons Coordinator" role at the SFSU Student
 Commons. No official list of Student AI Commons officers has been published.
 
 Source: public social-media post (undated, checked 2026-10-29).
+
+## Academic Technology staff supporting the Commons
+
+Ethan Cortes is listed in SFSU's Academic Technology directory as an AT Services
+Specialist, supporting the SFSU Student AI Commons. For current student officers and their
+responsibilities, contact the AI Commons team (ai@sfsu.edu).
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
 
 ## How to contact the Student AI Commons
 

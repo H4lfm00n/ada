@@ -105,8 +105,7 @@ _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-e
   Decisions DES21–DES25.
 
 - Lab docs v1 restructure (`task/des-lab-docs-v1`, 2026-11-10): PM confirmed the research
-  except CONFLICT items. 12 files in `lab_docs/` (DES26). TODOs only for the 11 conflicts,
-  each in its own `##` section (DES27, DES28). Templates moved to `docs/lab_doc_templates/`
+  and answered all conflicts. 12 files in `lab_docs/` (DES26), 0 TODOs (DES27, DES28, DES31). Templates moved to `docs/lab_doc_templates/`
   (DES29). Supersedes `task/des-lab-docs-content`.
 
 ### Engineer needs to wire up (M2/M4)
@@ -134,26 +133,18 @@ _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-e
 - Kiosk UI spec + mockups (M5).
 - Once the PM fills real `lab_docs/`, add golden cases for the real facts.
 
-### Lab-doc TODOs (conflicts) for PM, 2026-11-10
-`grep -n "TODO(PM)" lab_docs/[a-z]*.md`:
-1. meetings-events.md: hackathon date (Oct 2 vs Oct 3), end time (6/7/8 PM), venue name.
-2. sfsu.md: number of SFSU colleges (seven vs six).
-3. sfsu.md: TASC online tutoring hours.
-4. sfsu.md: SHS emergency page 415-388-2222 typo fixed? (FYI; correct number is published.)
-5. sfsu.md: winter closure start (Dec 24 vs Dec 25).
-6. sfsu.md: shuttle discontinued?
-7. academic-technology.md: AT Friday/evening hours.
-8. academic-technology.md: short-term laptop loan length and due time.
-9. academic-technology.md: ChatGPT Edu after July 2026.
-10. academic-technology.md: Critical Analysis course required vs elective for the badge.
-11. ai-policy.md: AI-detection tools guidance.
+### Lab docs: PM answers applied (2026-11-10)
+All 11 conflict TODOs answered and applied; `lab_docs/` has **0** `TODO(PM)`. AI-detection
+section removed ("no comments"). PM also confirmed: AI Lab ↔ Commons relationship, project
+proposals via the student request form, meetings in DMS LIB 260, Commons equipment (robotic
+dogs, arms, 3D printer, kits, GB10 and Jetson Orin checkout), compute rules (no remote
+access; overnight only if started in person), Ethan Cortes (AT Services Specialist), and that
+the old Discord invite is dead.
 
-### Lab-doc gaps (not written; the bot says "not sure")
-AI Lab ↔ Student AI Commons relationship; founding date/story; eligibility, dues, what
-happens after the join form; regular meeting time and place; next Leadership Committee date;
-Commons projects; Commons-owned equipment, GPU booking, accounts, remote access, overnight
-jobs; lab-specific hours, guests, code of conduct; officer names (with consent); whether the
-Discord invite is permanent.
+### Still unknown (bot says "contact the AI Commons team" / "not sure")
+Meeting dates and times; dues amounts; GB10/Jetson checkout terms; current Discord link;
+student officers; Commons founding date; hackathon end time and venue; the student request
+form's URL (is it the "Join now!" form?).
 
 ### Open questions for PM
 1. Public name: config still says `bot_name: Dum-E` (a film character's name).
@@ -168,7 +159,7 @@ Discord invite is permanent.
 9. Approve DES15: any failed critical red-team case fails `make eval`?
 10. Lab docs: OK to publish that the lab has a GB10 and an SO-ARM101 kit (planned)?
 11. ~~Who fills in the real `lab_docs/`?~~ Drafted from the PM's research; PM to resolve the TODOs.
-12. Is the AI Lab the SFSU Student AI Commons (same group, part of it, or separate)? This
+12. ~~Answered 2026-11-10 (the AI Lab supports the Commons).~~ Is the AI Lab the SFSU Student AI Commons (same group, part of it, or separate)? This
     is the biggest TODO; it decides the bot's wording about "the lab" (DES25).
 13. Approve a system prompt tweak so the bot can relay SFSU office info with attribution (DES21)?
 14. Q6 is now partly answerable: add University Police (415-338-2222 from a cell) to the

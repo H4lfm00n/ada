@@ -3,11 +3,10 @@
 Last updated: 2026-11-10
 
 <!--
-v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29).
-These questions are kiosk-style formulations based on public sources. No real visitor
-questions were available (no readable emails, Discord messages, or form responses).
-Each answer repeats a fact from another doc. Keep them in sync: if you change an answer
-there, change it here too, or the assistant sees two versions and says it's not sure.
+v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29) plus the
+PM's answers of 2026-11-10 (Source: AI Lab PM).
+Kiosk-style questions. Each answer repeats a fact from another doc. Keep them in sync:
+if you change an answer there, change it here too.
 -->
 
 ## Where is the AI Studio?
@@ -16,6 +15,15 @@ The AI Studio is in room LIB 260, on the second floor, inside the Digital Media 
 MakerSpace. The AI Studio serves the SFSU Student AI Commons.
 
 Source: Academic Technology Updates: Fall 2026, at.sfsu.edu/news/academic-technology-updates-fall-2026 (source date 2026-08-24, checked 2026-10-29).
+
+## How does the AI Lab relate to the Student AI Commons?
+
+The Student AI Commons brings together SFSU students, student organizations, and campus
+partners to explore AI through projects, workshops, and collaboration. The AI Lab supports
+that community through hands-on project work and access to AI and robotics resources in the
+Digital Media Studio in LIB 260.
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
 
 ## Is the AI Studio the same as the Digital Media Studio?
 
@@ -31,6 +39,31 @@ page links the Student AI Commons Discord and Instagram.
 
 Source: AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29).
 
+## Are there dues, and what happens after I submit a request form?
+
+Students submit a project proposal through the student request form. The AI Commons team
+then follows up to discuss the software the project needs. For membership dues or
+project-related costs, contact the AI Commons team (ai@sfsu.edu).
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
+
+## When and where do Student AI Commons meetings take place?
+
+Student AI Commons meetings take place in the Digital Media Studio (DMS), in LIB 260 on the
+second floor of the J. Paul Leonard Library. For current meeting dates and times, contact
+the AI Commons team (ai@sfsu.edu).
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
+
+## What equipment does the Student AI Commons have?
+
+The Student AI Commons supports student-proposed projects and has robotic dogs, robotic
+arms, a 3D printer, and additional robotics kits. It also checks out NVIDIA GB10 systems
+and Jetson Orin devices. Submit a project proposal so the team can discuss your software
+needs and the resources available.
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
+
 ## Do I need to join a club to visit the AI Studio?
 
 No membership rule for visiting the AI Studio has been published. The Digital Media Studio
@@ -42,17 +75,27 @@ Source: AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29); 
 ## How do I hear about Student AI Commons events?
 
 Check the Commons programming page, at.sfsu.edu/event/student-ai-commons, and the student
-AI club listings it links. The Student AI Commons Discord (discord.gg/XSmfEh25) and
-Instagram (@sfsuaistudentcommons) are linked from ai.sfsu.edu/ai-students.
+AI club listings it links. The Student AI Commons Instagram (@sfsuaistudentcommons) is
+linked from ai.sfsu.edu/ai-students. For current Discord access, contact the AI Commons
+team (ai@sfsu.edu).
 
-Source: SFSU Student AI Commons | Events, at.sfsu.edu/event/student-ai-commons (undated, checked 2026-10-29); AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29).
+Source: SFSU Student AI Commons | Events, at.sfsu.edu/event/student-ai-commons (undated, checked 2026-10-29); AI Lab PM, confirmed 2026-11-10 (Discord).
+
+## Is there a permanent Discord link?
+
+A permanent Student AI Commons Discord invitation link hasn't been confirmed. The previous
+invitation link changed. For current Discord access, contact the AI Commons team
+(ai@sfsu.edu).
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
 
 ## Can I train a model overnight or connect remotely?
 
-No public policy for GPU booking, remote access, or overnight compute has been published
-for the Student AI Commons. Ask the LIB 260 desk staff or email at@sfsu.edu.
+Overnight computing jobs are allowed only if they were started in person at the lab.
+Remote access is not available. For GPU availability and booking, contact the AI Lab team
+(ai@sfsu.edu).
 
-Source: SFSU Student AI Commons | Events, at.sfsu.edu/event/student-ai-commons (undated, checked 2026-10-29).
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
 
 ## Where can I see examples of student AI work?
 

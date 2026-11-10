@@ -3,10 +3,11 @@
 Last updated: 2026-11-10
 
 <!--
-v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29).
-Not published anywhere, so not stated: eligibility rules, cost or dues, an approval step,
-onboarding, or what happens after the join form. The join-form questions couldn't be read.
-Full form URL (kept out of the kiosk text on purpose):
+v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29) plus the
+PM's answers of 2026-11-10 (Source: AI Lab PM).
+Still not stated: eligibility rules and the dues amount (PM: contact the team).
+The Discord invite in the research (discord.gg/XSmfEh25) has changed; don't re-add it.
+Full join-form URL (kept out of kiosk text on purpose):
 https://forms.cloud.microsoft/Pages/ResponsePage.aspx?id=NeP72CyCqUGHdH8WcJqsn0dbUyhwlEJKt_nGmjk9QYhUNDJWT09OWVY1NDdaOElQUEw3UU5ORUlXMy4u
 -->
 
@@ -17,13 +18,29 @@ page, ai.sfsu.edu/ai-students. The link opens a Microsoft Forms sign-up form.
 
 Source: AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29).
 
+## Proposing a project to the Student AI Commons
+
+To start a project with the SFSU Student AI Commons, submit a project proposal through the
+student request form. The AI Commons team then follows up with you to discuss the software
+your project needs and the resources available for it.
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
+
+## Student AI Commons dues and costs
+
+For information about membership dues or project-related costs, contact the AI Commons team.
+The Student AI Commons' public email is ai@sfsu.edu.
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
+
 ## Student AI Commons Discord and Instagram
 
-The SFSU Student AI Commons has a Discord server at discord.gg/XSmfEh25 and an Instagram
-account, @sfsuaistudentcommons. Both are linked from SFSU's AI for Students page,
-ai.sfsu.edu/ai-students.
+The SFSU Student AI Commons has an Instagram account, @sfsuaistudentcommons, linked from
+SFSU's AI for Students page, ai.sfsu.edu/ai-students. The Commons also has a Discord
+server, but its invitation link has changed and a permanent link hasn't been confirmed.
+For current Discord access, contact the AI Commons team (ai@sfsu.edu).
 
-Source: AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29).
+Source: AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29); AI Lab PM, confirmed 2026-11-10 (Discord link).
 
 ## Helping decide the Student AI Commons' direction
 

@@ -253,3 +253,12 @@ bug can index them.
 The research still doesn't establish that relationship (DES25 stands). Also dropped vs v1:
 the "robot assistant" and GB10 sections, which came from the brief, not the research, and
 the AI Commons Coordinator's name (a personal LinkedIn; the role is kept without a name).
+
+**DES31. PM answers applied (2026-11-10); `lab_docs/` has no TODOs left.**
+PM-supplied facts cite "AI Lab PM (Atharva), confirmed 2026-11-10" as their source. The AI
+Lab/Commons relationship now comes from the PM, superseding DES25/DES30. The AI-detection
+section was removed rather than answered (PM: "no comments"), so the bot says it's not sure.
+The old Discord invite was removed everywhere. Ethan Cortes is named (public AT directory
+listing, provided by the PM); student officers still need consent before being named.
+The GB10 is back in the docs as Commons checkout equipment; the College of Business AI Hub
+GB10s remain separate.
