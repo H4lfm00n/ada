@@ -807,7 +807,7 @@ def test_latency_counts_only_first_asks_against_the_target(
     out = capsys.readouterr().out
     assert "new question: median 2.50s" in out and "[MISS]" in out
     assert "cached repeat: median 0.50s" in out
-    assert "median 1000 uncached tokens in 2.00s  (500 tok/s)" in out
+    assert "prompt median 1000 tokens, prefill median 2.00s" in out
 
 
 def test_always_avoid_catches_retrieval_narration(repo_root: Path) -> None:
@@ -823,3 +823,36 @@ def test_always_avoid_catches_retrieval_narration(repo_root: Path) -> None:
     # Real names are fine: "Google Docs" isn't narration, and neither is a real source.
     ok = judge(case, "SFSU's AI site says it's LIB 260; you can use Google Docs there.", [], [])
     assert not ok.avoided_hits
+
+
+def test_prefill_probe_verdict_tells_reuse_from_full_reprocess() -> None:
+    from app.prefill_probe import Probe, verdict
+
+    nodocs = Probe("no docs", 2200, 0.05, 0.1)
+    # 1,400 tok/s: ~720 new tokens -> ~0.5 s if reuse works, ~2.1 s if not.
+    reuse = verdict(Probe("swap", 2900, 0.6, 0.7), nodocs, 1400)
+    assert "VERDICT A" in reuse
+    full = verdict(Probe("swap", 2900, 2.1, 2.2), nodocs, 1400)
+    assert "VERDICT B" in full
+
+
+async def test_prefill_probe_runs_end_to_end(
+    rag_settings: Settings,
+    bow: BowOllama,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import app.prefill_probe as probe
+
+    await indexed(rag_settings, bow)
+    real_from_settings = OllamaClient.from_settings
+    monkeypatch.setattr(
+        probe.OllamaClient,
+        "from_settings",
+        classmethod(lambda cls, s, transport=None: real_from_settings(s, bow.transport)),
+    )
+    monkeypatch.setattr(probe, "Q_A", "does joining cost money? membership fee")
+    monkeypatch.setattr(probe, "Q_B", "who holds the AI Lab officer roles? president")
+    assert await probe.run(rag_settings) == 0
+    out = capsys.readouterr().out
+    assert "SWAP: docs B + question B" in out and "no docs + question B" in out

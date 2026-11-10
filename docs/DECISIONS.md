@@ -410,6 +410,9 @@ rule was loosened:
 The "not sure" + "lab member" fixed phrases are unchanged. `real_docs_qa.yaml` gains
 `always_avoid`, which checks every answer for narration. Designer: please sync
 `content/persona.md` (the prompt front matter says to keep them in sync) and reword freely.
+Run 4 result: narration fell from most answers to 2 of 42 at temperature 0.7. What's left
+is a designer item: a few-shot pair showing a docs-grounded answer in a natural voice would
+likely finish it, but an example can't contain real lab facts, so it needs care.
 Brief 5.9 says prompt changes pass the eval suite before merging. M4 doesn't exist yet, so
 the gate for now is `make rag-diagnose` plus `make chat-demo` (persona and safety smoke run).
 `make eval` follows when M4 lands.

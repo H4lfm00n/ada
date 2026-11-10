@@ -105,7 +105,22 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
     assistant knowing things.** Prompt fix (D29, PM-requested edit to the designer's
     prompt), plus the Q12 contact rule. Every diagnose answer is now checked for narration
     (`always_avoid`).
-  - Waiting on: GB10 run 4 (diagnose + chat-demo on the new prompt, plus latency lines).
+  - **GB10 run 4 (D29 prompt, each question asked 2 times):** 38/42 by the hints. Rescored
+    against the recalibrated hints, the only real misses are **2 of 42 answers that still say
+    "the docs say/don't say"** (Q12, Q14), down from most answers before. The other two were
+    my hints being too narrow ("reaches out" for "follows up"; Q12 pointing to the clubs'
+    GatorXperience listings, which is grounded and fine). Hints fixed. Retrieval is unchanged
+    and 100%.
+  - chat-demo on the new prompt: in character, safe, grounded ("LIB 260"), and it doesn't
+    claim to remember the previous visitor.
+  - **Latency (run 4):** chat without docs starts in ~0.9 s (PASS). Lab questions take
+    ~2.5 s to the first token (MISS; 2.46 s median, 2.82 s in chat-demo), and the gap is all
+    prefill (2.07 to 2.45 s). Decode is 22 to 38 tok/s. Ollama's prompt token count includes
+    cached tokens, so the old "uncached tokens" label was wrong; fixed. `make prefill-probe`
+    decides between (A) the cached system prompt is reused and the ~700 docs tokens are just
+    slow to process, and (B) reuse breaks whenever the docs change.
+  - Waiting on: `make prefill-probe` output (GB10 run 5). M2's functional goal is met; merge
+    doesn't depend on latency.
 
 ## Next
 - Record the measured TTFT, first-sentence time, and tok/s below. If TTFT misses 1.5 s with
@@ -120,7 +135,8 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
 ## Measured on GB10
 | date | chat model | prompt | TTFT median | first sentence | decode tok/s | guard | embed | notes |
 |------|-----------|--------|-------------|----------------|--------------|-------|-------|-------|
-| 2026-11-10 | qwen3.8:27b | real + RAG k=4 (<=3,000 chars) | ~2.3-2.7s new question (4 samples); 0.55s cached repeat | n/a | n/a | n/a | qwen3-embedding:0.6b | rag-diagnose run 2; full numbers in run 3 |
+| 2026-11-10 | qwen3.8:27b | real + RAG k=4 (<=3,000 chars), lab question | 2.46s median, 2.64s max (21 new questions) | ~3.7s (chat-demo) | 22-38 | n/a | 0.11-0.25s retrieval | rag-diagnose run 4; prefill 2.07s median of ~2,700-token prompts |
+| 2026-11-10 | qwen3.8:27b | real, no docs (chat) | 0.97s median (chat-demo, 6 turns) | 2.02s median | 27.9 median | n/a | n/a | chat-demo run 4 |
 
 RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable top-1 min,
 "don't know" top-1 max, chosen `rag_min_score`: _pending_

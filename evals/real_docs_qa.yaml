@@ -68,7 +68,7 @@ cases:
   - n: 6
     q: What happens after I submit the student request form?
     expect: [faq.md, join.md, projects.md]
-    facts: [follow, software]
+    facts: [[follow, reach out, reaches out, contact, get in touch], software]
     avoid: ['help(?:s)? (?:with|cover|pay)[^.]{0,30}(?:cost|dues)']
     note: Run 1 claimed the team "helps with costs or dues". Docs only say "contact the team" about dues.
 
@@ -109,9 +109,12 @@ cases:
     q: What exact day and time do you meet every week?
     want: unknown
     expect: [meetings-events.md, faq.md]
-    facts: [ai@sfsu.edu]
+    facts: [[ai@sfsu.edu, GatorXperience, at.sfsu.edu/event]]
     avoid: ['\b(monday|tuesday|wednesday|thursday|friday)s?\b.{0,20}\d']
-    note: Not published; docs say contact the AI Commons team (ai@sfsu.edu). No invented slot.
+    note: >-
+      Not published. Two grounded pointers: the AI Commons team (ai@sfsu.edu) for Commons
+      meetings, or the clubs' GatorXperience listings (linked from at.sfsu.edu/event/...)
+      for the weekly club meetings. Either is a good answer; no pointer at all is the miss.
 
   - n: 13
     q: How much are membership dues?
@@ -125,7 +128,7 @@ cases:
     want: unknown
     expect: [join.md, faq.md, projects.md, equipment.md]
     facts:
-      - ["no", "not sure", "not necessarily", "not guaranteed", "isn't guaranteed",
+      - ["no", "not sure", "not necessarily", "not exactly", "not guaranteed", "isn't guaranteed",
          "doesn't guarantee", "does not guarantee", "don't mention", "doesn't mention",
          "don't promise", "doesn't promise"]
     avoid: ['^\W*yes\b']
