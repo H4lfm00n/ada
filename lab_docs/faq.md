@@ -47,6 +47,22 @@ project-related costs, contact the AI Commons team (ai@sfsu.edu).
 
 Source: AI Lab PM (Atharva), confirmed 2026-11-10.
 
+## How can I get involved if I don't have a project yet?
+
+<!-- ENG 2026-11-10 (D28): added because "get involved without a project" retrieved only the
+project-proposal sections and the bot said "not sure". Every fact below is copied from
+join.md and meetings-events.md; nothing new. Designer: reword freely. -->
+
+Joining the SFSU Student AI Commons and proposing a project are separate steps. To join,
+use the "Join now!" link on SFSU's AI for Students page, ai.sfsu.edu/ai-students. You can
+also go to Student AI Commons events, listed at at.sfsu.edu/event/student-ai-commons, join
+one of the three student AI clubs that meet weekly with the Commons (the AI Agents Club, the
+AI Organization, and the Graduate Business AI Club), or follow the Commons on Instagram,
+@sfsuaistudentcommons. The student Leadership Committee, which helps decide the group's
+direction, meets monthly.
+
+Source: AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29); SFSU Student AI Commons | Events, at.sfsu.edu/event/student-ai-commons (undated, checked 2026-10-29); President's Messages, planning.sfsu.edu/presidents-messages (source date 2026-10-01, checked 2026-10-29).
+
 ## When and where do Student AI Commons meetings take place?
 
 Student AI Commons meetings take place in the Digital Media Studio (DMS), in LIB 260 on the

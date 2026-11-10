@@ -1,0 +1,93 @@
+# Retrieval check: does the right lab doc come back for each test question?
+# Owner: engineer (format, runner) + designer (cases welcome). Run: `make rag-check`
+# (real docs) or `make rag-check-fixtures` (eval corpus). DECISIONS D23.
+#
+# This tests retrieval only, not the reply: no chat model is called.
+#   expect: file or [files]  -> passes if a chunk from any of them clears rag_min_score
+#   expect_none: true        -> passes if NOTHING clears the cutoff (the bot says "not sure")
+# The suite used is the one whose lab_docs_dir matches config (ADA_LAB_DOCS_DIR overrides).
+# Questions about sections still marked TODO don't belong here: ingest leaves those out,
+# so there is no right doc to find. `make chat-lab` covers how the bot answers them.
+
+version: 1
+pass_bar: 0.9  # recall@k over `expect` cases. Below this, propose a fix (D23) before demos.
+
+suites:
+
+  - lab_docs_dir: evals/fixtures/lab_docs
+    note: INVENTED corpus. Mirrors golden.yaml grounding + dont_know cases.
+    cases:
+      - {q: "how do I join the lab?", expect: join.md}
+      - {q: "does it cost anything to join?", expect: [join.md, faq.md]}
+      - {q: "do I need to already know AI to join?", expect: [join.md, faq.md]}
+      - {q: "I'm a biology major, can I still join?", expect: join.md}
+      - {q: "when are the general meetings?", expect: meetings-events.md}
+      - {q: "what room does the lab meet in?", expect: meetings-events.md}
+      - {q: "is there a meeting during finals week?", expect: meetings-events.md}
+      - {q: "what projects is the lab working on?", expect: projects.md}
+      - {q: "what kind of computer do you run on?", expect: [equipment.md, about.md]}
+      - {q: "can I use the lab's equipment?", expect: equipment.md}
+      - {q: "who's the president of the lab?", expect: roles.md}
+      - {q: "how can I get in touch with the lab?", expect: roles.md}
+      - {q: "what's Build Night?", expect: meetings-events.md}
+      - {q: "can I bring my roommate to a meeting?", expect: faq.md}
+      - {q: "may faculty attend lab meetings?", expect: join.md}
+      - {q: "what's the next big lab event?", expect: meetings-events.md}
+      - {q: "when can I use the 3D printer?", expect: [equipment.md, faq.md]}
+      # Nothing in the corpus answers these. They set the floor for rag_min_score.
+      - {q: "what's the wifi password here", expect_none: true}
+      - {q: "where should I park when I come to meetings?", expect_none: true}
+      - {q: "how much are the lab hoodies?", expect_none: true}
+
+  - lab_docs_dir: lab_docs
+    note: >-
+      Real docs, the 12-file layout merged 2026-11-10 (task/des-lab-docs-v1). The first 20
+      mirror evals/real_docs_qa.yaml (make rag-diagnose); the rest cover other files.
+    cases:
+      - {q: "What is the AI Commons, and who is it for?", expect: [about.md, faq.md]}
+      - {q: "How does the AI Lab relate to the Student AI Commons?", expect: [faq.md, about.md]}
+      - {q: "What does DMS stand for?", expect: dms.md}
+      - {q: "Where is the AI Lab located?", expect: [about.md, faq.md, meetings-events.md]}
+      - {q: "Are AT's support hours the same as DMS's opening hours?", expect: [academic-technology.md, dms.md, rules.md]}
+      - {q: "How do I submit a project proposal?", expect: [join.md, faq.md, projects.md]}
+      - {q: "What happens after I submit the student request form?", expect: [faq.md, join.md, projects.md]}
+      - {q: "Can the team help identify the software my project needs?", expect: [join.md, faq.md, projects.md, equipment.md]}
+      - {q: "What equipment is available in the Commons?", expect: [equipment.md, faq.md]}
+      - {q: "Do you have robotic dogs and robotic arms?", expect: [equipment.md, faq.md]}
+      - {q: "How can I get involved without an existing project?", expect: [join.md, faq.md, meetings-events.md]}  # file-level only; rag-diagnose checks the section
+      - {q: "Where do meetings take place?", expect: [meetings-events.md, faq.md]}
+      - {q: "What exact day and time do you meet every week?", expect: [meetings-events.md, faq.md]}
+      - {q: "How much are membership dues?", expect: [join.md, faq.md]}
+      - {q: "Does submitting a proposal guarantee approval or software installation?", expect: [join.md, faq.md, projects.md]}
+      - {q: "Can I reserve a GPU online? Give me the booking link.", expect: [equipment.md, rules.md, faq.md]}
+      - {q: "Can I access the lab's computers remotely from home?", expect: [equipment.md, rules.md, faq.md]}
+      - {q: "Can I start a training job in person and leave it running overnight?", expect: [equipment.md, rules.md, faq.md]}
+      - {q: "Can I start an overnight job remotely?", expect: [equipment.md, rules.md, faq.md]}
+      - {q: "Does the overnight computing rule also allow overnight 3D printing?", expect: rules.md}
+      - {q: "Where is the AI Studio?", expect: [faq.md, about.md]}
+      - {q: "Can I borrow a camera?", expect: [rules.md, dms.md]}
+      - {q: "Can I use ChatGPT on my homework?", expect: ai-policy.md}
+      - {q: "Does SFSU have a master's degree in AI?", expect: sfsu.md}
+      - {q: "What free AI tools does SFSU give students?", expect: academic-technology.md}
+      - {q: "I forgot my SFSU password, who can help?", expect: [sfsu.md, academic-technology.md]}
+      - {q: "What's the campus police non-emergency number?", expect: sfsu.md}
+      - {q: "When does the fall semester end?", expect: sfsu.md}
+      - {q: "Who should I email about a partnership with the Commons?", expect: roles.md}
+      # Casual phrasing: answerable questions must still clear the gate (D27).
+      - {q: "yo where do you guys meet", expect: [meetings-events.md, faq.md]}
+      - {q: "is there a fee to join", expect: [join.md, faq.md]}
+      - {q: "can i use the gpus from my dorm", expect: [equipment.md, rules.md, faq.md]}
+      - {q: "who do i email about the commons", expect: [roles.md, join.md, faq.md]}
+      - {q: "can i just walk into the ai studio", expect: [faq.md, join.md, dms.md]}
+      - {q: "I don't have a project idea, can I still join?", expect: [faq.md, join.md]}
+      # Nothing in the docs answers these. They set the gate (rag_min_score, D27):
+      # every one must score under it, every answerable question above it.
+      - {q: "how much are the lab hoodies?", expect_none: true}
+      - {q: "who won the lab's chess tournament last spring?", expect_none: true}
+      # "does the lab have a coffee machine?" was here: it scores 0.549 against equipment.md,
+      # above the gate, and no cosine cutoff separates it from real equipment questions
+      # (lowest answerable: 0.560). It is now case 20 in real_docs_qa.yaml, where the reply
+      # is what's checked (D27).
+      - {q: "what's the best pizza place near campus?", expect_none: true}
+      - {q: "is there a lab trip to Tokyo this summer?", expect_none: true}
+      - {q: "what's your favorite movie?", expect_none: true}
