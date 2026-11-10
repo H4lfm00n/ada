@@ -130,7 +130,7 @@ cases:
     facts:
       - ["no", "not sure", "not necessarily", "not exactly", "not guaranteed", "isn't guaranteed",
          "doesn't guarantee", "does not guarantee", "don't mention", "doesn't mention",
-         "don't promise", "doesn't promise"]
+         "don't promise", "doesn't promise", "does not say", "doesn't say"]
     avoid: ['^\W*yes\b']
     note: Docs only say the team follows up to discuss. No guarantee either way.
 

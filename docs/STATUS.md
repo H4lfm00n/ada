@@ -128,7 +128,38 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
     verdict ("A") was too coarse; it now reports PARTIAL. Likely cause (unconfirmed): how
     Ollama's cache handles this model (slots, or cache checkpoints if the architecture is
     hybrid). Shrinking the docs alone saves at most ~0.3 to 0.4 s, not enough for 1.5 s.
-  - Waiting on (GB10 run 6): `ollama show` for the model architecture, Ollama's environment,
+  - **Cause found (run 6, `ollama show`):** `qwen3.8:27b` is architecture `qwen35` (Qwen3.5
+    family). Qwen3.5 is a hybrid model: about 3 of every 4 layers are Gated DeltaNet
+    (recurrent state), the rest full attention. A recurrent state can't be rolled back to an
+    arbitrary prefix, so inference engines only reuse the cache from saved checkpoints. That
+    matches run 5's partial reuse exactly. This is the model's architecture, not our code or
+    prompt order. The model also loads a vision projector (clip, 461M) that we don't use.
+  - **GB10 run 6b, model comparison on the same 21 questions (one run each, temp 0.7):**
+    | chat model | answers ok | first token, new question | prefill median |
+    |---|---|---|---|
+    | qwen3.8:27b, k=4 | 38/42 (2 narration slips) | 2.48 s median, 2.69 s max [MISS] | 2.08 s |
+    | qwen3.8:27b, k=3 / 1,500 chars | 20/21 | 1.74 s median, 2.29 s max [MISS] | 1.29 s |
+    | **gemma4:12b**, k=4 | 20/21 (Q18 miss, answer not yet seen) | **1.15 s median, 1.27 s max [PASS]** | 0.63 s |
+    gemma4:12b is the only option that meets 1.5 s. It's untested on persona, AI chat,
+    and red-team behavior; a smaller model may be easier to jailbreak, and M3 guards + M4
+    evals must confirm before any demo. **No config change yet; PM decision.**
+  - **GB10 run 7, gemma4:12b (each question asked 3 times, plus chat-demo):** 59/63 answers OK.
+    First token: new lab question 1.10 s median, 1.20 s max; chat 0.94 s median, 1.29 s max
+    (all PASS). Decode 50.5 tok/s (qwen: ~28). In character, grounded, and it gave ai@sfsu.edu
+    with the meeting room (the Q12 fix works on gemma).
+    - Q14: 1 real narration slip ("as the docs do not say"). 1 correct answer my hint missed
+      ("does not say"); hint fixed.
+    - **Q18 hedges:** 2 of 3 answers open "I am not sure about that" and then give the right
+      answer (no remote access; overnight jobs only if started in person). gemma follows the
+      "not sure" rule more eagerly than qwen.
+    - **Stiffer voice:** gemma avoids contractions ("that is what I am here for", "I do not
+      know"). The persona wants warm and casual. It also said "Oops, I fumbled that" when
+      nothing had gone wrong.
+    - Both are prompt-level (designer): "use contractions"; "say 'not sure' only when the
+      docs don't answer; if they do, answer plainly".
+  - **PM decision pending: switch `chat_model` to `gemma4:12b`?** Not yet tested on red-team
+    behavior. M3 guards + M4 evals gate any demo either way.
+    Earlier list, still open: Ollama's environment,
     the k3-small latency from run 3, and a diagnose pass with `gemma4:12b` for a quality and
     latency comparison. **No model change without the PM.** M2's functional goal is met;
     merging doesn't depend on latency.
@@ -170,8 +201,11 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
   until M4's evals give a bigger sample. No change made.
 - PM: **first token for a lab question is ~2.5 s, target 1.5 s.** Cause (run 5): processing
   runs at 783 tok/s and each new question redoes ~900 to 1,200 tokens. Options:
-  (1) an Ollama cache setting, if run 6 shows one applies (cheap, no quality cost);
-  (2) a smaller chat model (`gemma4:12b`): run 6 measures quality and speed, your decision;
+  (1) an Ollama cache setting: unlikely to help much, since the hybrid architecture limits
+      prefix reuse in every engine (llama.cpp, vLLM and SGLang have open issues on it);
+  (1b) a non-hybrid dense model (a Qwen3-generation dense model, or another full-attention
+      model) gets normal prefix caching: only ~500 new tokens per lab question;
+  (2) **`gemma4:12b` (run 6b: 1.15 s median, 20/21 answers): the leading option**, your decision;
   (3) a shorter static system prompt (designer, ~2,100 tokens now);
   (4) accept ~2.5 s for lab questions and let the kiosk show its "thinking" state (M5).
   This changes a brief target (section 8), so it's your call.
