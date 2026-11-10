@@ -5,7 +5,7 @@ Last updated: 2026-11-10
 <!--
 v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29).
 Describes an SFSU office. Attribute facts to Academic Technology; never speak for SFSU.
-Sections containing TODO(PM) are dropped at ingest.
+No open PM questions remain in this file (2026-11-10).
 -->
 
 ## What Academic Technology is
@@ -45,19 +45,11 @@ Source: Get Help | Academic Technology, at.sfsu.edu/get-help (undated, checked 2
 
 ## Academic Technology Fall 2026 support hours
 
-Academic Technology's Fall 2026 announcement lists AT support hours as Monday through
-Thursday, 8 AM to 8 PM, and Friday, 8 AM to 5 PM, starting August 24, 2026. These are AT
-support hours in LIB 80, not MakerSpace hours.
+Academic Technology's Fall 2026 support hours are Monday through Thursday, 8 AM to 8 PM,
+and Friday, 8 AM to 5 PM, starting August 24, 2026. These are AT support hours in LIB 80,
+not MakerSpace hours.
 
-Source: Academic Technology Updates: Fall 2026, at.sfsu.edu/news/academic-technology-updates-fall-2026 (source date 2026-08-24, checked 2026-10-29).
-
-## Academic Technology hours discrepancy
-
-TODO(PM): confirm AT's Friday and evening hours. The Fall 2026 announcement and the Get Help
-main content say Mon–Thu 8 AM–8 PM, Fri 8 AM–5 PM; the Get Help footer says weekdays
-8 AM–5 PM; the student resource guide says weekdays 8 AM–8 PM.
-
-Source: Get Help, at.sfsu.edu/get-help; Technology Resources for Students, at.sfsu.edu/resources-student (both undated, checked 2026-10-29).
+Source: Academic Technology Updates: Fall 2026, at.sfsu.edu/news/academic-technology-updates-fall-2026 (source date 2026-08-24, checked 2026-10-29); AI Lab PM, confirmed 2026-11-10.
 
 ## Borrowing a laptop from Academic Technology
 
@@ -71,11 +63,9 @@ Source: Laptop Checkout | Academic Technology, at.sfsu.edu/laptop-checkout (unda
 
 ## Short-term laptop loan length
 
-TODO(PM): confirm how long a short-term laptop loan lasts and when it's due. The laptop page
-says up to one business day, due within 15 minutes of LIB 80 closing, and mentions an
-8 AM–7 PM semester window; the student guide says four hours.
+A short-term laptop loan from Academic Technology lasts up to one business day.
 
-Source: Laptop Checkout, at.sfsu.edu/laptop-checkout; Technology Resources for Students, at.sfsu.edu/resources-student (both undated, checked 2026-10-29).
+Source: Laptop Checkout | Academic Technology, at.sfsu.edu/laptop-checkout (undated, checked 2026-10-29); AI Lab PM, confirmed 2026-11-10.
 
 ## Adobe Creative Cloud for SFSU students
 
@@ -105,12 +95,9 @@ Source: OpenAI ChatGPT Edu, ai.sfsu.edu/chatgpt-edu (undated, checked 2026-10-29
 
 ## ChatGPT Edu availability after July 2026
 
-TODO(PM): confirm ChatGPT Edu is still free and active for SFSU after July 2026. The page
-advertises current availability, but its FAQ says funding covers February 2025–July 2026,
-with an extension "to be evaluated". No renewal was found. (Until confirmed, point people to
-service@sfsu.edu.)
+ChatGPT Edu is still free and active for SFSU after July 2026.
 
-Source: OpenAI ChatGPT Edu, ai.sfsu.edu/chatgpt-edu (undated, checked 2026-10-29).
+Source: AI Lab PM, confirmed 2026-11-10 (SFSU's ChatGPT Edu page, ai.sfsu.edu/chatgpt-edu, still lists a February 2025–July 2026 funding window).
 
 ## Student AI Literacy Essentials course
 
@@ -131,11 +118,10 @@ Source: Start your AI journey, ai.sfsu.edu/start-your-ai-journey (undated; Fall 
 
 ## AI Literacy Education Program badge requirements
 
-TODO(PM): confirm whether "Critical Analysis of Generative AI" is required or an elective
-for the faculty/staff badge. The program overview lists it as a required prerequisite; the
-November 18 event page calls it an elective.
+"Critical Analysis of Generative AI" is not a required course for the AI Literacy Education
+Program's faculty and staff badge.
 
-Source: Start your AI journey, ai.sfsu.edu/start-your-ai-journey; Critical Analysis of Generative AI event, ai.sfsu.edu/event/ai-literacy-essentials-critical-analysis-generative-ai-nov-18-26 (both checked 2026-10-29).
+Source: AI Literacy Essentials: Critical Analysis of Generative AI, ai.sfsu.edu/event/ai-literacy-essentials-critical-analysis-generative-ai-nov-18-26 (checked 2026-10-29); AI Lab PM, confirmed 2026-11-10.
 
 ## Canvas accessibility work
 

@@ -3,22 +3,28 @@
 Last updated: 2026-11-10
 
 <!--
-v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29).
-Everything below is SHARED Digital Media Studio and MakerSpace equipment. None of it is
-confirmed as owned by the Student AI Commons. Checkout and use rules are in rules.md.
-Deliberately excluded: the College of Business AI Hub's Dell Pro Max / NVIDIA GB10 systems.
-Their page doesn't connect them to the Commons (attribution unresolved).
-Not published, so not stated: a Commons-only inventory, GPU access, accounts, remote access.
+v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29) plus the
+PM's answers of 2026-11-10 (Source: AI Lab PM).
+Commons equipment, GB10/Jetson Orin checkout, and compute rules come from the PM.
+The MakerSpace sections are SHARED DMS equipment; use rules are in rules.md.
+Checkout terms for the GB10s and Jetson Orins are not stated (PM: contact the team).
 -->
 
-## Is there Student AI Commons equipment?
+## Student AI Commons equipment
 
-No equipment list specific to the Student AI Commons has been published. The AI Studio is
-inside the Digital Media Studio and MakerSpace in LIB 260, so visitors can use the
-MakerSpace's shared equipment under the MakerSpace's rules. Ask at the LIB 260 desk about
-access.
+The SFSU Student AI Commons has robotics and AI equipment for student projects, including
+robotic dogs, robotic arms, a 3D printer, and additional robotics kits. To use it, submit a
+project proposal through the student request form; the AI Commons team then discusses your
+software needs and the resources available.
 
-Source: Digital Media Studio and MakerSpace, at.sfsu.edu/digital-media-studio-and-makerspace (undated, checked 2026-10-29).
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
+
+## NVIDIA GB10 and Jetson Orin checkout
+
+The SFSU Student AI Commons checks out NVIDIA GB10 systems and NVIDIA Jetson Orin devices.
+For availability and how to check one out, contact the AI Commons team (ai@sfsu.edu).
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
 
 ## Shared MakerSpace computers and software
 
@@ -43,10 +49,10 @@ equipment, for creating games, simulations, and interactive experiences.
 
 Source: Rooms & Spaces | Digital Media Studio & MakerSpace, at.sfsu.edu/digital-media-studio-makerspace/rooms-spaces (undated, checked 2026-10-29).
 
-## GPUs, remote access, and overnight training
+## GPU booking, remote access, and overnight jobs
 
-No public policy for booking GPUs, getting compute accounts, connecting remotely, or
-running overnight training jobs has been published for the Student AI Commons. For
-questions, ask the staff at the LIB 260 desk or email at@sfsu.edu.
+For GPU availability and booking instructions, contact the AI Lab team (ai@sfsu.edu).
+Remote access to AI Lab computers is not available. Overnight computing jobs are allowed
+only if they were started in person at the lab.
 
-Source: SFSU Student AI Commons | Events, at.sfsu.edu/event/student-ai-commons (undated, checked 2026-10-29).
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.

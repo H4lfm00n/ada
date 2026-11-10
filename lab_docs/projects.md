@@ -3,25 +3,26 @@
 Last updated: 2026-11-10
 
 <!--
-v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29).
-No named current or past project of the Student AI Commons itself could be verified.
-The projects below are hackathon and awards projects, not Commons-run ongoing projects.
-Add Commons projects here once they are confirmed (name, status, one-line description,
-how to join).
+v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29) plus the
+PM's answers of 2026-11-10 (Source: AI Lab PM).
+Add named Commons projects here once confirmed (name, status, one-line description, how
+to join). Hackathon and awards projects are not Commons-run ongoing projects.
 -->
 
 ## Student AI Commons projects
 
-No named Student AI Commons projects have been published yet. To find out about current
-projects, ask a Commons member or check the Commons Discord (discord.gg/XSmfEh25).
+The SFSU Student AI Commons supports student-proposed projects. Students submit a project
+proposal through the student request form, and the AI Commons team follows up to discuss
+the software and resources the project needs. No named Commons projects have been
+published yet.
 
-Source: PM-reviewed research, 2026-10-29; AI for Students, ai.sfsu.edu/ai-students (undated, checked 2026-10-29).
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
 
 ## SF Hacks x GDG AI Hackathon winning projects
 
-The October 2026 SF Hacks x GDG AI Hackathon, sponsored by the Student AI Commons, named
-three SFSU-track winners. GatorPlate helps people find and post leftover food. Plan-Ed is
-AI-assisted degree planning with a rules engine. Throughline identifies the course
+The SF Hacks x GDG AI Hackathon on October 3, 2026, sponsored by the Student AI Commons,
+named three SFSU-track winners. GatorPlate helps people find and post leftover food. Plan-Ed
+is AI-assisted degree planning with a rules engine. Throughline identifies the course
 knowledge a class assumes and helps plan review. These are hackathon projects, not running
 SFSU services.
 

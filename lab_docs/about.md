@@ -3,9 +3,9 @@
 Last updated: 2026-11-10
 
 <!--
-v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29).
-Not stated anywhere below, because no source establishes it: the Commons' founding date or
-founding story, and how "the AI Lab" relates to the Commons. Ask the PM before adding them.
+v1 real doc, built 2026-11-10 from the PM-reviewed research (snapshot 2026-10-29) plus the
+PM's answers of 2026-11-10 (Source: AI Lab PM).
+Still not stated (no source): the Commons' founding date or story.
 -->
 
 ## What the SFSU Student AI Commons is
@@ -23,12 +23,22 @@ to students' academic, creative, and professional interests.
 
 Source: Academic Technology Updates: Fall 2026, at.sfsu.edu/news/academic-technology-updates-fall-2026 (source date 2026-08-24, checked 2026-10-29).
 
+## The AI Lab and the Student AI Commons
+
+The SFSU Student AI Commons brings together SFSU students, student organizations, and
+campus partners to explore artificial intelligence through projects, workshops, and
+collaboration. The AI Lab supports the Student AI Commons through hands-on project work and
+access to AI and robotics resources in the Digital Media Studio (DMS) in LIB 260.
+
+Source: AI Lab PM (Atharva), confirmed 2026-11-10.
+
 ## What the AI Studio is
 
 The AI Studio is a hub that serves the SFSU Student AI Commons. The AI Studio is inside the
-Digital Media Studio and MakerSpace, in room LIB 260, on the second floor. SFSU's Academic Technology office announced the AI Studio.
+Digital Media Studio and MakerSpace, in room LIB 260, on the second floor of the J. Paul
+Leonard Library. SFSU's Academic Technology office announced the AI Studio.
 
-Source: Academic Technology Updates: Fall 2026, at.sfsu.edu/news/academic-technology-updates-fall-2026 (source date 2026-08-24, checked 2026-10-29); Digital Media Studio and MakerSpace, at.sfsu.edu/digital-media-studio-and-makerspace (undated, checked 2026-10-29).
+Source: Academic Technology Updates: Fall 2026, at.sfsu.edu/news/academic-technology-updates-fall-2026 (source date 2026-08-24, checked 2026-10-29); AI Lab PM, confirmed 2026-11-10 (library building).
 
 ## AI Studio grand opening
 

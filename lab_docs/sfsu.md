@@ -9,8 +9,7 @@ its facts to the office that published them; the assistant relays and points, an
 speaks for SFSU (brief 5.4).
 Longer than the README's ~600-word guide because the PM asked for one SFSU file. Each ##
 section stands alone, so retrieval quality doesn't depend on file length.
-Sections containing TODO(PM) are dropped at ingest; confirmed facts never share a section
-with a TODO.
+No open PM questions remain in this file (2026-11-10).
 -->
 
 ## About SFSU
@@ -39,19 +38,11 @@ Source: Welcome | Campus Maps, maps.sfsu.edu (page undated; map image labeled Ma
 
 ## SFSU colleges
 
-SFSU's Academics page lists these colleges: the Lam Family College of Business; Ethnic
-Studies; Health & Social Sciences; Liberal & Creative Arts; Professional & Global
-Education; Science & Engineering; and the Graduate College of Education.
+SFSU has seven colleges: the Lam Family College of Business; Ethnic Studies; Health &
+Social Sciences; Liberal & Creative Arts; Professional & Global Education; Science &
+Engineering; and the Graduate College of Education.
 
-Source: Academics, sfsu.edu/academics (undated, checked 2026-10-29).
-
-## Number of SFSU colleges
-
-TODO(PM): confirm how many colleges SFSU has. The main Academics page says seven; the
-Academic Colleges page lists seven units but calls Liberal & Creative Arts "one of six
-colleges".
-
-Source: Academics, sfsu.edu/academics; Academic Colleges, academic.sfsu.edu/academic-colleges (both undated, checked 2026-10-29).
+Source: Academics, sfsu.edu/academics (undated, checked 2026-10-29); AI Lab PM, confirmed 2026-11-10 (count).
 
 ## Computer Science degrees at SFSU
 
@@ -129,19 +120,12 @@ Source: Career and Leadership Development, career.sfsu.edu (undated, checked 202
 
 SFSU's Tutoring and Academic Support Center (TASC) offers free peer tutoring in LIB 220 and
 online. Contact: tutoring@sfsu.edu or 415-405-5516. TASC's Fall 2026 service runs August 24
-to December 16. In-person hours are Monday through Thursday, 9 AM to 5 PM, and Friday,
-10 AM to 2 PM. Students can book a one-time appointment or request weekly support on
+to December 16. On-campus hours are Monday through Thursday, 9 AM to 5 PM, and Friday,
+10 AM to 2 PM. Virtual hours are Monday through Thursday, 10 AM to 4 PM, and Friday, 10 AM
+to 2 PM. Students can book a one-time appointment or request weekly support on
 tutoring.sfsu.edu.
 
-Source: Tutoring & Academic Support, tutoring.sfsu.edu/tutoring (undated; schedule explicitly Fall 2026; checked 2026-10-29).
-
-## SFSU online tutoring hours
-
-TODO(PM): confirm TASC's online tutoring hours. TASC's Fall 2026 table lists online
-appointments Monday–Thursday 8 AM–8 PM and drop-ins 9 AM–5 PM; its page footer says
-virtual hours are 10 AM–4 PM. Friday is 10 AM–2 PM in both.
-
-Source: Tutoring & Academic Support, tutoring.sfsu.edu/tutoring (undated, checked 2026-10-29).
+Source: Tutoring & Academic Support, tutoring.sfsu.edu/tutoring (undated; schedule explicitly Fall 2026; checked 2026-10-29); AI Lab PM, confirmed 2026-11-10 (hours).
 
 ## SFSU IT help (ITS Service Desk)
 
@@ -210,14 +194,6 @@ email notification is mandatory for SFSU email holders.
 
 Source: Emergency Notification System, oes.sfsu.edu/get-prepared/emergency-notification-system (undated, checked 2026-10-29).
 
-## Student Health emergency page number error
-
-TODO(PM): confirm SHS has fixed its Emergency page. Its first mobile-phone bullet says
-415-388-2222; its note and University Police both say 415-338-2222. Do not publish the
-388 number. (FYI only; the correct number is already in "Campus emergency numbers".)
-
-Source: Emergency | Student Health Services, health.sfsu.edu/content/emergency (undated, checked 2026-10-29).
-
 ## SFSU Fall 2026 calendar
 
 According to SFSU's Registrar, Fall 2026 instruction began August 24. Campus is closed
@@ -238,11 +214,10 @@ Source: Dates & Deadlines | Registrar's Office, registrar.sfsu.edu/deadlines (la
 
 ## SFSU winter closure
 
-TODO(PM): confirm when the 2026–27 winter closure starts. The Registrar lists December 25,
-2026 to January 1, 2027; Career and Leadership Development lists a closure starting
-December 24 (possibly that office only).
+According to SFSU's Registrar, campus is closed for winter from December 25, 2026 to
+January 1, 2027.
 
-Source: Dates & Deadlines, registrar.sfsu.edu/deadlines (last updated 2026-10-13); Career and Leadership Development, career.sfsu.edu (undated). Both checked 2026-10-29.
+Source: Dates & Deadlines | Registrar's Office, registrar.sfsu.edu/deadlines (last updated 2026-10-13, checked 2026-10-29); AI Lab PM, confirmed 2026-11-10.
 
 ## Getting to SFSU by Muni
 
@@ -256,11 +231,10 @@ Source: M Ocean View | SFMTA, sfmta.com/routes/m-ocean-view; MUNI | Parking & Tr
 
 ## SFSU shuttle from Daly City BART
 
-TODO(PM): confirm the SF State shuttle is discontinued. Sustainability and the July 15,
-2024 CampusMemo say it ended in Fall 2024; Parking's visitor page still mentions it.
-Until confirmed, the kiosk should point to Muni 28/28R instead.
+The SF State shuttle was discontinued in Fall 2024. To get between Daly City BART and
+campus, use Muni buses 28 or 28R.
 
-Source: How We Commute, sustain.sfsu.edu/how-we-commute; CampusMemo, campusmemo.sfsu.edu/2024/july-15-2024 (2024-07-15); Visitor Information, parking.sfsu.edu/visitor-information. All checked 2026-10-29.
+Source: How We Commute, sustain.sfsu.edu/how-we-commute; CampusMemo, campusmemo.sfsu.edu/2024/july-15-2024 (2024-07-15); MUNI, parking.sfsu.edu/muni. All checked 2026-10-29; AI Lab PM, confirmed 2026-11-10.
 
 ## Student transit pass (Gator Pass)
 
