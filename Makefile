@@ -1,5 +1,5 @@
 PHONY_M3 := kill-on kill-off kill-status admin transcripts-prune m3-probe m3-latency
-.PHONY: $(PHONY_M3) setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe rag-check rag-check-fixtures rag-diagnose ingest-report prefill-probe chat-lab run test test-gb10 lint format eval help
+.PHONY: $(PHONY_M3) setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe rag-check rag-check-fixtures rag-diagnose ingest-report prefill-probe chat-lab run test test-gb10 lint format eval eval-lint help
 
 UV ?= uv
 PY := $(UV) run python
@@ -28,6 +28,9 @@ help:
 	@echo "transcripts-prune  delete transcripts past transcript_retention_days"
 	@echo "m3-probe     attack prompts from evals/redteam.yaml: input/output guard decisions"
 	@echo "m3-latency   first-word time with both guards on (sequential vs parallel retrieval)"
+	@echo "eval         golden + red-team + real-docs suites, full pipeline, local judge; exit 1 below the bar"
+	@echo "             ARGS=\"--repeat 3\" flags flaky cases; --suite redteam; --ids a,b; --no-judge"
+	@echo "eval-lint    check eval files + canned lines (no model needed)"
 	@echo "test         unit tests, Ollama mocked"
 	@echo "test-gb10    tests that need the real GB10 + Ollama"
 	@echo "lint         ruff check + format check"
@@ -101,7 +104,10 @@ run:
 	@echo "make run: arrives with the server (M3/M5)"; exit 2
 
 eval:
-	@echo "make eval: arrives in M4 (eval harness)"; exit 2
+	$(PY) -m app.evals run $(ARGS)
+
+eval-lint:
+	$(PY) -m app.evals lint
 
 kill-on:
 	$(PY) -m app.admin on --reason "$(REASON)"

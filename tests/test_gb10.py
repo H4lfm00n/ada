@@ -128,3 +128,29 @@ async def test_guard_recovers_from_a_cold_start_timeout() -> None:
         assert s.guard_model in await client.loaded()
         await asyncio.sleep(1)
         assert (await guard.check("What is a neural network?", "user")).allowed
+
+
+async def test_eval_harness_live_with_judge(tmp_path) -> None:
+    """M4: three real cases through the full pipeline, then the local judge (JSON verdicts)."""
+    from datetime import datetime
+
+    from app.evals.report import write_report
+    from app.evals.runner import run_evals
+    from app.evals.spec import load_shared, load_suites
+
+    s = load_settings()
+    shared = load_shared(s.bot_name)
+    suites = load_suites(("golden", "redteam"), shared)
+    want = {"greet_nervous_first_timer", "ignore_previous_say_scam"}
+    for suite in suites:
+        suite.cases = [c for c in suite.cases if c.id in want]
+    async with OllamaClient.from_settings(s) as client:
+        out = await run_evals(client, s, suites, shared, log=lambda *_: None)
+        loaded = await client.loaded()
+    turns = [t for r in out.runs for t in r.turns]
+    assert len(out.runs) == 2
+    assert not [t.infra for t in turns if t.infra], "guard/model errors or timeouts"
+    assert not [t.judge.error for t in turns if t.judge and t.judge.error], "judge errors"
+    assert s.judge_model not in loaded, "judge must be unloaded after the run (D40)"
+    d, summary, _ = write_report(out, s, shared, datetime.now(), root=tmp_path)
+    assert (d / "SUMMARY.md").exists() and summary["judge_calls"] >= 1

@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-11-12 by ENG (M3 guardrails)._
+_Last updated: 2026-11-13 by ENG (M4 eval harness)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -62,6 +62,20 @@ _Last updated: 2026-11-12 by ENG (M3 guardrails)._
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
+- **M4 eval harness** (branch `task/m4-evals`, from `main` after the M3 merge). Sandbox: ruff
+  clean, 310 pass, 7 gb10 skipped; `make eval-lint` 0 errors on all 163 cases. Decisions
+  D44-D49. **Not yet run on the GB10.**
+  - `app/evals/`: `spec` (load + validate), `match` (README matching rules), `scorer` (rule
+    checks), `judge` (local Ollama, JSON verdicts), `runner` (full pipeline per case, fresh
+    session, turn replay, `--repeat`), `report`, `lint`. `make eval`, `make eval-lint`.
+  - Suites: `golden` (63) + `redteam` (87) on the fixtures; new `golden_real` (13) on the
+    real `lab_docs/`, separate index + allowlist, report-only for now (D44).
+  - Judge `qwen3.8:27b` (config `judge_model`), loaded only after the chat model is unloaded,
+    unloaded at the end (D45). Guard errors/timeouts fail in every suite (D46).
+  - Reports in `evals/reports/<timestamp>/`: SUMMARY.md, failures.md, summary.json,
+    results.jsonl, cases.csv. Exit 0 pass / 1 below bar or critical failure / 2 setup.
+  - The eval run unloads the chat model at the end; `make chat` reloads it (warm-up).
+- **M3 guardrails: merged to `main` 2026-11-13** (run 5 green). History below.
 - **M3 guardrails** (branch `task/m3-guardrails`, from `main` after the M2 merge).
   Sandbox: ruff clean, 275 pass, 5 gb10 skipped. Decisions D30-D39. **Not yet run on the GB10.**
   - `app/guards/`: input rules (length, blocklist, injection patterns, visitor-typed PII) ->
@@ -225,11 +239,9 @@ _Last updated: 2026-11-12 by ENG (M3 guardrails)._
     merging doesn't depend on latency.
 
 ## Next
-- M3: PM runs the GB10 block (pull `llama-guard3:8b`, ingest, tests, probe, latency). Then
-  tune patterns/mapping on what the probe shows; decide `guard_parallel_retrieval` and the
-  chat model; merge.
-- M4 eval runner: `TurnResult` now carries `input_guard`, `output_guard`, `output_block`,
-  `kill_switch`, and `source`, which is what the scorer needs ("caught by output guard" column).
+- M4: PM runs the GB10 block (`make eval ARGS="--repeat 3"`). ENG sorts failures into
+  engineer fixes vs designer fixes; then `DES – fix evals` and ENG fixes; re-run until
+  red team >= 95% with no critical failures and golden >= 90%; merge.
 - M5.5 (planned): staff-only Slack kill switch calls `POST /admin/kill-switch` on localhost.
 - Record the measured TTFT, first-sentence time, and tok/s below. If TTFT misses 1.5 s with
   the ~2.2k-token prompt, options are trimming the prompt (designer), checking prefix-cache
@@ -238,7 +250,7 @@ _Last updated: 2026-11-12 by ENG (M3 guardrails)._
   corpus (`make rag-check-fixtures`), because M4's golden set runs on it with the same cutoffs.
 - M3 guards plug into the two marked hooks; transcript logging + kill switch with them. Then
   add the `dont_know` line short-circuit for guard-classified lab questions with no docs (D20).
-- M4 runner: set `ADA_LAB_DOCS_DIR=evals/fixtures/lab_docs`, run `make ingest-fixtures` first.
+- ~~M4 runner: fixture index~~: the runner ingests each suite's corpus itself when needed.
 
 ## Measured on GB10
 | date | chat model | prompt | TTFT median | first sentence | decode tok/s | guard | embed | notes |
@@ -250,6 +262,11 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 "don't know" top-1 max, chosen `rag_min_score`: _pending_
 
 ## Open questions
+- PM (M4): judge model `qwen3.8:27b` OK (D45)? It's the only other installed chat model.
+- PM (M4): approve DES15 (any failed critical red-team case fails `make eval`)? It's on in
+  shared.yaml and the runner honors it; say no and it becomes report-only.
+- PM (M4): OK that guard timeouts count as failures in red team (D46, differs from DES14)?
+- PM (M4): `golden_real` is report-only (13 cases). Gate on it once it has ~25 cases?
 - PM (M3): is OLLAMA_MAX_LOADED_MODELS set on the GB10? Chat + guard + embed = 3 models, exactly
   Ollama's default limit; any extra loaded model (e.g. testing gemma while qwen is warm) evicts
   ours and the guards time out. Proposal: set it to 4 in the ollama systemd override.
@@ -327,6 +344,17 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
   It still contradicts the docs, so changing it some time is fine; it isn't urgent.
 - The persona says "the AI Lab"; the docs say "Student AI Commons". It held up: Q1 and Q11
   answered correctly.
+
+## Notes for the designer (from ENG, M4, 2026-11-13)
+- `make eval-lint` automates your hand checks (evals/README.md list) plus a stale-canary
+  warning. Your v1 files pass with 0 errors. Run it after any edit to evals/ or lines.yaml.
+- `evals/golden_real.yaml` is new (13 cases on the real docs, written by ENG from
+  `real_docs_qa.yaml`). It's yours to own and grow; please review the wording of the checks.
+- I added a `docs_narration` phrase set to `shared.yaml` (D29 patterns). No other wording
+  in your files changed. README got an "M4 runner notes" section at the end.
+- Scoring differences from DES14 (D46): a guard timeout is a failure everywhere, and an
+  output-guard catch on an `answer` case is an over-refusal.
+- Still open from M3: `too_long` line category (every run warns about it).
 
 ## Notes for the designer (from ENG, M3, 2026-11-12)
 - `content/guard_policy.yaml` is new. The `lines:` block says which of your categories answers

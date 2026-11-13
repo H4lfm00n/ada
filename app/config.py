@@ -81,6 +81,12 @@ class Settings(BaseSettings):
     transcripts_dir: str = "data/transcripts"
     transcript_retention_days: int = Field(30, ge=1)
 
+    # Eval judge (M4): offline, local only. Never used for visitor replies. Loaded only
+    # after the chat model is unloaded, so the guard is never evicted (D45).
+    judge_model: str = "qwen3.8:27b"
+    judge_think: bool = False
+    judge_num_ctx: int = Field(8192, gt=0)
+
     target_first_token_s: float = Field(1.5, gt=0)
     target_decode_tok_s: float = Field(10.0, gt=0)
 
