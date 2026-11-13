@@ -95,6 +95,13 @@ _Last updated: 2026-11-12 by ENG (M3 guardrails)._
     the request, and Ollama abandons cancelled loads, so it could never come up (D41). Fixed:
     `warm_up()` at startup + timed-out guard calls keep running. Ollama env has no
     OLLAMA_MAX_LOADED_MODELS (default 3). Run 3 re-measures.
+  - **GB10 run 3:** cold-start fix works (guard loads, recovers). Gemma: probe 15/15, 0 hits
+    (12 input blocks: 5 rules, 7 Llama Guard; slur, emergency, prompt-injection question,
+    doxx turns 1-3 answered well). Gemma latency, both guards on, 8 questions per mode:
+    first sentence shown median 2.27 s sequential / **1.92 s parallel retrieval**; model first
+    token 1.46 / **1.05 s**; input guard 0.26 s; output guard on sentence 1 ~0.4 s.
+    Qwen: 3.38 s first sentence (first token 2.05 / 1.22 s), skewed by a reload bug (D42,
+    fixed). Run 4 re-checks qwen and the gb10 tests.
 - TODO(designer): an emergency message during a guard failure gets "my circuits got tangled".
   Proposed `guard_error` line category that also says "call 911 if it's an emergency"
   (comment in guard_policy.yaml).

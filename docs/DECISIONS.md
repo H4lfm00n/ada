@@ -529,3 +529,12 @@ trigger, not the cause. Fixes:
    blocked/fallback line, but the request keeps running so the load completes. While that
    orphaned call runs, new calls fail fast (blocked) instead of piling up.
 The timeout stays 3 s and still blocks; nothing unchecked is shown.
+
+**D42. One num_ctx per model on every call, warm-up included.**
+GB10 run 3: the warm-up load sent no options, so qwen reloaded at Ollama's default context,
+which on a 128 GB box is huge. The bigger KV cache pushed Llama Guard out right after warm-up
+(`ollama ps` after warm-up: no guard), and the app's next call (num_ctx 8192) reloaded qwen
+again (10.9 s first token). Ollama reloads a model whenever num_ctx changes. Now every call
+to a model uses the same num_ctx: chat `num_ctx` (8192) and new `guard_num_ctx` (4096) in
+the pipeline, warm-up, health, and bench (`guard_options()`). A test checks every request
+in health + warm-up + a turn uses one num_ctx per model.

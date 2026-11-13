@@ -93,9 +93,13 @@ async def warm_up(settings: Settings, client: OllamaClient) -> dict[str, float]:
     Raises OllamaError if a model can't be loaded (the caller decides what to do).
     """
     times: dict[str, float] = {}
-    for role, model in (("guard", settings.guard_model), ("chat", settings.chat_model)):
+    loads = (
+        ("guard", settings.guard_model, {"num_ctx": settings.guard_num_ctx}),
+        ("chat", settings.chat_model, {"num_ctx": settings.num_ctx}),
+    )
+    for role, model, options in loads:
         t0 = time.perf_counter()
-        await client.load(model, settings.keep_alive)
+        await client.load(model, settings.keep_alive, options)
         times[role] = time.perf_counter() - t0
     t0 = time.perf_counter()
     await client.embed(settings.embed_model, ["warm up"], keep_alive=settings.keep_alive)

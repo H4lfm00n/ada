@@ -122,7 +122,9 @@ class OllamaClient:
         data = await self._request("GET", "/api/tags")
         return [m["name"] for m in data.get("models", []) if "name" in m]
 
-    async def load(self, model: str, keep_alive: str | None = None) -> None:
+    async def load(
+        self, model: str, keep_alive: str | None = None, options: dict[str, Any] | None = None
+    ) -> None:
         """Load a chat-capable model into memory and wait for it (no app-level timeout).
 
         An empty /api/chat request loads the model and returns. Guard calls have a short
@@ -132,6 +134,8 @@ class OllamaClient:
         body: dict[str, Any] = {"model": model, "messages": [], "stream": False}
         if keep_alive is not None:
             body["keep_alive"] = keep_alive
+        if options:  # must match later calls' num_ctx, or the next call reloads (D42)
+            body["options"] = options
         await self._request("POST", "/api/chat", json=body)
 
     async def unload(self, model: str) -> None:

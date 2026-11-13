@@ -19,6 +19,16 @@ from app.ollama_client import OllamaClient
 _CODE_RE = re.compile(r"\bS\d{1,2}\b")
 
 
+def guard_options(settings: Settings) -> dict[str, object]:
+    """Options for EVERY guard-model call (pipeline, warm-up, health, bench).
+
+    num_ctx must be identical everywhere: Ollama reloads a model whose num_ctx changes,
+    and on a big-memory box an unset num_ctx defaults to a huge context that can evict
+    the other models (GB10 run 3, D42).
+    """
+    return {"num_ctx": settings.guard_num_ctx, "temperature": 0, "num_predict": 12}
+
+
 class GuardModelError(RuntimeError):
     """The guard model's answer couldn't be parsed."""
 
@@ -83,7 +93,7 @@ class LlamaGuard:
             self._settings.guard_model,
             self.conversation(text, role, context),
             think=None,  # Llama Guard has no thinking mode; don't send the field
-            options={"temperature": 0, "num_predict": 12},
+            options=guard_options(self._settings),
             keep_alive=self._settings.keep_alive,
         ):
             out += d.content

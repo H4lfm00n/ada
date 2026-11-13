@@ -47,6 +47,7 @@ rag_query_instruction: "Given a question from a visitor to a university AI lab, 
 # Patterns, blocklist, and which canned line answers each block: content/guard_policy.yaml.
 guard_policy_file: content/guard_policy.yaml
 guard_blocklist_local_file: data/guard/blocklist.local.txt   # real slurs, one per line; gitignored
+guard_num_ctx: 4096                   # fixed so every guard call reuses the loaded model (D42)
 guard_timeout_s: 3.0                  # per guard-model call; a timeout blocks (fail safe)
 guard_context_messages: 4             # earlier turns the guard model sees (slow-escalation attacks)
 guard_parallel_retrieval: false       # true = embed the question while the input guard runs (D35)

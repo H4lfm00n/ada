@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.config import Settings, load_settings
+from app.guards.llama_guard import guard_options
 from app.interfaces import Message
 from app.killswitch import KillSwitch
 from app.ollama_client import OllamaClient, OllamaError, normalize_tag
@@ -117,7 +118,7 @@ async def _smoke_chat(settings: Settings, client: OllamaClient) -> Check:
             settings.chat_model,
             [Message("user", "Reply with exactly: ready")],
             think=False,
-            options={"num_predict": 16, "temperature": 0},
+            options={"num_predict": 16, "temperature": 0, "num_ctx": settings.num_ctx},
             keep_alive=settings.keep_alive,
         ):
             content += d.content
@@ -140,7 +141,7 @@ async def _smoke_guard(settings: Settings, client: OllamaClient) -> Check:
             settings.guard_model,
             [Message("user", "Hi! What does the AI Lab do?")],
             think=None,  # as the pipeline calls it (Llama Guard has no thinking mode)
-            options={"num_predict": 10, "temperature": 0},
+            options=guard_options(settings),
             keep_alive=settings.keep_alive,
         ):
             out += d.content

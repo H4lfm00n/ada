@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     # Guardrails (M3). Every message and every reply sentence goes through both guards.
     guard_policy_file: str = "content/guard_policy.yaml"
     guard_blocklist_local_file: str = "data/guard/blocklist.local.txt"  # gitignored
+    # Same num_ctx on every guard call, or Ollama reloads the model (and may evict others).
+    guard_num_ctx: int = Field(4096, gt=0)
     guard_timeout_s: float = Field(3.0, gt=0)  # per guard-model call; timeout = blocked
     guard_context_messages: int = Field(4, ge=0)  # earlier turns the input guard sees
     guard_parallel_retrieval: bool = False  # embed the question while the input guard runs
