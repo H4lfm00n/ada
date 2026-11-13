@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.config import Settings
+from app.guards.contacts import ContactAllowlist
 from app.interfaces import Chunk
 from app.ollama_client import OllamaClient
 from app.rag.ingest import DroppedSection, SkippedFile, parse_corpus
@@ -156,6 +157,9 @@ class IngestReport:
     skipped: list[SkippedFile] = field(default_factory=list)
     # file -> headings of its indexed sections, in order (a long section repeats per part)
     sections: dict[str, list[str]] = field(default_factory=dict)
+    # Output-guard allowlist (M3): phones, emails, links found in the indexed sections.
+    contacts: dict[str, list[str]] = field(default_factory=dict)
+    contacts_path: Path | None = None
 
 
 async def build_index(client: OllamaClient, settings: Settings) -> IngestReport:
@@ -185,6 +189,10 @@ async def build_index(client: OllamaClient, settings: Settings) -> IngestReport:
     )
     path = settings.rag_index_path
     index.save(path)
+    # M3: contacts the output guard may show, from exactly what was indexed.
+    allow = ContactAllowlist.from_texts([c.text for c in corpus.chunks])
+    contacts_path = path.with_suffix(".contacts.json")
+    allow.save(contacts_path)
     sections: dict[str, list[str]] = {f: [] for f in corpus.file_hashes}
     for c in corpus.chunks:
         sections[c.source_file].append(c.heading)
@@ -197,6 +205,8 @@ async def build_index(client: OllamaClient, settings: Settings) -> IngestReport:
         dims=dims,
         skipped=corpus.skipped,
         sections=sections,
+        contacts=allow.to_json(),
+        contacts_path=contacts_path,
     )
 
 

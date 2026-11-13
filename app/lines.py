@@ -89,6 +89,14 @@ class LineBook:
         except KeyError:
             raise LinesError(f"unknown line category {name!r}") from None
 
+    def all_lines(self) -> list[str]:
+        """Every line of every category, {{bot_name}} filled (allowlists, lint checks)."""
+        return [SLOT_RE.sub(lambda _m: self._bot_name, ln) for c in self._cats.values()
+                for ln in c.lines]  # fmt: skip
+
+    def has(self, name: str) -> bool:
+        return name in self._cats
+
     def pick(self, name: str, recent: dict[str, str] | None = None) -> str:
         """Random line from `name`, avoiding recent[name]; records the pick in `recent`.
 

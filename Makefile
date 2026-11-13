@@ -1,4 +1,5 @@
-.PHONY: setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe rag-check rag-check-fixtures rag-diagnose ingest-report prefill-probe chat-lab run test test-gb10 lint format eval help
+PHONY_M3 := kill-on kill-off kill-status admin transcripts-prune m3-probe m3-latency
+.PHONY: $(PHONY_M3) setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe rag-check rag-check-fixtures rag-diagnose ingest-report prefill-probe chat-lab run test test-gb10 lint format eval help
 
 UV ?= uv
 PY := $(UV) run python
@@ -20,6 +21,13 @@ help:
 	@echo "rag-diagnose  real-docs questions: top 3 chunks + the bot's answer (evals/real_docs_qa.yaml)"
 	@echo "prefill-probe  why lab questions are slow: is the cached system prompt reused when docs change?"
 	@echo "chat-lab     ask 10 real lab questions through the full pipeline (evals/chat_lab_docs.yaml)"
+	@echo "kill-on REASON=\"...\"  out-of-order mode now (running kiosk/chat included)"
+	@echo "kill-off     back in service"
+	@echo "kill-status  show the kill switch"
+	@echo "admin        localhost admin endpoint (needs ADA_ADMIN_TOKEN)"
+	@echo "transcripts-prune  delete transcripts past transcript_retention_days"
+	@echo "m3-probe     attack prompts from evals/redteam.yaml: input/output guard decisions"
+	@echo "m3-latency   first-word time with both guards on (sequential vs parallel retrieval)"
 	@echo "test         unit tests, Ollama mocked"
 	@echo "test-gb10    tests that need the real GB10 + Ollama"
 	@echo "lint         ruff check + format check"
@@ -94,3 +102,24 @@ run:
 
 eval:
 	@echo "make eval: arrives in M4 (eval harness)"; exit 2
+
+kill-on:
+	$(PY) -m app.admin on --reason "$(REASON)"
+
+kill-off:
+	$(PY) -m app.admin off
+
+kill-status:
+	$(PY) -m app.admin status
+
+admin:
+	$(PY) -m app.admin serve
+
+transcripts-prune:
+	$(PY) -m app.admin prune-transcripts
+
+m3-probe:
+	$(PY) -m app.m3_probe attacks $(ARGS)
+
+m3-latency:
+	$(PY) -m app.m3_probe latency $(ARGS)

@@ -416,3 +416,102 @@ likely finish it, but an example can't contain real lab facts, so it needs care.
 Brief 5.9 says prompt changes pass the eval suite before merging. M4 doesn't exist yet, so
 the gate for now is `make rag-diagnose` plus `make chat-demo` (persona and safety smoke run).
 `make eval` follows when M4 lands.
+
+## 2026-11-12 · M3 guardrails (`task/m3-guardrails`)
+
+**D30. Two guard chains, rules first, guard model second, one place to build them.**
+`app/guards/`: `InputRules` / `OutputRules` (regex + allowlist, microseconds) then
+`LlamaGuard` (`guard_model`, Ollama), wrapped in `GuardChain("input" | "output")`. A rule
+block skips the model call. `build_guards()` and `app/factory.py:build_pipeline()` are the
+only constructors the app uses; `ChatPipeline` takes the guards and the kill switch as
+**required** arguments, and app code has no allow-everything guard (tests build real
+chains around a fake guard model). Patterns, limits, the blocklist, and the block -> line
+mapping live in `content/guard_policy.yaml` (data, not code).
+Alternatives: guard model only (slower, misses injections Llama Guard calls "safe": it
+judges harm, not instruction-following); a single combined guard (can't skip the model).
+
+**D31. Fail safe = block. Every guard failure shows a canned line, never the text.**
+Guard model error, timeout (`guard_timeout_s`, 3 s), an answer that isn't `safe` /
+`unsafe\nS..`, a broken rule, or an unreadable kill-switch file: all block. Cancellation is
+never turned into "allowed". Llama Guard is called without the `think` field (it has no
+thinking mode) at temperature 0.
+
+**D32. Block -> line mapping (designer may edit `lines:` in guard_policy.yaml).**
+Input: injection -> `jailbreak`; blocklist -> `hate_or_harassment`; visitor's own phone /
+email / student ID -> `public_screen_privacy`; Llama Guard S1/S2/S9 -> `unsafe_request`;
+S3/S4/S10/S12 -> `hate_or_harassment`; S5 -> `about_real_people`; S6 -> `medical_legal`;
+S7 -> `personal_info`; S11 -> `crisis_support`; S13 -> `off_topic`; S14 -> `jailbreak`;
+S8 (IP) -> `unsafe_request` (TODO designer). Output: everything -> `guard_fallback`, except
+S11 -> `crisis_support` and S6 -> `medical_legal` (a crisis reply blocked for mentioning
+self-harm must still give 988, not "I fumbled that"), and a prompt-canary leak -> `jailbreak`.
+Several codes: priority S11 first (list in the file). Too-long messages map to `too_long`,
+which lines.yaml lacks: **TODO(designer)**, falls back to `guard_fallback` until added.
+
+**D33. Canned lines skip the guard model.** They're the guards' own output, written and
+reviewed by the designer; guarding them would add latency to every refusal and could turn
+an emergency line into "I fumbled that" on a false positive. A test checks every canned
+sentence passes the output *rules*. Everything else the sink receives is model text the
+output guard approved first (property test over 9 failure scenarios).
+
+**D34. A blocked message never enters the chat history.** Otherwise the chat model reads the
+attack on the next turn, which breaks "input guard runs before the model sees anything".
+The history gets `[message withheld by the safety filter]` + the canned reply instead, so a
+follow-up ("thanks") after a crisis line still has context. Visitor text is normalized
+(NFKC, zero-width characters removed) once; guards and model see the same string.
+
+**D35. Output guard per sentence, pipelined; input guard optionally parallel with retrieval.**
+The output guard checks sentence N (rules + model, with the whole reply so far and the
+question as context, so split-up content is judged together) while the model writes N+1.
+On a block, generation is cancelled; sentences already shown stay, the blocked one and
+everything after it are never shown. `guard_parallel_retrieval` (default **false**) embeds
+the question while the input guard runs. Safe: only the embed model sees the text early;
+the chat model, sink, and history wait for the guard; a block cancels retrieval. Off by
+default until the PM sees `make m3-latency`.
+
+**D36. Contacts allowlist built at ingest.** `make ingest` writes
+`data/rag/<docs>.contacts.json` (phones, emails, hosts, links in the indexed sections, so
+TODO sections stay out) and prints counts (`make ingest-report` lists them). Runtime merges
+in contacts from `content/lines.yaml`. Missing file -> built from the docs with a warning.
+Rules: phone/email must match exactly (7-digit campus forms match a listed number's tail);
+a bare domain is fine if the host appears in the docs; a link with a path must match
+exactly, so invented deep links are blocked. Consequence to watch: AI-chat answers that
+name a site not in the docs ("pytorch.org", "huggingface.co") get blocked -> `guard_fallback`.
+That's what was asked; if the probe shows it hurting AI chat, options are a small
+`allow_hosts` list in guard_policy.yaml or stripping the link instead of blocking.
+
+**D37. Transcripts: text only, local, one JSONL file per visitor, 30 days.**
+`data/transcripts/YYYY-MM-DD/HHMMSS-<session>-v<n>.jsonl`, dirs 0700, files 0600. A visit
+ends on goodbye / reset / timeout; the next message opens a new file. Each turn records the
+visitor text, what was shown, source, every guard decision (stage, code, line, timings),
+the blocked sentence (never shown), docs used, timings. Phone numbers, emails, and student
+IDs the visitor types are redacted unless they're on the allowlist; guard reasons never
+contain the contact itself. Retention `transcript_retention_days: 30`, pruned at startup and
+by `make transcripts-prune`. **TODO(PM): confirm 30 days and who may read the logs**
+(designer open question 7). Scripted runs (`chat-demo`, `chat-lab`, diagnose, probes) don't
+write transcripts. A write failure is logged and the visitor still gets the reply.
+
+**D38. Kill switch: config flag OR state file, checked per message and per sentence.**
+`out_of_order: true` (or `ADA_OUT_OF_ORDER=1`) forces it on. Otherwise
+`data/kill_switch.json` decides; `make kill-on/kill-off/kill-status` and
+`POST /admin/kill-switch` write it atomically and append to `kill_switch.json.log`
+(who/when/why). The pipeline stats the file before each message and each sentence, so a
+running `make chat` / kiosk goes out of order mid-reply. While on: `out_of_order` line, no
+guards, no model, nothing remembered. The state survives restarts on purpose (a reboot must
+not undo staff's decision). Unreadable file = ON.
+Slack (M5.5): the bot runs on the GB10 and calls the localhost endpoint with
+`ADA_ADMIN_TOKEN`; staff-only checks happen in the bot (Slack user/channel allowlist), and
+`by` records the Slack user.
+
+**D39. Admin endpoint: FastAPI on 127.0.0.1, bearer token required, no docs pages.**
+`make admin` (port 8765). No token configured -> every request is 503; there's no open
+mode. `admin_host` must be loopback (validated). The M5 server will mount the same router.
+New dependencies `fastapi` + `uvicorn` (tech defaults; pure Python, aarch64-safe).
+fastapi 0.162 pulls in `opentelemetry-api`: the API alone is a no-op with no SDK or
+exporter, so nothing is collected or sent; `serve` also sets `OTEL_SDK_DISABLED=true`.
+
+**D40. The app needs three resident models; probes report what Ollama has loaded.**
+Chat + guard + embed is exactly Ollama's default `OLLAMA_MAX_LOADED_MODELS` (3 per GPU). In GB10
+run 1 a fourth model (the other chat model, kept warm by `keep_alive: 30m`) made Llama Guard
+time out on every call. The guards failed closed as designed, but nothing could be measured.
+`make health`, `m3-probe`, and `m3-latency` now print `ollama ps` and warn about extra models.
+Fix on the machine (PM's call): unload unused models, or raise the limit to 4.

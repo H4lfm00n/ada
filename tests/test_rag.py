@@ -33,6 +33,7 @@ from app.rag.store import Index, IndexedChunk, RagIndexError, normalize
 from app.sessions import InMemorySessionManager
 from app.sinks import CollectingSink, NoopActionHandler
 
+from . import guard_helpers as gh
 from .conftest import FakeOllama
 
 FIXTURES = Path(__file__).resolve().parent.parent / "evals" / "fixtures" / "lab_docs"
@@ -404,13 +405,18 @@ def make_pipeline(
 ) -> tuple[ChatPipeline, RecordingModel]:
     model = RecordingModel()
     sessions = InMemorySessionManager.from_settings(settings)
+    lines = LineBook.from_settings(settings, rng=random.Random(0))
+    input_guard, output_guard, _, _ = gh.chains(settings, lines)
     pipeline = ChatPipeline(
         model=model,
         prompt=PromptBuilder.from_settings(settings),
-        lines=LineBook.from_settings(settings, rng=random.Random(0)),
+        lines=lines,
         sessions=sessions,
         sink=CollectingSink(),
         actions=NoopActionHandler(),
+        input_guard=input_guard,
+        output_guard=output_guard,
+        kill_switch=gh.kill_switch(),
         retriever=retriever,
         rag_top_k=3,
         retrieval_timeout_s=0.5,

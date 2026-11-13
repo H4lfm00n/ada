@@ -29,11 +29,10 @@ import httpx
 import yaml
 
 from app.config import REPO_ROOT, Settings, load_settings
-from app.lines import IDLE_GREETINGS, LineBook
+from app.factory import build_pipeline
+from app.lines import IDLE_GREETINGS
 from app.ollama_client import OllamaChatModel, OllamaClient, OllamaError, normalize_tag
 from app.pipeline import ChatPipeline, TurnResult
-from app.prompt import PromptBuilder
-from app.rag.retriever import open_retriever
 from app.sessions import InMemorySessionManager
 from app.sinks import ConsoleSink, NoopActionHandler
 
@@ -54,26 +53,12 @@ class App:
     rag_warnings: list[str]
 
 
-def build_app(settings: Settings, client: OllamaClient) -> App:
+def build_app(settings: Settings, client: OllamaClient, *, transcripts: bool | None = None) -> App:
     name = settings.bot_name
     sink = ConsoleSink(prefix=f"{name}> ")
-    sessions = InMemorySessionManager.from_settings(settings)
     actions = NoopActionHandler()
-    model = OllamaChatModel(client, settings)
-    retriever, rag_warnings = open_retriever(client, settings)
-    pipeline = ChatPipeline(
-        model=model,
-        prompt=PromptBuilder.from_settings(settings),
-        lines=LineBook.from_settings(settings),
-        sessions=sessions,
-        sink=sink,
-        actions=actions,
-        reply_timeout_s=settings.request_timeout_s,
-        retriever=retriever,
-        rag_top_k=settings.rag_top_k,
-        retrieval_timeout_s=settings.rag_timeout_s,
-    )
-    return App(settings, pipeline, sessions, sink, actions, model, rag_warnings)
+    built = build_pipeline(settings, client, sink, actions, transcripts=transcripts)
+    return App(settings, built.pipeline, built.sessions, sink, actions, built.model, built.warnings)
 
 
 def print_rag_warnings(app: App) -> None:
@@ -85,6 +70,16 @@ def timing_line(r: TurnResult) -> str:
     parts = []
     if r.source != "model":
         parts.append(r.source)
+    if r.kill_switch:
+        parts.append("KILL SWITCH")
+    if r.input_guard is not None:
+        parts.append(r.input_guard.short())
+    if r.output_guard:
+        ms = [d.total_s * 1000 for d in r.output_guard]
+        verdict = "BLOCK" if r.output_block else "ok"
+        parts.append(f"output:{verdict} {len(ms)}x ({max(ms):.0f}ms max)")
+    if r.output_block is not None:
+        parts.append(r.output_block.short())
     if r.retrieval_s is not None:
         docs = ",".join(c.metadata.get("id", c.source_file) for c in r.retrieved) or "none"
         parts.append(f"docs {docs} in {r.retrieval_s * 1000:.0f}ms")
@@ -165,9 +160,10 @@ async def check_model(app: App, client: OllamaClient) -> None:
 
 
 async def warmup(app: App) -> float:
-    """Load the model and prime Ollama's prompt cache with the system prompt."""
+    """Load the chat + guard models and prime Ollama's prompt cache with the system prompt."""
     loop = asyncio.get_running_loop()
     t0 = loop.time()
+    await app.pipeline.input_guard.check("Hi!")  # loads the guard model; result unused
     messages = app.pipeline.prompt.build([], "Hi!")
     async for _ in app.model.stream(messages):
         pass
@@ -195,7 +191,7 @@ async def run_script(
 ) -> int:
     steps = load_script(script)
     async with OllamaClient.from_settings(settings, transport) as client:
-        app = build_app(settings, client)
+        app = build_app(settings, client, transcripts=False)  # scripted runs aren't visitors
         try:
             await check_model(app, client)
             print(

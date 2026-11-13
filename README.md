@@ -19,6 +19,10 @@ make rag-search Q="how do I join?"  # which doc sections a question retrieves
 make rag-probe # score golden lab questions on the eval corpus (run make ingest-fixtures first)
 make rag-check # does the right doc come back for each test question? (evals/retrieval.yaml)
 make chat-lab  # 10 real lab questions through the full pipeline
+make kill-on REASON="demo"   # out-of-order mode, instantly (make kill-off / kill-status)
+make admin     # localhost admin endpoint for staff tools (needs ADA_ADMIN_TOKEN)
+make m3-probe  # attack prompts through both guards, shows every guard decision
+make m3-latency  # first-sentence time with both guards on
 make test      # unit tests (Ollama mocked)
 make test-gb10 # live tests against local Ollama
 ```

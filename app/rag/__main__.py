@@ -93,6 +93,17 @@ async def cmd_ingest(settings: Settings, verbose: bool = False) -> int:
     )
     print(f"index: {_rel(report.index_path)}   dims: {report.dims or 'n/a'}")
     print_ingest_report(report, verbose)
+    c = report.contacts
+    if report.contacts_path is not None:
+        print(
+            f"output-guard allowlist: {_rel(report.contacts_path)}   "
+            f"{len(c.get('phones', []))} phones, {len(c.get('emails', []))} emails, "
+            f"{len(c.get('hosts', []))} hosts, {len(c.get('urls', []))} links"
+        )
+        if verbose:
+            for kind in ("phones", "emails", "hosts", "urls"):
+                for v in c.get(kind, []):
+                    print(f"    allow {kind[:-1]}: {v}")
     for w in report.warnings:
         print(f"  WARN {w}")
     if not report.chunks:

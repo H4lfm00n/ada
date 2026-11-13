@@ -62,7 +62,7 @@ async def test_thinking_leak_fails_smoke(fake: FakeOllama, settings: Settings) -
 
 
 async def test_guard_flagging_benign_prompt_fails(fake: FakeOllama, settings: Settings) -> None:
-    fake.chat_reply = lambda body: [
+    fake.guard_reply = lambda body: [
         {"message": {"content": "unsafe\nS2"}, "done": False},
         FINAL_STATS,
     ]

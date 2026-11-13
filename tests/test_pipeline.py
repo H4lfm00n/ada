@@ -16,6 +16,7 @@ from app.prompt import PromptBuilder
 from app.sessions import InMemorySessionManager
 from app.sinks import CollectingSink, FanoutSink, NoopActionHandler
 
+from . import guard_helpers as gh
 from .conftest import FINAL_STATS, FakeOllama
 
 
@@ -44,6 +45,10 @@ class Harness:
         self.actions = NoopActionHandler()
         self.sessions = InMemorySessionManager.from_settings(settings)
         self.lines = LineBook.from_settings(settings, rng=random.Random(1))
+        self.input_guard, self.output_guard, self.in_model, self.out_model = gh.chains(
+            settings, self.lines
+        )
+        self.kill = gh.kill_switch()
         self.pipeline = ChatPipeline(
             model=model,  # type: ignore[arg-type]
             prompt=PromptBuilder.from_settings(settings),
@@ -51,6 +56,9 @@ class Harness:
             sessions=self.sessions,
             sink=self.sink,
             actions=self.actions,
+            input_guard=self.input_guard,
+            output_guard=self.output_guard,
+            kill_switch=self.kill,
             reply_timeout_s=timeout,
         )
 

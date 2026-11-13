@@ -2,7 +2,8 @@
 
 These are the hooks voice (M6) and the robot arm (M7) will plug into, so keep the
 signatures stable. Implemented so far: ChatModel (app/ollama_client.py), SessionManager
-(app/sessions.py), OutputSink + ActionHandler stub (app/sinks.py).
+(app/sessions.py), OutputSink + ActionHandler stub (app/sinks.py), Retriever (app/rag/),
+Guard (app/guards/: rules + Llama Guard, chained in GuardChain).
 """
 
 from __future__ import annotations
@@ -53,7 +54,11 @@ class ChatModel(Protocol):
 
 @runtime_checkable
 class Guard(Protocol):
-    async def check(self, text: str, role: Role) -> GuardResult: ...  # implemented in M3
+    async def check(
+        self, text: str, role: Role, context: list[Message] | None = None
+    ) -> GuardResult:
+        """Judge `text` written by `role`. `context` = earlier turns, oldest first (M3)."""
+        ...
 
 
 @runtime_checkable

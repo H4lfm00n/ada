@@ -1,6 +1,6 @@
 """Thin async client for the local Ollama HTTP API, plus the ChatModel adapter.
 
-Talks to /api/version, /api/tags, /api/show, /api/chat (streaming NDJSON), and
+Talks to /api/version, /api/tags, /api/ps, /api/show, /api/chat (streaming NDJSON), and
 /api/embed. Tests inject an httpx.MockTransport, so nothing here needs a live server.
 """
 
@@ -122,6 +122,11 @@ class OllamaClient:
         data = await self._request("GET", "/api/tags")
         return [m["name"] for m in data.get("models", []) if "name" in m]
 
+    async def loaded(self) -> list[str]:
+        """Models Ollama currently has in memory (/api/ps)."""
+        data = await self._request("GET", "/api/ps")
+        return sorted(str(m.get("name") or m.get("model")) for m in data.get("models", []))
+
     async def show(self, model: str) -> ModelInfo:
         data = await self._request("POST", "/api/show", json={"model": model})
         return ModelInfo(
@@ -146,7 +151,7 @@ class OllamaClient:
         model: str,
         messages: list[Message],
         *,
-        think: bool = False,
+        think: bool | None = False,
         options: dict[str, Any] | None = None,
         keep_alive: str | None = None,
     ) -> AsyncIterator[ChatDelta]:
@@ -154,8 +159,9 @@ class OllamaClient:
             "model": model,
             "messages": [m.to_dict() for m in messages],
             "stream": True,
-            "think": think,
         }
+        if think is not None:  # None = don't send the field (models without thinking)
+            body["think"] = think
         if options:
             body["options"] = options
         if keep_alive is not None:
