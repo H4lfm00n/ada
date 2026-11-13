@@ -110,6 +110,13 @@ _Last updated: 2026-11-12 by ENG (M3 guardrails)._
     Not an M3 regression; test left strict (grounding phrase is a brief rule).
   - **PM decisions 2026-11-13:** chat model -> `gemma4:12b`, `guard_parallel_retrieval: true`,
     transcript retention 30 days (D43). Run 5 = confirmation run on gemma, then merge.
+  - **GB10 run 5 (gemma4:12b, parallel retrieval) — M3 green, ready to merge:** health OK;
+    gb10 tests 6/6 (incl. cold-start recovery and the fixture "not sure" case); probe 18 turns,
+    12 input blocks, 0 must_not_include hits; guards stay loaded. Latency with both guards:
+    first token 1.08 s median (parallel; 1.53 s sequential), first sentence shown 1.99 s;
+    chat-lab first token 1.36 s median, 1.48 s max [PASS], 10/10 model replies, 0 errors,
+    answers grounded (police 415-338-7200, M.S. in DS+AI, join link). Small M2 nit: "when does
+    the lab meet?" says times aren't published but skips the room (LIB 260 is in the docs).
 - TODO(designer): an emergency message during a guard failure gets "my circuits got tangled".
   Proposed `guard_error` line category that also says "call 911 if it's an emergency"
   (comment in guard_policy.yaml).
