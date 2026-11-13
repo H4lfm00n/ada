@@ -80,6 +80,16 @@ _Last updated: 2026-11-12 by ENG (M3 guardrails)._
   - `make m3-probe` (15 red-team cases, every guard decision) and `make m3-latency`
     (first sentence shown, sequential vs parallel retrieval). New deps: fastapi, uvicorn.
   - `guard_parallel_retrieval: false` until the latency run.
+  - **GB10 run 1 (2026-11-13):** health OK, `llama-guard3:8b` pulled, ingest wrote the allowlist
+    (17 phones, 14 emails, 30 hosts, 67 links), 275 unit tests pass, kill switch on/off works
+    (`out_of_order` line). Qwen probe: 15/15 cases handled, 0 must_not_include hits (12 turns
+    blocked at input, 4 by rules + 8 by Llama Guard: S14 base64, S7 phone x3, S9 pipe bomb,
+    S11 crisis; slur and emergency answered well by the model). **Invalid:** the gemma probe
+    and both latency runs. Llama Guard timed out on every call (fail-safe worked: all canned
+    lines). Likely cause: `keep_alive: 30m` left qwen loaded during the gemma run (4 models vs
+    Ollama's default 3-model limit), so models evicted each other. Run 2 checks `ollama ps` +
+    the Ollama log and re-measures with one chat model loaded. `test_rag_on_fixture_corpus_live`
+    failed with a truncated message; the assertion now prints the guard decisions.
 
 ## Done (continued)
 - **M2 on real docs** (branch `task/m2-real-docs`, merged to `main` 2026-11-12). `task/m2-rag` was never merged, so `main`
@@ -210,6 +220,9 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 "don't know" top-1 max, chosen `rag_min_score`: _pending_
 
 ## Open questions
+- PM (M3): is OLLAMA_MAX_LOADED_MODELS set on the GB10? Chat + guard + embed = 3 models, exactly
+  Ollama's default limit; any extra loaded model (e.g. testing gemma while qwen is warm) evicts
+  ours and the guards time out. Proposal: set it to 4 in the ollama systemd override.
 - PM (M3): which chat model for M3/M4? The task said "qwen3.8:27b OR gemma4:12b"; config still
   says qwen. The GB10 block measures both; no config change without your OK.
 - PM (M3): transcript retention 30 days OK? Who may read `data/transcripts/`? (D37)

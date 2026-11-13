@@ -80,6 +80,17 @@ async def run_health(settings: Settings, client: OllamaClient, quick: bool = Fal
                 )
             )
 
+    try:
+        loaded = await client.loaded()
+        ours = {settings.chat_model, settings.guard_model, settings.embed_model}
+        extra = [n for n in loaded if n not in ours]
+        checks.append(Check("loaded now", "INFO", ", ".join(loaded) or "nothing"))
+        if extra:
+            checks.append(Check("other models loaded", "INFO",
+                                f"{', '.join(extra)}: they compete with ours for Ollama's "
+                                "loaded-model slots (`ollama stop <name>`)"))  # fmt: skip
+    except OllamaError:
+        pass
     st = KillSwitch.from_settings(settings).state()
     checks.append(
         Check("kill switch", "INFO", f"ON ({st.source}): {st.reason}" if st.on else "off")

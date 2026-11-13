@@ -602,6 +602,7 @@ async def test_m3_probe_runs(
         OllamaClient, "from_settings", classmethod(lambda cls, s, t=None: real(s, fake.transport))
     )
     settings = m3_probe.load_settings()
+    fake.loaded = [settings.chat_model, "some-other:7b"]
     if cmd == "attacks":
         code = await m3_probe.run_attacks(settings, m3_probe.DEFAULT_IDS, full=False)
     else:
@@ -613,4 +614,5 @@ async def test_m3_probe_runs(
         assert "== summary" in out
     else:
         assert "FIRST SENTENCE SHOWN" in out and "parallel retrieval" in out
+    assert "WARN other models loaded: some-other:7b" in out
     assert list((tmp_path / "reports").glob(f"*-{cmd}.json"))

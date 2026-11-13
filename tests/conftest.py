@@ -59,6 +59,7 @@ class FakeOllama:
             "emb-test:latest": ["embedding"],
         }
         self.chat_reply: Callable[[dict], list[dict]] = self._default_reply
+        self.loaded: list[str] = []  # what /api/ps reports
         # Guard-model calls get their own reply, so tests that script chat_reply still
         # get a working guard. Set to None to send guard calls to chat_reply as well.
         self.guard_reply: Callable[[dict], list[dict]] | None = lambda body: [
@@ -85,6 +86,8 @@ class FakeOllama:
             return httpx.Response(200, json={"version": "0.32.14"})
         if path == "/api/tags":
             return httpx.Response(200, json={"models": [{"name": n} for n in self.models]})
+        if path == "/api/ps":
+            return httpx.Response(200, json={"models": [{"name": n} for n in self.loaded]})
         if path == "/api/show":
             name = body["model"] if ":" in body["model"] else f"{body['model']}:latest"
             if name not in self.models:

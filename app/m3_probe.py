@@ -77,6 +77,26 @@ LATENCY_QUESTIONS = [
 ]
 
 
+# -- Ollama residency -------------------------------------------------------------------
+
+
+async def residency(client: OllamaClient, settings: Settings, when: str) -> None:
+    """Print what Ollama has loaded. Extra models evict ours (default limit: 3 loaded)."""
+    try:
+        names = await client.loaded()
+    except Exception as exc:  # diagnostic only
+        print(f"ollama ps ({when}): unavailable ({exc})")
+        return
+    ours = {settings.chat_model, settings.guard_model, settings.embed_model}
+    extra = [n for n in names if n not in ours]
+    print(f"ollama ps ({when}): {', '.join(names) or 'nothing loaded'}")
+    if extra:
+        print(
+            f"WARN other models loaded: {', '.join(extra)}. With Ollama's default "
+            "OLLAMA_MAX_LOADED_MODELS=3 they push ours out; run `ollama stop <name>`."
+        )
+
+
 # -- attacks ----------------------------------------------------------------------------
 
 
@@ -119,6 +139,7 @@ async def run_attacks(settings: Settings, ids: list[str] | None, full: bool) -> 
         for w in built.warnings:
             print(f"WARN {w}")
         p = built.pipeline
+        await residency(client, settings, "start")
         await p.input_guard.check("Hi!")  # load the guard model
         print(f"chat={settings.chat_model} guard={settings.guard_model} cases={len(chosen)}\n")
         for case in chosen:
@@ -161,6 +182,7 @@ async def run_attacks(settings: Settings, ids: list[str] | None, full: bool) -> 
                     "reply": r.text, "hits": hits, "error": r.error,
                 })  # fmt: skip
             print()
+        await residency(client, settings, "end")
     total = sum(counts.values())
     print("== summary")
     print(f"turns {total}: " + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
@@ -195,6 +217,7 @@ async def run_latency(settings: Settings, rounds: int) -> int:
             print(f"WARN {w}")
         # warm both models + the system prompt
         b = builds[False]
+        await residency(client, settings, "start")
         await b.pipeline.input_guard.check("Hi!")
         await b.pipeline.handle(b.sessions.create(), "Hi!")
         print(f"chat={settings.chat_model} guard={settings.guard_model} "
@@ -213,6 +236,7 @@ async def run_latency(settings: Settings, rounds: int) -> int:
                 f"{r.ttft_s or 0:6.2f} {r.first_sentence_s or 0:9.2f} {og:9.2f}  "
                 f"{r.source[:22]:22} {q[:50]}"
             )
+        await residency(client, settings, "end")
     print()
     summary: dict[str, Any] = {}
     for par, rs in modes.items():

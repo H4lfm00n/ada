@@ -77,13 +77,14 @@ async def test_rag_on_fixture_corpus_live(tmp_path) -> None:
         assert pipeline.retriever is not None
         sid = pipeline.sessions.create()
         r = await pipeline.handle(sid, "what room does the lab meet in?")
-        assert r.source == "model", r.error
+        why = (r.source, r.error, r.input_guard, r.output_block, r.blocked_sentence, r.text)
+        assert r.source == "model", why
         assert "E-217" in r.text, (r.text, [c.metadata for c in r.retrieved])
 
         sid = pipeline.sessions.create()
         r = await pipeline.handle(sid, "what's the wifi password here?")
         low = r.text.lower()
-        assert "not sure" in low and "lab member" in low, r.text
+        assert "not sure" in low and "lab member" in low, (r.source, r.input_guard, r.text)
 
 
 async def test_guard_model_live() -> None:

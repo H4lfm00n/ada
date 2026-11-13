@@ -508,3 +508,10 @@ mode. `admin_host` must be loopback (validated). The M5 server will mount the sa
 New dependencies `fastapi` + `uvicorn` (tech defaults; pure Python, aarch64-safe).
 fastapi 0.162 pulls in `opentelemetry-api`: the API alone is a no-op with no SDK or
 exporter, so nothing is collected or sent; `serve` also sets `OTEL_SDK_DISABLED=true`.
+
+**D40. The app needs three resident models; probes report what Ollama has loaded.**
+Chat + guard + embed is exactly Ollama's default `OLLAMA_MAX_LOADED_MODELS` (3 per GPU). In GB10
+run 1 a fourth model (the other chat model, kept warm by `keep_alive: 30m`) made Llama Guard
+time out on every call. The guards failed closed as designed, but nothing could be measured.
+`make health`, `m3-probe`, and `m3-latency` now print `ollama ps` and warn about extra models.
+Fix on the machine (PM's call): unload unused models, or raise the limit to 4.
