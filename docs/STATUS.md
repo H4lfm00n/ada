@@ -90,6 +90,36 @@ _Last updated: 2026-11-12 by ENG (M3 guardrails)._
     Ollama's default 3-model limit), so models evicted each other. Run 2 checks `ollama ps` +
     the Ollama log and re-measures with one chat model loaded. `test_rag_on_fixture_corpus_live`
     failed with a truncated message; the assertion now prints the guard decisions.
+  - **GB10 run 2:** Llama Guard was never loaded (`ollama ps`: embed only) and every call
+    timed out. Real bug, not the machine: a cold guard load takes > 3 s, the timeout cancelled
+    the request, and Ollama abandons cancelled loads, so it could never come up (D41). Fixed:
+    `warm_up()` at startup + timed-out guard calls keep running. Ollama env has no
+    OLLAMA_MAX_LOADED_MODELS (default 3). Run 3 re-measures.
+  - **GB10 run 3:** cold-start fix works (guard loads, recovers). Gemma: probe 15/15, 0 hits
+    (12 input blocks: 5 rules, 7 Llama Guard; slur, emergency, prompt-injection question,
+    doxx turns 1-3 answered well). Gemma latency, both guards on, 8 questions per mode:
+    first sentence shown median 2.27 s sequential / **1.92 s parallel retrieval**; model first
+    token 1.46 / **1.05 s**; input guard 0.26 s; output guard on sentence 1 ~0.4 s.
+    Qwen: 3.38 s first sentence (first token 2.05 / 1.22 s), skewed by a reload bug (D42,
+    fixed). Run 4 re-checks qwen and the gb10 tests.
+  - **GB10 run 4:** D42 fix works: after a cold start, guard + chat + embed stay loaded
+    (warm-up loads 0.2 s each when already resident). Qwen, both guards: first sentence
+    3.45 s sequential / 2.69 s parallel; first token 2.11 / 1.18 s. gb10 tests 5/6: the
+    fixture wifi question got "I don't have access... rather not guess... ask a lab member"
+    instead of the fixed "not sure" phrase (qwen paraphrase; guards allowed it correctly).
+    Not an M3 regression; test left strict (grounding phrase is a brief rule).
+  - **PM decisions 2026-11-13:** chat model -> `gemma4:12b`, `guard_parallel_retrieval: true`,
+    transcript retention 30 days (D43). Run 5 = confirmation run on gemma, then merge.
+  - **GB10 run 5 (gemma4:12b, parallel retrieval) — M3 green, ready to merge:** health OK;
+    gb10 tests 6/6 (incl. cold-start recovery and the fixture "not sure" case); probe 18 turns,
+    12 input blocks, 0 must_not_include hits; guards stay loaded. Latency with both guards:
+    first token 1.08 s median (parallel; 1.53 s sequential), first sentence shown 1.99 s;
+    chat-lab first token 1.36 s median, 1.48 s max [PASS], 10/10 model replies, 0 errors,
+    answers grounded (police 415-338-7200, M.S. in DS+AI, join link). Small M2 nit: "when does
+    the lab meet?" says times aren't published but skips the room (LIB 260 is in the docs).
+- TODO(designer): an emergency message during a guard failure gets "my circuits got tangled".
+  Proposed `guard_error` line category that also says "call 911 if it's an emergency"
+  (comment in guard_policy.yaml).
 
 ## Done (continued)
 - **M2 on real docs** (branch `task/m2-real-docs`, merged to `main` 2026-11-12). `task/m2-rag` was never merged, so `main`
@@ -187,7 +217,7 @@ _Last updated: 2026-11-12 by ENG (M3 guardrails)._
       nothing had gone wrong.
     - Both are prompt-level (designer): "use contractions"; "say 'not sure' only when the
       docs don't answer; if they do, answer plainly".
-  - **PM decision pending: switch `chat_model` to `gemma4:12b`?** Not yet tested on red-team
+  - **Decided 2026-11-13 (M3, D43): `chat_model` is now `gemma4:12b`.** Earlier note: Not yet tested on red-team
     behavior. M3 guards + M4 evals gate any demo either way.
     Earlier list, still open: Ollama's environment,
     the k3-small latency from run 3, and a diagnose pass with `gemma4:12b` for a quality and
@@ -223,9 +253,7 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 - PM (M3): is OLLAMA_MAX_LOADED_MODELS set on the GB10? Chat + guard + embed = 3 models, exactly
   Ollama's default limit; any extra loaded model (e.g. testing gemma while qwen is warm) evicts
   ours and the guards time out. Proposal: set it to 4 in the ollama systemd override.
-- PM (M3): which chat model for M3/M4? The task said "qwen3.8:27b OR gemma4:12b"; config still
-  says qwen. The GB10 block measures both; no config change without your OK.
-- PM (M3): transcript retention 30 days OK? Who may read `data/transcripts/`? (D37)
+- PM (M3): who may read `data/transcripts/`? (30-day retention confirmed 2026-11-13.)
 - PM (M3): links in AI-chat answers ("pytorch.org") are blocked unless in the docs, as asked.
   If the probe shows that hurts, allow a short host list? (D36)
 - PM (M3): `ADA_ADMIN_TOKEN` lives in the environment of whoever runs `make admin`. Fine for

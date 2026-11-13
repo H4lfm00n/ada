@@ -8,6 +8,8 @@ response. It answers "safe", or "unsafe" plus hazard codes on the next line
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import re
 
 from app.config import Settings
@@ -15,6 +17,16 @@ from app.interfaces import GuardResult, Message, Role
 from app.ollama_client import OllamaClient
 
 _CODE_RE = re.compile(r"\bS\d{1,2}\b")
+
+
+def guard_options(settings: Settings) -> dict[str, object]:
+    """Options for EVERY guard-model call (pipeline, warm-up, health, bench).
+
+    num_ctx must be identical everywhere: Ollama reloads a model whose num_ctx changes,
+    and on a big-memory box an unset num_ctx defaults to a huge context that can evict
+    the other models (GB10 run 3, D42).
+    """
+    return {"num_ctx": settings.guard_num_ctx, "temperature": 0, "num_predict": 12}
 
 
 class GuardModelError(RuntimeError):
@@ -41,6 +53,10 @@ class LlamaGuard:
         self._client = client
         self._settings = settings
         self.last_codes: list[str] = []
+        # A call cut off by the chain's timeout keeps running here, so a model that was
+        # still loading finishes loading (Ollama abandons a load whose request is
+        # cancelled). While it runs, new calls fail fast instead of piling up (D41).
+        self._orphan: asyncio.Task[GuardResult] | None = None
 
     def conversation(self, text: str, role: Role, context: list[Message] | None) -> list[Message]:
         """Last N context messages (starting on a user turn) + the text being judged."""
@@ -58,12 +74,26 @@ class LlamaGuard:
     async def check(
         self, text: str, role: Role, context: list[Message] | None = None
     ) -> GuardResult:
+        if self._orphan is not None:
+            if not self._orphan.done():
+                raise GuardModelError("guard model still busy after a timeout (loading?)")
+            self._orphan = None
+        task = asyncio.ensure_future(self._classify(text, role, context))
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            if not task.done():
+                self._orphan = task
+                task.add_done_callback(_swallow)
+            raise
+
+    async def _classify(self, text: str, role: Role, context: list[Message] | None) -> GuardResult:
         out = ""
         async for d in self._client.chat_stream(
             self._settings.guard_model,
             self.conversation(text, role, context),
             think=None,  # Llama Guard has no thinking mode; don't send the field
-            options={"temperature": 0, "num_predict": 12},
+            options=guard_options(self._settings),
             keep_alive=self._settings.keep_alive,
         ):
             out += d.content
@@ -72,3 +102,9 @@ class LlamaGuard:
         if ok:
             return GuardResult(True)
         return GuardResult(False, ",".join(codes), f"guard model: unsafe {','.join(codes)}")
+
+
+def _swallow(task: asyncio.Task[GuardResult]) -> None:
+    """Orphaned calls' results and errors are unused; read them so asyncio doesn't warn."""
+    with contextlib.suppress(BaseException):
+        task.result()

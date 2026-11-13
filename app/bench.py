@@ -30,6 +30,7 @@ from typing import Any
 import yaml
 
 from app.config import REPO_ROOT, Settings, load_settings
+from app.guards.llama_guard import guard_options
 from app.interfaces import Message
 from app.ollama_client import OllamaClient, OllamaError, normalize_tag
 from app.prompt import PromptBuilder
@@ -107,7 +108,7 @@ async def time_guard(client: OllamaClient, settings: Settings, text: str) -> flo
         settings.guard_model,
         [Message("user", text)],
         think=None,
-        options={"num_predict": 10, "temperature": 0},
+        options=guard_options(settings),
         keep_alive=settings.keep_alive,
     ):
         pass

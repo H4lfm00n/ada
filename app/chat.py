@@ -29,7 +29,7 @@ import httpx
 import yaml
 
 from app.config import REPO_ROOT, Settings, load_settings
-from app.factory import build_pipeline
+from app.factory import build_pipeline, warm_up
 from app.lines import IDLE_GREETINGS
 from app.ollama_client import OllamaChatModel, OllamaClient, OllamaError, normalize_tag
 from app.pipeline import ChatPipeline, TurnResult
@@ -51,6 +51,7 @@ class App:
     actions: NoopActionHandler
     model: OllamaChatModel
     rag_warnings: list[str]
+    client: OllamaClient
 
 
 def build_app(settings: Settings, client: OllamaClient, *, transcripts: bool | None = None) -> App:
@@ -58,7 +59,9 @@ def build_app(settings: Settings, client: OllamaClient, *, transcripts: bool | N
     sink = ConsoleSink(prefix=f"{name}> ")
     actions = NoopActionHandler()
     built = build_pipeline(settings, client, sink, actions, transcripts=transcripts)
-    return App(settings, built.pipeline, built.sessions, sink, actions, built.model, built.warnings)
+    return App(
+        settings, built.pipeline, built.sessions, sink, actions, built.model, built.warnings, client
+    )
 
 
 def print_rag_warnings(app: App) -> None:
@@ -163,7 +166,7 @@ async def warmup(app: App) -> float:
     """Load the chat + guard models and prime Ollama's prompt cache with the system prompt."""
     loop = asyncio.get_running_loop()
     t0 = loop.time()
-    await app.pipeline.input_guard.check("Hi!")  # loads the guard model; result unused
+    await warm_up(app.settings, app.client)  # guard + chat + embed loaded, no guard timeout
     messages = app.pipeline.prompt.build([], "Hi!")
     async for _ in app.model.stream(messages):
         pass

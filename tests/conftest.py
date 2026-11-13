@@ -101,6 +101,10 @@ class FakeOllama:
             )
         if path == "/api/embed":
             return httpx.Response(200, json={"embeddings": [[0.1, 0.2, 0.3]] * len(body["input"])})
+        if path == "/api/chat" and body.get("messages") == [] and body.get("stream") is False:
+            self.loaded = sorted({*self.loaded, body["model"]})
+            return httpx.Response(200, json={"model": body["model"], "done": True,
+                                             "done_reason": "load"})  # fmt: skip
         if path == "/api/chat":
             if self.guard_reply is not None and body["model"].startswith("guard"):
                 return httpx.Response(200, content=ndjson(*self.guard_reply(body)))

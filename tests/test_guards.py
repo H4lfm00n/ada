@@ -358,3 +358,41 @@ async def test_chain_cancellation_propagates(settings: Settings, lines: LineBook
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
+
+
+class SlowClient:
+    """chat_stream that takes `delay` seconds (a cold model load), then says `safe`."""
+
+    def __init__(self, delay: float) -> None:
+        self.delay = delay
+        self.started = 0
+        self.finished = 0
+
+    async def chat_stream(self, *a: object, **k: object):  # type: ignore[no-untyped-def]
+        from app.ollama_client import ChatDelta
+
+        self.started += 1
+        await asyncio.sleep(self.delay)
+        self.finished += 1
+        yield ChatDelta(content="safe")
+
+
+async def test_guard_timeout_during_load_lets_the_load_finish(
+    settings: Settings, lines: LineBook
+) -> None:
+    """D41: Ollama aborts a load whose request is cancelled. The timed-out call must keep
+    running in the background; calls meanwhile fail fast (blocked), then the guard works."""
+    client = SlowClient(delay=0.3)
+    guard = LlamaGuard(client, settings)  # type: ignore[arg-type]
+    pol = gh.policy(settings, lines)
+    chain = GuardChain("input", InputRules(pol, gh.allowlist(lines)), guard, pol, timeout_s=0.05)
+
+    d1 = await chain.check("hello")
+    assert not d1.allowed and d1.stage == "timeout"
+    d2 = await chain.check("hello again")  # load still running: no second request
+    assert not d2.allowed and d2.stage == "error" and client.started == 1
+    await asyncio.sleep(0.35)
+    assert client.finished == 1  # the orphaned call completed (= model loaded)
+    client.delay = 0.0
+    d3 = await chain.check("hello once more")
+    assert d3.allowed and client.started == 2

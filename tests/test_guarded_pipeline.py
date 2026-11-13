@@ -616,3 +616,26 @@ async def test_m3_probe_runs(
         assert "FIRST SENTENCE SHOWN" in out and "parallel retrieval" in out
     assert "WARN other models loaded: some-other:7b" in out
     assert list((tmp_path / "reports").glob(f"*-{cmd}.json"))
+
+
+async def test_every_model_call_uses_one_num_ctx_per_model(
+    fake: FakeOllama, settings: Settings, tmp_path: Path
+) -> None:
+    """D42: a call with a different num_ctx makes Ollama reload the model (GB10 run 3:
+    the warm-up load used the default context, qwen reloaded huge, and evicted the guard)."""
+    from app.factory import warm_up
+    from app.health import run_health
+
+    s = settings.model_copy(update={
+        "kill_switch_file": str(tmp_path / "k.json"), "rag_index_dir": str(tmp_path / "rag"),
+    })  # fmt: skip
+    async with OllamaClient.from_settings(s, fake.transport) as client:
+        await run_health(s, client)
+        await warm_up(s, client)
+        b = build_pipeline(s, client, CollectingSink(), NoopActionHandler(), transcripts=False)
+        await b.pipeline.handle(b.sessions.create(), "hello")
+    seen: dict[str, set] = {}
+    for q in fake.requests:
+        if q["path"] == "/api/chat" and q.get("keep_alive") != 0:
+            seen.setdefault(q["model"], set()).add((q.get("options") or {}).get("num_ctx"))
+    assert seen == {s.chat_model: {s.num_ctx}, s.guard_model: {s.guard_num_ctx}}

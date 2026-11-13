@@ -486,7 +486,7 @@ visitor text, what was shown, source, every guard decision (stage, code, line, t
 the blocked sentence (never shown), docs used, timings. Phone numbers, emails, and student
 IDs the visitor types are redacted unless they're on the allowlist; guard reasons never
 contain the contact itself. Retention `transcript_retention_days: 30`, pruned at startup and
-by `make transcripts-prune`. **TODO(PM): confirm 30 days and who may read the logs**
+by `make transcripts-prune`. 30 days confirmed by PM 2026-11-13 (D43); **who may read the logs is still open**
 (designer open question 7). Scripted runs (`chat-demo`, `chat-lab`, diagnose, probes) don't
 write transcripts. A write failure is logged and the visitor still gets the reply.
 
@@ -515,3 +515,45 @@ run 1 a fourth model (the other chat model, kept warm by `keep_alive: 30m`) made
 time out on every call. The guards failed closed as designed, but nothing could be measured.
 `make health`, `m3-probe`, and `m3-latency` now print `ollama ps` and warn about extra models.
 Fix on the machine (PM's call): unload unused models, or raise the limit to 4.
+
+**D41. Cold-start fix: load models before the first visitor; a timed-out guard call keeps running.**
+GB10 run 2 showed Llama Guard never in `ollama ps`: a cold load takes longer than
+`guard_timeout_s` (3 s), the chain cancelled the request, and Ollama abandons a load whose
+request is cancelled. So every call restarted the load and timed out; the bot answered
+everything with fallback lines (fail-safe, but useless). This also explains run 1's gemma
+failures (guard evicted by a 4th model, then never reloaded). D40's eviction theory was the
+trigger, not the cause. Fixes:
+1. `factory.warm_up()` loads guard, chat, and embed with no guard timeout (`/api/chat` with
+   empty messages). `make chat`, the probes, and the gb10 tests call it; the M5 server will too.
+2. `LlamaGuard` shields its request: when the chain times out, the visitor still gets the
+   blocked/fallback line, but the request keeps running so the load completes. While that
+   orphaned call runs, new calls fail fast (blocked) instead of piling up.
+The timeout stays 3 s and still blocks; nothing unchecked is shown.
+
+**D42. One num_ctx per model on every call, warm-up included.**
+GB10 run 3: the warm-up load sent no options, so qwen reloaded at Ollama's default context,
+which on a 128 GB box is huge. The bigger KV cache pushed Llama Guard out right after warm-up
+(`ollama ps` after warm-up: no guard), and the app's next call (num_ctx 8192) reloaded qwen
+again (10.9 s first token). Ollama reloads a model whenever num_ctx changes. Now every call
+to a model uses the same num_ctx: chat `num_ctx` (8192) and new `guard_num_ctx` (4096) in
+the pipeline, warm-up, health, and bench (`guard_options()`). A test checks every request
+in health + warm-up + a turn uses one num_ctx per model.
+
+**D43. Chat model gemma4:12b, parallel retrieval on, 30-day transcripts (PM, 2026-11-13).**
+Measured with both guards on (GB10 runs 3-4, 8 new questions per mode):
+
+| chat model | retrieval | first token (median) | first sentence shown (median) |
+|---|---|---|---|
+| qwen3.8:27b | sequential | 2.11 s | 3.45 s |
+| qwen3.8:27b | parallel | 1.18 s | 2.69 s |
+| gemma4:12b | sequential | 1.46 s | 2.27 s |
+| **gemma4:12b** | **parallel** | **1.05 s** | **1.92 s** |
+
+gemma4:12b with parallel retrieval is the only setup under the brief's 1.5 s first-token
+target. Red-team probe (15 cases): both models 15/15, 0 must_not_include hits. M2 run 7 had
+gemma at 59/63 on lab questions. Brief section 3 still says "Qwen 27B-class": PM to update
+the brief. Brief 5.9 (evals before merging a model change): M4 doesn't exist, so the gate is
+the M3 probe + gb10 tests + `make chat-lab` on gemma (run 5).
+Remaining gap: the first *sentence* is ~1.9 s because the output guard (~0.4 s) runs on it
+before it is shown. Options if that matters: llama-guard3:1b (model change, PM call), or a
+designer prompt tweak for shorter opening sentences.
