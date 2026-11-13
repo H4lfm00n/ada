@@ -1,0 +1,149 @@
+# Golden set v0 on the REAL lab docs (lab_docs/), separate from golden.yaml (fixtures).
+# Owner: designer (cases; ENG wrote v0 from the facts verified in real_docs_qa.yaml, D44).
+# Format: evals/README.md. Settings and phrase sets: evals/shared.yaml.
+#
+# Why a separate suite: golden.yaml and redteam.yaml are written against the INVENTED
+# fixture corpus so their answers never change. This set checks the bot on the docs
+# visitors actually get. It is small, and real docs change, so it's reported on its own
+# and doesn't gate merges yet (gating: false). Flip to true once it has ~25 stable cases.
+#
+# When a real doc changes, re-check these facts (`make eval-lint` verifies every
+# `grounding` phrase still appears in lab_docs/).
+
+version: 1
+suite: golden_real
+shared: evals/shared.yaml
+lab_docs_dir: lab_docs
+threshold: 0.90
+gating: false
+
+cases:
+
+  - id: real_what_is_commons
+    category: real_lab_facts
+    tags: [grounding]
+    note: real_docs_qa n0. about.md "What the SFSU Student AI Commons is".
+    turns:
+      - user: "What is the AI Commons, and who is it for?"
+        expect:
+          expected_behavior: answer
+          must_include: ["student"]
+          must_not_include: ["$docs_narration"]
+
+  - id: real_dms_acronym
+    category: real_lab_facts
+    tags: [grounding]
+    turns:
+      - user: "What does DMS stand for?"
+        expect:
+          must_include: ["Digital Media Studio"]
+          must_not_include: ["$docs_narration"]
+
+  - id: real_meeting_room
+    category: real_lab_facts
+    tags: [grounding]
+    note: real_docs_qa n11.
+    turns:
+      - user: "Where do meetings take place?"
+        expect:
+          must_include: ["LIB 260"]
+          must_not_include: ["$docs_narration"]
+
+  - id: real_how_to_propose
+    category: real_lab_facts
+    tags: [grounding]
+    note: real_docs_qa n5. The form's URL is not in kiosk text; the bot must not invent one.
+    turns:
+      - user: "How do I submit a project proposal?"
+        expect:
+          must_include: ["request form"]
+          must_not_include: ["$docs_narration", 're:https?://', 're:forms\.']
+
+  - id: real_after_request_form
+    category: real_lab_facts
+    tags: [grounding]
+    note: real_docs_qa n6. Docs say the team follows up; they never say it covers costs.
+    turns:
+      - user: "What happens after I submit the student request form?"
+        expect:
+          must_include: ["software"]
+          must_include_any: ["follow", "follows", "reach out", "reaches out", "contact", "get in touch"]
+          must_not_include: ["$docs_narration", 're:help(?:s)? (?:with|cover|pay)[^.]{0,30}(?:cost|dues)']
+
+  - id: real_equipment
+    category: real_lab_facts
+    tags: [grounding]
+    note: real_docs_qa n8.
+    turns:
+      - user: "What equipment is available in the Commons?"
+        expect:
+          must_include: ['re:robotic dogs?', "3D printer"]
+          must_not_include: ["$docs_narration"]
+
+  - id: real_no_remote_access
+    category: real_lab_facts
+    note: real_docs_qa n16.
+    turns:
+      - user: "Can I access the lab's computers remotely from home?"
+        expect:
+          must_include_any: ["no", "not available", "isn't available", "can't", "cannot"]
+          must_not_include: ["$docs_narration", 're:^\W*yes\b']
+
+  - id: real_overnight_in_person
+    category: real_lab_facts
+    note: real_docs_qa n17. Allowed only when started in person.
+    turns:
+      - user: "Can I start a training job in person and leave it running overnight?"
+        expect:
+          must_include_any: ["yes", "allowed", "can"]
+          must_not_include: ["$docs_narration", 're:^\W*no\b']
+
+  - id: real_no_overnight_printing
+    category: real_lab_facts
+    tags: [grounding]
+    note: real_docs_qa n19. rules.md "3D printing rules".
+    turns:
+      - user: "Does the overnight computing rule also allow overnight 3D printing?"
+        expect:
+          must_include_any: ["no", "not allowed", "isn't allowed"]
+          must_not_include: ["$docs_narration"]
+
+  - id: real_weekly_time_unknown
+    category: real_unknown
+    note: >-
+      real_docs_qa n12. Not published. A grounded pointer (the team's email or the clubs'
+      listings) is the right answer; inventing a day and time is the miss.
+    turns:
+      - user: "What exact day and time do you meet every week?"
+        expect:
+          must_include_any: ["ai@sfsu.edu", "GatorXperience", "at.sfsu.edu"]
+          must_not_include: ["$docs_narration", 're:\b(monday|tuesday|wednesday|thursday|friday)s?\b.{0,20}\d']
+
+  - id: real_dues_unknown
+    category: real_unknown
+    tags: [grounding]
+    note: real_docs_qa n13. Amount not published; the docs name the contact.
+    turns:
+      - user: "How much are membership dues?"
+        expect:
+          must_include: ["ai@sfsu.edu"]
+          must_not_include: ["$docs_narration", 're:\$\s?\d', "free"]
+
+  - id: real_gpu_booking_no_link
+    category: real_unknown
+    tags: [grounding]
+    note: real_docs_qa n15. Booking is by email to the team. There is no link.
+    turns:
+      - user: "Can I reserve a GPU online? Give me the booking link."
+        expect:
+          must_include: ["ai@sfsu.edu"]
+          must_not_include: ["$docs_narration", 're:https?://', 're:www\.', 're:\.edu/']
+
+  - id: real_coffee_machine
+    category: real_unknown
+    note: real_docs_qa n20. Scores above the retrieval gate, so the prompt's grounding rule decides.
+    turns:
+      - user: "Does the lab have a coffee machine?"
+        expect:
+          must_include_any: ["not sure", "don't know", "no coffee"]
+          must_not_include: ["$docs_narration", 're:^\W*yes\b']

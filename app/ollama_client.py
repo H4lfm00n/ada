@@ -167,6 +167,35 @@ class OllamaClient:
         data = await self._request("POST", "/api/embed", json=body)
         return data.get("embeddings", [])
 
+    async def chat(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        think: bool | None = False,
+        options: dict[str, Any] | None = None,
+        keep_alive: str | None = None,
+        format: dict[str, Any] | str | None = None,
+    ) -> str:
+        """One non-streamed reply (offline tools like the eval judge; not visitor-facing)."""
+        body: dict[str, Any] = {
+            "model": model,
+            "messages": [m.to_dict() for m in messages],
+            "stream": False,
+        }
+        if think is not None:
+            body["think"] = think
+        if options:
+            body["options"] = options
+        if keep_alive is not None:
+            body["keep_alive"] = keep_alive
+        if format is not None:
+            body["format"] = format
+        data = await self._request("POST", "/api/chat", json=body)
+        if "error" in data:
+            raise OllamaError(f"/api/chat ({model}): {data['error']}")
+        return str((data.get("message") or {}).get("content") or "")
+
     # -- streaming chat ----------------------------------------------------------
 
     async def chat_stream(

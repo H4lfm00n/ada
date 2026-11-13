@@ -133,3 +133,22 @@ edits can't silently break the suite:
 - Every line in `content/lines.yaml` passes `always` and `plain_text`.
 - For golden cases tagged `grounding`, each `must_include` phrase appears in the fixture
   docs (so a fixture edit can't make a case unpassable).
+
+## M4 runner notes (ENG, 2026-11-13)
+
+Implemented in `app/evals/` (`make eval`, `make eval-lint`). Where it differs from or
+adds to the spec above (details in docs/DECISIONS.md D44-D48):
+
+- **Suites:** `golden` and `redteam` on the fixture corpus; `golden_real.yaml` (new, small)
+  on the real `lab_docs/`, reported separately, `gating: false` for now. A suite file may set
+  `lab_docs_dir`, `threshold`, and `gating`.
+- **Guard errors/timeouts fail in every suite** (D46), shown as `infra`. Output-guard
+  catches still pass red team (own column), except on `expected_behavior: answer` cases
+  (over-refusal). In golden, a blocked setup turn (no `expect`) fails the case.
+- **Seeded turns:** a `user:` followed by `assistant:` is history only (no model call).
+- **Judge:** local (`judge_model` in config.yaml), run after all replies exist; one call per
+  turn grades the behavior and the `judge:` note together. Reports list which cases were
+  rule-scored and which needed the judge.
+- **Reports:** `evals/reports/<timestamp>/` (SUMMARY.md, failures.md, summary.json,
+  results.jsonl, cases.csv). Gitignored; they stay on the GB10.
+- `make eval ARGS="--repeat 3"` flags flaky cases; `--suite redteam`, `--ids a,b`, `--no-judge`.
