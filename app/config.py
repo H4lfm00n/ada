@@ -59,6 +59,26 @@ class Settings(BaseSettings):
     rag_timeout_s: float = Field(5.0, gt=0)
     rag_query_instruction: str = ""
 
+    # Guardrails (M3). Every message and every reply sentence goes through both guards.
+    guard_policy_file: str = "content/guard_policy.yaml"
+    guard_blocklist_local_file: str = "data/guard/blocklist.local.txt"  # gitignored
+    guard_timeout_s: float = Field(3.0, gt=0)  # per guard-model call; timeout = blocked
+    guard_context_messages: int = Field(4, ge=0)  # earlier turns the input guard sees
+    guard_parallel_retrieval: bool = False  # embed the question while the input guard runs
+
+    # Kill switch (M3): on if this flag is true OR the state file says so.
+    out_of_order: bool = False
+    kill_switch_file: str = "data/kill_switch.json"
+
+    # Admin endpoint (M3, for staff tools / the M5.5 Slack bot). Token: ADA_ADMIN_TOKEN env.
+    admin_host: str = "127.0.0.1"
+    admin_port: int = Field(8765, gt=0, lt=65536)
+
+    # Transcripts (M3): text only, one JSONL file per visitor, on this machine only.
+    transcripts_enabled: bool = True
+    transcripts_dir: str = "data/transcripts"
+    transcript_retention_days: int = Field(30, ge=1)
+
     target_first_token_s: float = Field(1.5, gt=0)
     target_decode_tok_s: float = Field(10.0, gt=0)
 
@@ -70,6 +90,13 @@ class Settings(BaseSettings):
         if host not in LOOPBACK_HOSTS:
             raise ValueError(f"ollama_url must point at this machine (got host {host!r})")
         return v.rstrip("/")
+
+    @field_validator("admin_host")
+    @classmethod
+    def _admin_loopback(cls, v: str) -> str:
+        if v not in LOOPBACK_HOSTS:
+            raise ValueError(f"admin_host must be a loopback address (got {v!r})")
+        return v
 
     @field_validator("chat_model", "guard_model", "embed_model")
     @classmethod

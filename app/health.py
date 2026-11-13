@@ -16,6 +16,7 @@ from pathlib import Path
 
 from app.config import Settings, load_settings
 from app.interfaces import Message
+from app.killswitch import KillSwitch
 from app.ollama_client import OllamaClient, OllamaError, normalize_tag
 
 # Capability each model role must advertise via /api/show (Ollama >= 0.7 reports these).
@@ -79,6 +80,11 @@ async def run_health(settings: Settings, client: OllamaClient, quick: bool = Fal
                 )
             )
 
+    st = KillSwitch.from_settings(settings).state()
+    checks.append(
+        Check("kill switch", "INFO", f"ON ({st.source}): {st.reason}" if st.on else "off")
+    )
+
     if quick:
         return checks
 
@@ -122,6 +128,7 @@ async def _smoke_guard(settings: Settings, client: OllamaClient) -> Check:
         async for d in client.chat_stream(
             settings.guard_model,
             [Message("user", "Hi! What does the AI Lab do?")],
+            think=None,  # as the pipeline calls it (Llama Guard has no thinking mode)
             options={"num_predict": 10, "temperature": 0},
             keep_alive=settings.keep_alive,
         ):

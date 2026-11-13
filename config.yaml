@@ -43,6 +43,31 @@ rag_timeout_s: 5                      # embedding the question; on timeout: no d
 # Qwen3-Embedding expects an instruction on queries (not on documents). "" disables it.
 rag_query_instruction: "Given a question from a visitor to a university AI lab, retrieve the lab document sections that answer it"
 
+# --- Guardrails (M3) -----------------------------------------------------------
+# Patterns, blocklist, and which canned line answers each block: content/guard_policy.yaml.
+guard_policy_file: content/guard_policy.yaml
+guard_blocklist_local_file: data/guard/blocklist.local.txt   # real slurs, one per line; gitignored
+guard_timeout_s: 3.0                  # per guard-model call; a timeout blocks (fail safe)
+guard_context_messages: 4             # earlier turns the guard model sees (slow-escalation attacks)
+guard_parallel_retrieval: false       # true = embed the question while the input guard runs (D35)
+
+# --- Kill switch (M3) -------------------------------------------------------------
+# On if this is true OR data/kill_switch.json says on (`make kill-on` / `make kill-off`,
+# or POST /admin/kill-switch). While on, every message gets an `out_of_order` line.
+out_of_order: false
+kill_switch_file: data/kill_switch.json
+
+# --- Admin endpoint (M3) ----------------------------------------------------------
+# `make admin` serves it on this machine only. Requires ADA_ADMIN_TOKEN in the environment.
+admin_host: 127.0.0.1
+admin_port: 8765
+
+# --- Transcripts (M3) -------------------------------------------------------------
+# Text only, local only, one JSONL file per visitor, guard decisions included (D37).
+transcripts_enabled: true
+transcripts_dir: data/transcripts
+transcript_retention_days: 30         # TODO(PM): confirm. Older files are deleted at startup.
+
 # --- Latency targets (brief section 8) -----------------------------------------
 target_first_token_s: 1.5
 target_decode_tok_s: 10.0     # proposal: comfortably faster than reading speed. TODO(PM): confirm

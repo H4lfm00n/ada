@@ -106,6 +106,7 @@ async def time_guard(client: OllamaClient, settings: Settings, text: str) -> flo
     async for _ in client.chat_stream(
         settings.guard_model,
         [Message("user", text)],
+        think=None,
         options={"num_predict": 10, "temperature": 0},
         keep_alive=settings.keep_alive,
     ):

@@ -146,7 +146,7 @@ class OllamaClient:
         model: str,
         messages: list[Message],
         *,
-        think: bool = False,
+        think: bool | None = False,
         options: dict[str, Any] | None = None,
         keep_alive: str | None = None,
     ) -> AsyncIterator[ChatDelta]:
@@ -154,8 +154,9 @@ class OllamaClient:
             "model": model,
             "messages": [m.to_dict() for m in messages],
             "stream": True,
-            "think": think,
         }
+        if think is not None:  # None = don't send the field (models without thinking)
+            body["think"] = think
         if options:
             body["options"] = options
         if keep_alive is not None:

@@ -25,13 +25,12 @@ from typing import Any
 
 import yaml
 
+from app import factory
 from app.config import REPO_ROOT, Settings
 from app.interfaces import Chunk
-from app.lines import LineBook
 from app.ollama_client import OllamaChatModel, OllamaClient
 from app.pipeline import ChatPipeline, TurnResult
-from app.prompt import PromptBuilder
-from app.rag.retriever import Hit, cutoff_str, open_retriever
+from app.rag.retriever import Hit, cutoff_str
 from app.sessions import InMemorySessionManager
 from app.sinks import CollectingSink, NoopActionHandler
 
@@ -175,23 +174,12 @@ def judge(case: QACase, answer: str, in_prompt: list[Chunk], hits: list[Hit]) ->
 def build_pipeline(
     settings: Settings, client: OllamaClient
 ) -> tuple[ChatPipeline, InMemorySessionManager, Any, OllamaChatModel, list[str]]:
-    sink = CollectingSink()
-    sessions = InMemorySessionManager.from_settings(settings)
-    model = OllamaChatModel(client, settings)
-    retriever, warnings = open_retriever(client, settings)
-    pipeline = ChatPipeline(
-        model=model,
-        prompt=PromptBuilder.from_settings(settings),
-        lines=LineBook.from_settings(settings),
-        sessions=sessions,
-        sink=sink,
-        actions=NoopActionHandler(),
-        reply_timeout_s=settings.request_timeout_s,
-        retriever=retriever,
-        rag_top_k=settings.rag_top_k,
-        retrieval_timeout_s=settings.rag_timeout_s,
+    # The real, guarded pipeline (M3): diagnose answers are what visitors would see.
+    built = factory.build_pipeline(
+        settings, client, CollectingSink(), NoopActionHandler(), transcripts=False
     )
-    return pipeline, sessions, retriever, model, warnings
+    p = built.pipeline
+    return p, built.sessions, p.retriever, built.model, built.warnings
 
 
 def print_retrieval(case: QACase, r: TurnResult, hits: list[Hit]) -> None:

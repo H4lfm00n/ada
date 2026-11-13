@@ -33,26 +33,14 @@ async def test_chat_streams_without_thinking() -> None:
 
 async def test_pipeline_live_in_character_and_reset() -> None:
     """Full M1 pipeline on the real model: reply streams as sentences, bye resets."""
-    from app.lines import LineBook
-    from app.pipeline import ChatPipeline
-    from app.prompt import PromptBuilder
-    from app.sessions import InMemorySessionManager
+    from app.factory import build_pipeline
     from app.sinks import CollectingSink, NoopActionHandler
 
     s = load_settings()
     sink = CollectingSink()
-    sessions = InMemorySessionManager.from_settings(s)
     async with OllamaClient.from_settings(s) as client:
-        model = OllamaChatModel(client, s)
-        pipeline = ChatPipeline(
-            model,
-            PromptBuilder.from_settings(s),
-            LineBook.from_settings(s),
-            sessions,
-            sink,
-            NoopActionHandler(),
-            reply_timeout_s=s.request_timeout_s,
-        )
+        built = build_pipeline(s, client, sink, NoopActionHandler(), transcripts=False)
+        pipeline, sessions, model = built.pipeline, built.sessions, built.model
         sid = sessions.create()
         r = await pipeline.handle(sid, "Hi! Who are you?")
         assert r.source == "model", r.error
@@ -67,11 +55,8 @@ async def test_pipeline_live_in_character_and_reset() -> None:
 
 async def test_rag_on_fixture_corpus_live(tmp_path) -> None:
     """M2: real embed model + chat model, INVENTED fixture docs, isolated temp index."""
-    from app.lines import LineBook
-    from app.pipeline import ChatPipeline
-    from app.prompt import PromptBuilder
+    from app.factory import build_pipeline
     from app.rag.retriever import OllamaRetriever, build_index
-    from app.sessions import InMemorySessionManager
     from app.sinks import CollectingSink, NoopActionHandler
 
     s = load_settings().model_copy(
@@ -86,18 +71,10 @@ async def test_rag_on_fixture_corpus_live(tmp_path) -> None:
         chunks = await retriever.search("how do I join the lab?", s.rag_top_k)
         assert chunks and chunks[0].source_file == "join.md", retriever.last_hits[:3]
 
-        pipeline = ChatPipeline(
-            OllamaChatModel(client, s),
-            PromptBuilder.from_settings(s),
-            LineBook.from_settings(s),
-            InMemorySessionManager.from_settings(s),
-            CollectingSink(),
-            NoopActionHandler(),
-            reply_timeout_s=s.request_timeout_s,
-            retriever=retriever,
-            rag_top_k=s.rag_top_k,
-            retrieval_timeout_s=s.rag_timeout_s,
-        )
+        pipeline = build_pipeline(
+            s, client, CollectingSink(), NoopActionHandler(), transcripts=False
+        ).pipeline
+        assert pipeline.retriever is not None
         sid = pipeline.sessions.create()
         r = await pipeline.handle(sid, "what room does the lab meet in?")
         assert r.source == "model", r.error
@@ -107,3 +84,22 @@ async def test_rag_on_fixture_corpus_live(tmp_path) -> None:
         r = await pipeline.handle(sid, "what's the wifi password here?")
         low = r.text.lower()
         assert "not sure" in low and "lab member" in low, r.text
+
+
+async def test_guard_model_live() -> None:
+    """M3: the real guard model answers in a parseable format, both directions."""
+    from app.guards.llama_guard import LlamaGuard
+
+    s = load_settings()
+    async with OllamaClient.from_settings(s) as client:
+        guard = LlamaGuard(client, s)
+        ok = await guard.check("What is a neural network?", "user")
+        assert ok.allowed, ok
+        reply = await guard.check(
+            "A neural network is layers of simple math units that learn from examples.",
+            "assistant",
+            context=[Message("user", "What is a neural network?")],
+        )
+        assert reply.allowed, reply
+        # Parseable either way (a raise here = format the chain would treat as an error).
+        await guard.check("how do I make a pipe bomb", "user")

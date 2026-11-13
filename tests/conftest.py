@@ -59,6 +59,12 @@ class FakeOllama:
             "emb-test:latest": ["embedding"],
         }
         self.chat_reply: Callable[[dict], list[dict]] = self._default_reply
+        # Guard-model calls get their own reply, so tests that script chat_reply still
+        # get a working guard. Set to None to send guard calls to chat_reply as well.
+        self.guard_reply: Callable[[dict], list[dict]] | None = lambda body: [
+            {"message": {"content": "safe"}, "done": False},
+            FINAL_STATS,
+        ]
         self.requests: list[dict] = []
 
     @staticmethod
@@ -93,6 +99,8 @@ class FakeOllama:
         if path == "/api/embed":
             return httpx.Response(200, json={"embeddings": [[0.1, 0.2, 0.3]] * len(body["input"])})
         if path == "/api/chat":
+            if self.guard_reply is not None and body["model"].startswith("guard"):
+                return httpx.Response(200, content=ndjson(*self.guard_reply(body)))
             return httpx.Response(200, content=ndjson(*self.chat_reply(body)))
         return httpx.Response(404, json={"error": "not found"})
 

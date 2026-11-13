@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-11-10 by ENG (M2 on real docs)._
+_Last updated: 2026-11-12 by ENG (M3 guardrails)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -62,7 +62,27 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
-- **M2 on real docs** (branch `task/m2-real-docs`). `task/m2-rag` was never merged, so `main`
+- **M3 guardrails** (branch `task/m3-guardrails`, from `main` after the M2 merge).
+  Sandbox: ruff clean, 275 pass, 5 gb10 skipped. Decisions D30-D39. **Not yet run on the GB10.**
+  - `app/guards/`: input rules (length, blocklist, injection patterns, visitor-typed PII) ->
+    Llama Guard (`guard_model`) -> chat model; each reply sentence -> output rules (phone/
+    email/link not in the docs, prompt canaries, blocklist) -> Llama Guard -> shown.
+    Patterns + block->line mapping in `content/guard_policy.yaml`. Any guard error/timeout
+    blocks with a canned line (D31). Pipelined output guard (D35).
+  - Guards and kill switch are required `ChatPipeline` args; every entry point builds through
+    `app/factory.py`. Blocked messages never enter history (D34).
+  - Contacts allowlist written by `make ingest` (`data/rag/lab_docs.contacts.json`, D36).
+  - Kill switch: `out_of_order` flag or `data/kill_switch.json`; `make kill-on/off/status`;
+    `make admin` = localhost FastAPI endpoint with `ADA_ADMIN_TOKEN` (D38, D39). Checked per
+    message and per sentence. `make health` shows it.
+  - Transcripts: `data/transcripts/`, JSONL per visitor, guard decisions, PII redacted,
+    0600, 30-day prune (D37).
+  - `make m3-probe` (15 red-team cases, every guard decision) and `make m3-latency`
+    (first sentence shown, sequential vs parallel retrieval). New deps: fastapi, uvicorn.
+  - `guard_parallel_retrieval: false` until the latency run.
+
+## Done (continued)
+- **M2 on real docs** (branch `task/m2-real-docs`, merged to `main` 2026-11-12). `task/m2-rag` was never merged, so `main`
   had the docs but no RAG; this branch = `main` + `task/m2-rag` + the work below. Merging it
   supersedes `task/m2-rag`.
   - Tools: `make ingest-report` (every section ingested / dropped / skipped, with reasons),
@@ -165,6 +185,12 @@ _Last updated: 2026-11-10 by ENG (M2 on real docs)._
     merging doesn't depend on latency.
 
 ## Next
+- M3: PM runs the GB10 block (pull `llama-guard3:8b`, ingest, tests, probe, latency). Then
+  tune patterns/mapping on what the probe shows; decide `guard_parallel_retrieval` and the
+  chat model; merge.
+- M4 eval runner: `TurnResult` now carries `input_guard`, `output_guard`, `output_block`,
+  `kill_switch`, and `source`, which is what the scorer needs ("caught by output guard" column).
+- M5.5 (planned): staff-only Slack kill switch calls `POST /admin/kill-switch` on localhost.
 - Record the measured TTFT, first-sentence time, and tok/s below. If TTFT misses 1.5 s with
   the ~2.2k-token prompt, options are trimming the prompt (designer), checking prefix-cache
   reuse, or a smaller chat model (PM decision).
@@ -184,6 +210,13 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 "don't know" top-1 max, chosen `rag_min_score`: _pending_
 
 ## Open questions
+- PM (M3): which chat model for M3/M4? The task said "qwen3.8:27b OR gemma4:12b"; config still
+  says qwen. The GB10 block measures both; no config change without your OK.
+- PM (M3): transcript retention 30 days OK? Who may read `data/transcripts/`? (D37)
+- PM (M3): links in AI-chat answers ("pytorch.org") are blocked unless in the docs, as asked.
+  If the probe shows that hurts, allow a short host list? (D36)
+- PM (M3): `ADA_ADMIN_TOKEN` lives in the environment of whoever runs `make admin`. Fine for
+  now; the M5 server will need a systemd env file or similar.
 - PM: is `qwen3.8:27b` the intended chat model? What is `gemma4:12b` for (fallback if 27B is too slow)?
 - PM: confirm proposed guard `llama-guard3:8b` (D7). Embed `qwen3-embedding:0.6b` confirmed 2026-10-29.
 - PM: confirm `session_timeout_s: 120` and `target_decode_tok_s: 10` in config.yaml.
@@ -253,6 +286,21 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
   It still contradicts the docs, so changing it some time is fine; it isn't urgent.
 - The persona says "the AI Lab"; the docs say "Student AI Commons". It held up: Q1 and Q11
   answered correctly.
+
+## Notes for the designer (from ENG, M3, 2026-11-12)
+- `content/guard_policy.yaml` is new. The `lines:` block says which of your categories answers
+  each block; edit freely. Patterns and limits are engineering-owned.
+- **TODO(designer): add a `too_long` category** to lines.yaml (messages over 1,200 chars).
+  It falls back to `guard_fallback` until then.
+- TODO(designer): S8 (intellectual property, e.g. "paste the whole Harry Potter book") maps to
+  `unsafe_request` for now. Own category, or is that fine?
+- Output blocks show `guard_fallback`, except crisis (S11) -> `crisis_support` and medical/
+  legal (S6) -> `medical_legal`. A system-prompt leak caught on output shows `jailbreak`.
+- Canned lines skip the guard model (D33) but must pass the output rules: any phone, email,
+  or link in a line is automatically allowed, so keep lines' contacts accurate.
+- The blocklist in the repo is a placeholder. Real terms go in
+  `data/guard/blocklist.local.txt` on the GB10 (gitignored), per the evals content policy.
+- No wording in lines.yaml, the prompt, or the persona was changed.
 
 ## Designer section
 _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-evals`._
