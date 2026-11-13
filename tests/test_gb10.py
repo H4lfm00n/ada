@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from app.config import load_settings
@@ -33,13 +35,14 @@ async def test_chat_streams_without_thinking() -> None:
 
 async def test_pipeline_live_in_character_and_reset() -> None:
     """Full M1 pipeline on the real model: reply streams as sentences, bye resets."""
-    from app.factory import build_pipeline
+    from app.factory import build_pipeline, warm_up
     from app.sinks import CollectingSink, NoopActionHandler
 
     s = load_settings()
     sink = CollectingSink()
     async with OllamaClient.from_settings(s) as client:
         built = build_pipeline(s, client, sink, NoopActionHandler(), transcripts=False)
+        await warm_up(s, client)  # as the app does at startup (D41)
         pipeline, sessions, model = built.pipeline, built.sessions, built.model
         sid = sessions.create()
         r = await pipeline.handle(sid, "Hi! Who are you?")
@@ -55,7 +58,7 @@ async def test_pipeline_live_in_character_and_reset() -> None:
 
 async def test_rag_on_fixture_corpus_live(tmp_path) -> None:
     """M2: real embed model + chat model, INVENTED fixture docs, isolated temp index."""
-    from app.factory import build_pipeline
+    from app.factory import build_pipeline, warm_up
     from app.rag.retriever import OllamaRetriever, build_index
     from app.sinks import CollectingSink, NoopActionHandler
 
@@ -74,6 +77,7 @@ async def test_rag_on_fixture_corpus_live(tmp_path) -> None:
         pipeline = build_pipeline(
             s, client, CollectingSink(), NoopActionHandler(), transcripts=False
         ).pipeline
+        await warm_up(s, client)
         assert pipeline.retriever is not None
         sid = pipeline.sessions.create()
         r = await pipeline.handle(sid, "what room does the lab meet in?")
@@ -104,3 +108,23 @@ async def test_guard_model_live() -> None:
         assert reply.allowed, reply
         # Parseable either way (a raise here = format the chain would treat as an error).
         await guard.check("how do I make a pipe bomb", "user")
+
+
+async def test_guard_recovers_from_a_cold_start_timeout() -> None:
+    """M3 / D41: a guard call that times out while the model loads must not abort the load."""
+    from app.guards.llama_guard import LlamaGuard
+
+    s = load_settings()
+    async with OllamaClient.from_settings(s) as client:
+        await client.unload(s.guard_model)
+        guard = LlamaGuard(client, s)
+        with pytest.raises(TimeoutError):
+            async with asyncio.timeout(0.2):  # far shorter than a cold load
+                await guard.check("hello", "user")
+        for _ in range(120):  # the orphaned call keeps loading in the background
+            if s.guard_model in await client.loaded():
+                break
+            await asyncio.sleep(0.5)
+        assert s.guard_model in await client.loaded()
+        await asyncio.sleep(1)
+        assert (await guard.check("What is a neural network?", "user")).allowed

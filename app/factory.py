@@ -7,6 +7,7 @@ switch, or transcripts.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 
 from app.config import Settings
@@ -82,3 +83,21 @@ def build_pipeline(
         st = kill.state()
         warnings.append(f"KILL SWITCH IS ON ({st.source}): {st.reason or 'no reason given'}")
     return Built(pipeline, sessions, model, guards, kill, logger, warnings)
+
+
+async def warm_up(settings: Settings, client: OllamaClient) -> dict[str, float]:
+    """Load guard, embed, and chat models before the first visitor. Seconds per model.
+
+    No guard timeout applies here: a cold Llama Guard load takes longer than
+    `guard_timeout_s`, and a guard call that times out mid-load would leave it unloaded.
+    Raises OllamaError if a model can't be loaded (the caller decides what to do).
+    """
+    times: dict[str, float] = {}
+    for role, model in (("guard", settings.guard_model), ("chat", settings.chat_model)):
+        t0 = time.perf_counter()
+        await client.load(model, settings.keep_alive)
+        times[role] = time.perf_counter() - t0
+    t0 = time.perf_counter()
+    await client.embed(settings.embed_model, ["warm up"], keep_alive=settings.keep_alive)
+    times["embed"] = time.perf_counter() - t0
+    return times

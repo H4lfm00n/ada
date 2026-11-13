@@ -106,6 +106,10 @@ lines:
     S6: medical_legal
     S11: crisis_support
   # Guard errors and timeouts, either side.
+  # TODO(designer): when a guard fails, the visitor might have typed an emergency
+  # ("smoke coming out of the server rack") and gets "my circuits got tangled". Consider a
+  # `guard_error` category whose lines also say "if it's an emergency, call 911", then
+  # point this at it.
   error: guard_fallback
   # A code the guard returns that isn't listed above.
   unknown: guard_fallback

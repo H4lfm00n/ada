@@ -122,6 +122,25 @@ class OllamaClient:
         data = await self._request("GET", "/api/tags")
         return [m["name"] for m in data.get("models", []) if "name" in m]
 
+    async def load(self, model: str, keep_alive: str | None = None) -> None:
+        """Load a chat-capable model into memory and wait for it (no app-level timeout).
+
+        An empty /api/chat request loads the model and returns. Guard calls have a short
+        timeout, and Ollama abandons a load when its request is cancelled, so the guard
+        model must be loaded this way before the first visitor (D41).
+        """
+        body: dict[str, Any] = {"model": model, "messages": [], "stream": False}
+        if keep_alive is not None:
+            body["keep_alive"] = keep_alive
+        await self._request("POST", "/api/chat", json=body)
+
+    async def unload(self, model: str) -> None:
+        """Free a model's memory now (keep_alive 0). Used by tests and staff tools."""
+        await self._request(
+            "POST", "/api/chat", json={"model": model, "messages": [], "keep_alive": 0,
+                                       "stream": False},
+        )  # fmt: skip
+
     async def loaded(self) -> list[str]:
         """Models Ollama currently has in memory (/api/ps)."""
         data = await self._request("GET", "/api/ps")

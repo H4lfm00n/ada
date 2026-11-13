@@ -515,3 +515,17 @@ run 1 a fourth model (the other chat model, kept warm by `keep_alive: 30m`) made
 time out on every call. The guards failed closed as designed, but nothing could be measured.
 `make health`, `m3-probe`, and `m3-latency` now print `ollama ps` and warn about extra models.
 Fix on the machine (PM's call): unload unused models, or raise the limit to 4.
+
+**D41. Cold-start fix: load models before the first visitor; a timed-out guard call keeps running.**
+GB10 run 2 showed Llama Guard never in `ollama ps`: a cold load takes longer than
+`guard_timeout_s` (3 s), the chain cancelled the request, and Ollama abandons a load whose
+request is cancelled. So every call restarted the load and timed out; the bot answered
+everything with fallback lines (fail-safe, but useless). This also explains run 1's gemma
+failures (guard evicted by a 4th model, then never reloaded). D40's eviction theory was the
+trigger, not the cause. Fixes:
+1. `factory.warm_up()` loads guard, chat, and embed with no guard timeout (`/api/chat` with
+   empty messages). `make chat`, the probes, and the gb10 tests call it; the M5 server will too.
+2. `LlamaGuard` shields its request: when the chain times out, the visitor still gets the
+   blocked/fallback line, but the request keeps running so the load completes. While that
+   orphaned call runs, new calls fail fast (blocked) instead of piling up.
+The timeout stays 3 s and still blocks; nothing unchecked is shown.

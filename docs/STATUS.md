@@ -90,6 +90,14 @@ _Last updated: 2026-11-12 by ENG (M3 guardrails)._
     Ollama's default 3-model limit), so models evicted each other. Run 2 checks `ollama ps` +
     the Ollama log and re-measures with one chat model loaded. `test_rag_on_fixture_corpus_live`
     failed with a truncated message; the assertion now prints the guard decisions.
+  - **GB10 run 2:** Llama Guard was never loaded (`ollama ps`: embed only) and every call
+    timed out. Real bug, not the machine: a cold guard load takes > 3 s, the timeout cancelled
+    the request, and Ollama abandons cancelled loads, so it could never come up (D41). Fixed:
+    `warm_up()` at startup + timed-out guard calls keep running. Ollama env has no
+    OLLAMA_MAX_LOADED_MODELS (default 3). Run 3 re-measures.
+- TODO(designer): an emergency message during a guard failure gets "my circuits got tangled".
+  Proposed `guard_error` line category that also says "call 911 if it's an emergency"
+  (comment in guard_policy.yaml).
 
 ## Done (continued)
 - **M2 on real docs** (branch `task/m2-real-docs`, merged to `main` 2026-11-12). `task/m2-rag` was never merged, so `main`

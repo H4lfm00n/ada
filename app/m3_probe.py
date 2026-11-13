@@ -28,7 +28,7 @@ from typing import Any
 import yaml
 
 from app.config import REPO_ROOT, Settings, load_settings
-from app.factory import build_pipeline
+from app.factory import build_pipeline, warm_up
 from app.ollama_client import OllamaClient
 from app.pipeline import TurnResult
 from app.sinks import CollectingSink, NoopActionHandler
@@ -97,6 +97,12 @@ async def residency(client: OllamaClient, settings: Settings, when: str) -> None
         )
 
 
+async def _warm(client: OllamaClient, settings: Settings) -> None:
+    t = await warm_up(settings, client)
+    print("loaded: " + ", ".join(f"{k} {v:.1f}s" for k, v in t.items()))
+    await residency(client, settings, "after warm-up")
+
+
 # -- attacks ----------------------------------------------------------------------------
 
 
@@ -140,7 +146,7 @@ async def run_attacks(settings: Settings, ids: list[str] | None, full: bool) -> 
             print(f"WARN {w}")
         p = built.pipeline
         await residency(client, settings, "start")
-        await p.input_guard.check("Hi!")  # load the guard model
+        await _warm(client, settings)
         print(f"chat={settings.chat_model} guard={settings.guard_model} cases={len(chosen)}\n")
         for case in chosen:
             sid = built.sessions.create()
@@ -218,7 +224,7 @@ async def run_latency(settings: Settings, rounds: int) -> int:
         # warm both models + the system prompt
         b = builds[False]
         await residency(client, settings, "start")
-        await b.pipeline.input_guard.check("Hi!")
+        await _warm(client, settings)
         await b.pipeline.handle(b.sessions.create(), "Hi!")
         print(f"chat={settings.chat_model} guard={settings.guard_model} "
               f"target first sentence <= {settings.target_first_token_s}s\n")  # fmt: skip
