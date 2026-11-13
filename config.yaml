@@ -12,7 +12,7 @@ request_timeout_s: 120        # model loads can take a while on first call
 keep_alive: 30m               # keep models resident between visitors
 
 # --- Models (tags exactly as shown by `ollama list`) -------------------------
-chat_model: qwen3.8:27b
+chat_model: gemma4:12b              # PM 2026-11-13 (D43); was qwen3.8:27b
 guard_model: llama-guard3:8b          # proposed in M0; pull before `make health`
 embed_model: qwen3-embedding:0.6b     # proposed in M0; pull before `make health`
 
@@ -50,7 +50,7 @@ guard_blocklist_local_file: data/guard/blocklist.local.txt   # real slurs, one p
 guard_num_ctx: 4096                   # fixed so every guard call reuses the loaded model (D42)
 guard_timeout_s: 3.0                  # per guard-model call; a timeout blocks (fail safe)
 guard_context_messages: 4             # earlier turns the guard model sees (slow-escalation attacks)
-guard_parallel_retrieval: false       # true = embed the question while the input guard runs (D35)
+guard_parallel_retrieval: true        # embed the question while the input guard runs (D35, D43)
 
 # --- Kill switch (M3) -------------------------------------------------------------
 # On if this is true OR data/kill_switch.json says on (`make kill-on` / `make kill-off`,
@@ -67,7 +67,7 @@ admin_port: 8765
 # Text only, local only, one JSONL file per visitor, guard decisions included (D37).
 transcripts_enabled: true
 transcripts_dir: data/transcripts
-transcript_retention_days: 30         # TODO(PM): confirm. Older files are deleted at startup.
+transcript_retention_days: 30         # PM confirmed 2026-11-13. Older files are deleted at startup.
 
 # --- Latency targets (brief section 8) -----------------------------------------
 target_first_token_s: 1.5
