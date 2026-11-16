@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-11-13 by ENG (M4 eval harness)._
+_Last updated: 2026-11-16 by DES (M5 kiosk UI spec; designer section only). Before that 2026-11-13 by ENG (M4 eval harness)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -372,7 +372,20 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 - No wording in lines.yaml, the prompt, or the persona was changed.
 
 ## Designer section
-_Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-evals`._
+_Last updated: 2026-11-16 by DES (M5 kiosk UI spec), branch `task/des-kiosk-ui`._
+
+### M5 kiosk UI, design half (`task/des-kiosk-ui`, 2026-11-16)
+- `docs/ui-spec.md`: layout, original face + expressions, 6 states (idle/attract, listening,
+  thinking, replying, error/fallback, out of order) + variants (safety reply, message hidden,
+  reply retracted, "Still there?", reconnecting/connection lost), reset + timing rules,
+  all UI strings, design tokens as CSS variables, accessibility, websocket events (section 9).
+- `ui/mockups/kiosk.html`: static clickable mockup, fake data, state switcher, demo, live typing.
+- Decisions DES32–DES39.
+- **Engineer next (M5 build):** websocket per spec section 9. New pipeline emits needed:
+  `turn_accepted`, `input_blocked`, `reply_retracted`, `session_warning`. Bundle Atkinson
+  Hyperlegible in `ui/fonts/`. Decide where `ui_examples` and `ui_strings` live (DES36, DES37).
+- **Open for PM:** public name (config still `Dum-E`; mockup has a switcher), touch or
+  keyboard, screen size/orientation, notice wording + who reads logs, `session_timeout_s: 120`.
 
 ### Done
 - Persona v1, system prompt v1, lines v1, 3 samples (branch `task/des-persona-v1`, merged).
@@ -431,7 +444,7 @@ _Last updated: 2026-10-29 by DES (lab docs + evals), branch `task/des-lab-docs-e
 
 ### Next
 - After M2/M4 land: run `make eval` on the GB10, then `DES – fix evals` on the failures.
-- Kiosk UI spec + mockups (M5).
+- ~~Kiosk UI spec + mockups (M5).~~ Done on `task/des-kiosk-ui` (2026-11-16).
 - Once the PM fills real `lab_docs/`, add golden cases for the real facts.
 
 ### Lab docs: PM answers applied (2026-11-10)

@@ -620,3 +620,45 @@ model missing, kill switch on, invalid eval files). `--ids` runs are partial and
 **D49. `OllamaClient.chat()`: a non-streamed call for offline tools.**
 Used only by the judge (`format` = JSON schema). Visitor replies still stream through
 `OllamaChatModel` behind both guards.
+
+## 2026-11-16 · Designer: kiosk UI spec + mockup (`task/des-kiosk-ui`)
+
+**DES32. One 1920×1080 landscape layout, scaled by `100vh/1080`.**
+Face + status on the left, conversation on the right, input along the bottom, AI notice
+across the top. Alternatives: a centered chat column, a portrait layout. Why: read from
+~2 m, the face is the "someone's here" signal and the right column gets the width that
+56 px captions need. Portrait is an open question for the PM.
+
+**DES33. The face is five shapes (head, two eyes, mouth bars, lamp) plus a thinking ring.**
+No image assets, no film or game robot. The mouth bars double as a mic-level meter for
+voice later; the lamp carries the state shape. Animatable with CSS or SVG alone.
+
+**DES34. A state is never shown by color alone.**
+Each state has a shape (● ◆ ◐ ▶ ▲ ■) on the lamp and in the status line, a text label, and
+a face expression. All text colors are ≥ 7:1 on every background (AAA, because of distance).
+
+**DES35. Guarded messages are hidden from the public screen.**
+When the input guard blocks a message, or the reply is an emergency/crisis/medical line,
+the visitor's bubble becomes "Message hidden". When the output guard blocks a sentence
+after earlier ones were shown, the partial reply is removed before the fallback line.
+Why: the big screen is public; blocked messages are the likeliest to hold slurs, phone
+numbers, or someone's crisis, and a half-shown reply can be the lead-in to the blocked part.
+
+**DES36. Example questions get their own list (`ui_examples`), proposed, not added yet.**
+Not taken from `idle_greetings` because examples must be questions the real docs answer.
+Proposed list in `docs/ui-spec.md` section 6; the engineer decides whether it lives in
+`lines.yaml` (the loader checks categories) or a new file.
+
+**DES37. UI strings as data (`content/ui_strings.yaml`, proposed).**
+Every on-screen string is in `docs/ui-spec.md` section 6 with a key, so the designer can
+edit wording without touching UI code. The notice's "30 days" should come from config.
+
+**DES38. Server owns the session clock; the UI mirrors it.**
+`session_warning` 30 s before the timeout ("Still there?" countdown), goodbye line for 4 s,
+then idle. Typing (not just sending) counts as activity, so long questions don't reset.
+Attract mode: greeting every 7 s, example set every 21 s.
+
+**DES39. Font: Atkinson Hyperlegible, bundled locally; 28 px minimum.**
+OFL-licensed, built for low-vision legibility (distinct I/l/1, O/0). Bundled in `ui/fonts/`
+because the kiosk makes no network calls at runtime. Captions 56 px (44 px from the 4th
+sentence of a long reply).
