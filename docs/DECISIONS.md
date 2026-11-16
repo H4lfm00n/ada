@@ -662,3 +662,21 @@ Attract mode: greeting every 7 s, example set every 21 s.
 OFL-licensed, built for low-vision legibility (distinct I/l/1, O/0). Bundled in `ui/fonts/`
 because the kiosk makes no network calls at runtime. Captions 56 px (44 px from the 4th
 sentence of a long reply).
+
+## 2026-11-16 · Designer: kiosk UI v2 after PM feedback (`task/des-kiosk-ui`)
+
+**DES40. The face is replaced by one animated orb (supersedes DES33).**
+PM asked for a single full circle that moves like a voice assistant's, but original. A
+filled circle with a softly moving edge and three drifting lights inside, drawn on canvas.
+States differ by palette, size, and movement (breathe, pulse on keys, edge ripple while
+thinking, swell with words while replying, shake on fallback, still when out of order).
+
+**DES41. Captions only: no transcript, no bubbles, no visible buttons (supersedes DES32's
+two-column layout and most of DES35).**
+Only the bot's words are shown, newest sentence at 56 px plus the previous one at 40 px.
+The visitor's text disappears on send, so "Message hidden" isn't needed; `reply_retracted`
+still clears a half-shown reply. Start over is `Esc` only. The AI notice is one line.
+
+**DES42. Status words only where the screen would otherwise be ambiguous.**
+LISTENING, THINKING, RECONNECTING, OUT OF ORDER under the orb; this plus movement keeps
+the "never by color alone" rule (DES34) without the v1 shape icons.
