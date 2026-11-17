@@ -680,3 +680,39 @@ still clears a half-shown reply. Start over is `Esc` only. The AI notice is one 
 **DES42. Status words only where the screen would otherwise be ambiguous.**
 LISTENING, THINKING, RECONNECTING, OUT OF ORDER under the orb; this plus movement keeps
 the "never by color alone" rule (DES34) without the v1 shape icons.
+
+## 2026-11-17 — DES, phase 2 (task/des-ada-phase2)
+
+**DES43. The name is Ada (AY-duh), she/her** (PM decision, PHASE2-SPEC 0.1). `bot_name: Ada`
+in config.yaml (one line, DES edit outside content paths, at the spec's request). Persona v2,
+prompt, lines, UI copy updated. Eval set `old_name` + cases `name_*` keep the old name out.
+
+**DES44. Voice-first persona and prompt.** Prompt now says she speaks and is captioned, hears
+via a transcript that may be garbled (ask again rather than guess), never says URLs/emails,
+says room codes the way people do. Front-matter `version` left at 1 because
+`tests/test_prompt.py` asserts it; ENG bumps both together.
+
+**DES45. Cards via a static ID list in the prompt** (not a new slot): adding a slot would make
+the loader fail on unknown slots. ENG: if cards change often, add a `{{card_catalog}}` slot
+and I'll move the list. Disabled cards are silently dropped by the server.
+
+**DES46. Every card ships `enabled: false`, `approved: TODO(PM)`.** No proposal-form URL exists
+in lab_docs (only the join form), and the Discord invite isn't confirmed. Info cards carry
+facts copied from lab_docs and no links.
+
+**DES47. New line categories:** `didnt_catch`, `card_not_available`, `talk_one_at_a_time`.
+
+**DES48. Light theme + wireframe blob replace the dark orb** (supersedes DES40's look, keeps
+DES41 captions-only and DES42 status words). Old spec kept as `docs/ui-spec-v2-dark.md`.
+
+**DES49. Idle acts are visual only** (PM 8.3); 21 written, 20 enabled (quiz invite waits for
+the quiz). Acts with lab facts read lab_docs at runtime.
+
+**DES50. Phase 2 red-team cases go in redteam.yaml with existing expect keys** (text checks
+only) and `tags: [card|voice]`. Proposed runner keys `card_shown`, `no_card`, `input_mode`.
+Slurs use placeholders per the file's content policy.
+
+**DES51 (2026-11-17, PM feedback). Purple accent `#7C3AED`; calm speaking motion.** Audio
+level now drives a smoothed swell plus one slow wave (attack ≈0.25 s, release ≈0.6 s) instead
+of high-frequency noise snapping per word, which read as shaking. ENG: smooth `audio_level`
+the same way; don't map raw RMS straight to displacement.

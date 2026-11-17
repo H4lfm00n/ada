@@ -278,8 +278,7 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 - PM: is `qwen3.8:27b` the intended chat model? What is `gemma4:12b` for (fallback if 27B is too slow)?
 - PM: confirm proposed guard `llama-guard3:8b` (D7). Embed `qwen3-embedding:0.6b` confirmed 2026-10-29.
 - PM: confirm `session_timeout_s: 120` and `target_decode_tok_s: 10` in config.yaml.
-- PM: `bot_name` is still `Dum-E` in config (designer suggests an original name: Ada, Sprocket,
-  Grady). It's one config line; every prompt and line follows it.
+- ~~bot_name~~: Ada (PM, 2026-11-17).
 - PM: OK that the CLI/kiosk shows whole sentences rather than token-by-token (D9)?
 - ~~Real docs~~: merged to `main` 2026-11-10 (12 files, 0 TODOs).
 - PM: merge `task/m2-real-docs` (not `task/m2-rag`) once the GB10 run looks right.
@@ -372,7 +371,21 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 - No wording in lines.yaml, the prompt, or the persona was changed.
 
 ## Designer section
-_Last updated: 2026-11-16 by DES (M5 kiosk UI spec), branch `task/des-kiosk-ui`._
+_Last updated: 2026-11-17 by DES (phase 2: Ada), branch `task/des-ada-phase2`._
+
+### Phase 2: Ada rename, new look, cards, idle, voice (`task/des-ada-phase2`, 2026-11-17)
+- Name Ada everywhere (persona v2 she/her + voice-first, prompt, lines, config `bot_name`, UI).
+- `docs/ui-spec.md` v3 (light theme, wireframe blob, all 8 states, cards, check-in loop, events);
+  mockup `ui/mockups/ada.html`. v2 kept as `docs/ui-spec-v2-dark.md`.
+- `content/cards.yaml` (8 cards, all disabled until PM approval), `content/idle_acts.yaml`
+  (20 active acts), `content/voice.md` (speaking rules + Kokoro shortlist af_heart/af_bella/bf_emma).
+- 3 new line categories; 18 phase-2 red-team cases; 4 shared phrase sets. eval-lint 0 errors,
+  pytest 310 pass.
+- **ENG next:** wire cards (tag strip, catalog check, approved-only load), idle picker, new
+  line categories (STT empty → `didnt_catch`), Kokoro lexicon for "Ada", proposed eval keys
+  `card_shown`/`no_card`/`input_mode`, bump prompt version + test.
+- **PM open:** proposal form URL, Discord invite, approve each card, J1 arm tease, kiosk-in-LIB-260?,
+  voice pick by ear.
 
 ### M5 kiosk UI, design half (`task/des-kiosk-ui`, 2026-11-16)
 - **v2 after PM feedback:** one animated orb (no face), captions of the bot's words only (no

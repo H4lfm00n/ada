@@ -1,0 +1,193 @@
+# Card catalog v1: things Ada can put on the screen (PHASE2-SPEC section 2)
+# Owner: designer (content) + PM (approves every card and every URL). Engineer wires it up.
+#
+# How it works (spec 2.1):
+#   - The model can only ask for a card by ID: <card id="..."/> at the end of a reply.
+#     The server strips the tag, checks the ID here, and sends `show_card` to the UI.
+#     Unknown IDs, and cards with `enabled: false`, are dropped silently (the reply still
+#     plays). If the VISITOR asked for a card/QR that doesn't exist, Ada uses the
+#     `card_not_available` line in content/lines.yaml.
+#   - QR codes are generated locally from `url`. Only `type: qr` cards have a url.
+#     PM decision (spec 8.1): v1 ships exactly two QR cards, proposal form + Discord.
+#   - Every fact on a card is copied from lab_docs/ (see `source:`). Nothing invented.
+#   - `say_*` lines are spoken (TTS) and captioned: no URLs, no digits for room codes.
+#   - `triggers`: phrases for the server's backup trigger (spec 2.1, last bullet) and for
+#     `doc_sections`: retrieved lab_docs sections that may offer the card if the model
+#     forgot the tag.
+#   - Check-in loop (spec 2.2) runs only for cards with `confirm`. Timings are seconds.
+#
+# Approval: every card starts `enabled: false` with `approved: TODO(PM)`. The PM flips
+# `approved: yes` + `enabled: true` per card after reading it. The engineer must refuse
+# to load an enabled card whose `approved` isn't `yes`.
+
+version: 1
+
+defaults:
+  confirm_after_s: 6          # wait after say_before before asking `confirm`
+  retry_after_s: 10           # after "no / one sec", ask once more after this
+  auto_hide_s: 60
+  mini_when_new_question: true  # keep card small in the corner while answering something else
+
+cards:
+
+  # ------------------------------------------------------------------ QR cards (2 only)
+
+  - id: qr_project_proposal
+    type: qr
+    enabled: false
+    approved: TODO(PM)
+    title: "Submit a project proposal"
+    subtitle: "Scan with your phone camera"
+    # TODO(PM): no project-proposal / "student request form" URL exists in lab_docs yet.
+    # The only form URL in lab_docs is the "Join now!" sign-up form (join.md, HTML comment).
+    # Is the join form the same as the student request form? If yes, use it here and add
+    # a sentence to join.md saying so; if no, give me the real form URL and I'll add it to
+    # join.md so the docs and the card agree.
+    url: "TODO(PM): official student request / project proposal form URL"
+    say_before: "I've put a QR code on the screen. Point your phone camera at it to open the proposal form."
+    confirm: "Did you get it?"
+    on_yes: "Awesome! The team will follow up with you. Anything else?"
+    on_no: "No rush, take your time."
+    on_no_or_timeout: "No rush, it'll stay up for a bit."
+    auto_hide_s: 60
+    triggers: [project proposal, submit a project, start a project, student request form, propose a project, request form]
+    doc_sections: ["join.md#How to start a project", "faq.md#Are there dues, and what happens after I submit a request form?"]
+    source: "join.md, projects.md, equipment.md, faq.md (process only; URL pending)"
+
+  - id: qr_discord
+    type: qr
+    enabled: false
+    approved: TODO(PM)
+    title: "Join the Student AI Commons Discord"
+    subtitle: "Scan with your phone camera"
+    # TODO(PM): permanent, non-expiring invite URL (spec 8.1). join.md says the old invite
+    # changed and must not be re-added. Update lab_docs/join.md (faq.md "How do I join")
+    # in the same PR as this URL.
+    url: "TODO(PM): permanent Discord invite URL"
+    say_before: "I've put the Discord QR code on the screen. Scan it with your phone camera to join."
+    confirm: "Did you scan it?"
+    on_yes: "Nice, see you in there! Anything else?"
+    on_no: "No rush, take your time."
+    on_no_or_timeout: "No rush, it'll stay up for a bit."
+    auto_hide_s: 60
+    triggers: [discord, join the discord, discord server, group chat, how do i join]
+    doc_sections: ["faq.md#How do I join the Student AI Commons?"]
+    source: "faq.md (Discord is linked from ai.sfsu.edu/ai-students; URL pending)"
+
+  # -------------------------------------------------- info cards (no links, no QR, no URLs)
+
+  - id: map_where_we_are
+    type: directions
+    enabled: false
+    approved: TODO(PM)
+    title: "Where we are"
+    lines:
+      - "AI Studio · LIB 260"
+      - "2nd floor, J. Paul Leonard Library"
+      - "Inside the Digital Media Studio and MakerSpace"
+    hours: "Mon–Thu 10 AM–7 PM · Fri 10 AM–5 PM (semester)"
+    illustration: "simple floor icon + '2F' badge, original line art, no campus map image"
+    # TODO(PM): you're standing in LIB 260 when you see this card. Is the kiosk itself in
+    # LIB 260? If yes, the card should say "You're here!" instead of directions.
+    say_before: "Here's where to find us. It's room LIB two-sixty, on the second floor of the library."
+    auto_hide_s: 30
+    triggers: [where is the lab, where are you, what room, where is the ai studio, how do i get there]
+    doc_sections: ["about.md", "faq.md", "rules.md#AI Studio and MakerSpace hours"]
+    source: "about.md (location), rules.md (hours)"
+
+  - id: events_this_month
+    type: list
+    enabled: false
+    approved: TODO(PM)
+    title: "What's happening"
+    # Built at runtime by the engineer from lab_docs/meetings-events.md: only sections whose
+    # heading doesn't say "(past)", and only dated items on or after today. Never generated
+    # by the model. Static fallback items (from the doc, undated):
+    fallback_items:
+      - "Student AI Commons meetings · LIB 260 · times from ai@sfsu.edu"
+      - "Weekly AI club meetings · see the clubs' GatorXperience listings"
+      - "All events: at.sfsu.edu/event/student-ai-commons"
+    # TODO(PM): the fallback shows one web address as text (no QR, not spoken). OK, or drop it?
+    say_before: "Here's what's coming up. It's all on the screen."
+    empty_say: "I don't have any upcoming events listed right now. A lab member will know what's next."
+    auto_hide_s: 45
+    triggers: [what's happening, events, what's going on, anything this week, workshops]
+    doc_sections: ["meetings-events.md"]
+    source: "meetings-events.md"
+
+  - id: equipment_spotlight
+    type: spotlight
+    enabled: false
+    approved: TODO(PM)
+    title: "Equipment for student projects"
+    items:
+      - "Robotic dogs"
+      - "Robotic arms"
+      - "3D printer"
+      - "Robotics kits"
+      - "NVIDIA GB10 and Jetson Orin checkout"
+    footer: "To use it: submit a project proposal."
+    illustration: "original wireframe line icons in Ada's style (dog, arm, printer, chip). No product photos or logos."
+    say_before: "Here's some of the gear students can use for projects."
+    auto_hide_s: 40
+    triggers: [equipment, robot dogs, robotic arms, 3d printer, what do you have, jetson, gb10]
+    doc_sections: ["equipment.md#Student AI Commons equipment", "equipment.md#NVIDIA GB10 and Jetson Orin checkout"]
+    source: "equipment.md"
+
+  - id: compute_rules
+    type: checklist
+    enabled: false
+    approved: TODO(PM)
+    title: "Computer rules"
+    items:
+      - "No remote access to AI Lab computers"
+      - "Overnight jobs only if started in person at the lab"
+      - "GPU booking: ask the AI Lab team (ai@sfsu.edu)"
+    say_before: "Here are the computer rules. Quick version: no remote access, and overnight jobs have to start here in person."
+    auto_hide_s: 40
+    triggers: [gpu, overnight, remote access, ssh, book a gpu, compute]
+    doc_sections: ["rules.md#AI Lab compute rules", "equipment.md#GPU booking, remote access, and overnight jobs"]
+    source: "rules.md, equipment.md"
+
+  - id: campus_help
+    type: contact
+    enabled: false
+    approved: TODO(PM)
+    title: "Get help now"
+    # Pairs with the emergency / crisis_support lines. No jokes, no idle acts, no auto-hide
+    # while the visitor is still there. Shown big, high contrast.
+    items:
+      - "Emergency: call 911"
+      - "From a cell phone on campus: 415-338-2222 (University Police)"
+      - "Crisis or thoughts of suicide: call or text 988"
+      - "Counseling (CAPS): 415-338-2208, Mon–Fri 8 AM–4:45 PM"
+      - "University Police, non-emergency (24/7): 415-338-7200"
+    say_before: ""   # the emergency/crisis line already said what to do; the card is silent
+    auto_hide_s: 0   # 0 = stays until session reset
+    jokes: false
+    triggers: []      # shown only when the reply or line is emergency / crisis / medical
+    show_with_lines: [emergency, crisis_support]
+    source: "sfsu.md (Campus emergency numbers, University Police, CAPS); 988 is the national line already used in lines.yaml"
+
+  - id: ai_fact
+    type: fun
+    enabled: false
+    approved: TODO(PM)
+    title: "Did you know?"
+    # Facts are pre-written and reviewed, never generated live. General AI/CS knowledge,
+    # no lab facts, no numbers that go stale.
+    facts:
+      - "The word 'robot' comes from a 1920 Czech play. It comes from a word for forced labor."
+      - "Ada Lovelace wrote what's often called the first computer program, in the 1840s."
+      - "A neural network learns by nudging millions of numbers a tiny bit at a time."
+      - "Transformers read every word in a sentence at once, using a trick called attention."
+      - "Most AI models can't remember you between chats unless someone builds that in. I forget on purpose."
+      - "Self-driving research started way back in the 1980s."
+      - "Image generators start from pure noise and clean it up step by step."
+      - "A GPU has thousands of tiny cores, which is why AI loves them."
+      - "Alan Turing proposed his famous imitation game in 1950."
+      - "Robots in factories have been around since the early 1960s."
+    say_before: "Here's a fun one."
+    auto_hide_s: 20
+    triggers: [tell me something cool, fun fact, surprise me, did you know]
+    source: "general knowledge (designer-written; PM review)"

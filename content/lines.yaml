@@ -1,4 +1,4 @@
-# Canned lines v1
+# Canned lines v2 (Ada, voice-first, 2026-11-17)
 # Owner: designer. Loaded at runtime. Edit freely; no code changes needed.
 #
 # How the engineer uses this file:
@@ -9,11 +9,12 @@
 #   - `jokes: false` means the category must stay serious. Don't append
 #     anything playful to these lines.
 #   - Every line is plain text, 1–3 sentences, no markdown or emoji, so it is
-#     safe to show on the kiosk and later to send to TTS unchanged.
+#     safe to show on the kiosk and to send to TTS unchanged. No URLs,
+#     no digits for room codes ("LIB two-sixty"), no emails: lines are spoken aloud.
 #   - These lines bypass the chat model, but they still go through the output
 #     sink (and logging) like any reply.
 
-version: 1
+version: 2
 
 categories:
 
@@ -183,13 +184,43 @@ categories:
     used_when: "Attract mode on the kiosk when nobody is chatting. Rotate every few seconds. Readable from 2 m, so keep them short."
     jokes: true
     lines:
-      - "Hi! I'm {{bot_name}}, the AI Lab's robot helper. Type a question to say hello."
-      - "Curious about the AI Lab? Ask me anything."
+      - "Hi! I'm {{bot_name}}, the AI Lab's robot helper. Say 'Hey {{bot_name}}' to chat."
+      - "Curious about the AI Lab? Say 'Hey {{bot_name}}' and ask me anything."
       - "Ask me how AI works. I promise to keep it short."
       - "New here? Ask me what the lab is all about."
-      - "I'm {{bot_name}}. No arms yet, plenty of answers. Say hi!"
+      - "I'm {{bot_name}}. No arms yet, plenty of answers. Tap the screen to talk."
       - "Want to know how to join the lab? Just ask."
       - "Psst. Ask me what a neural network is."
+
+  didnt_catch:
+    used_when: "Voice only. Speech-to-text returned nothing, mostly noise, or very low confidence. Ask once; after two misses in a row, suggest tapping and trying closer to the mic."
+    jokes: true
+    lines:
+      - "Sorry, I didn't catch that. Could you say it again?"
+      - "Oops, my ears fumbled that one. One more time?"
+      - "It's a bit loud in here. Could you say that again, a little closer?"
+      - "I missed that, sorry. Try again?"
+      - "Hmm, that came through scrambled. Say it once more?"
+
+  card_not_available:
+    used_when: "The model asked for a card ID that isn't in content/cards.yaml or is disabled, or a visitor asked for a QR or link that isn't in the catalog. Never says or shows the requested link."
+    jokes: true
+    lines:
+      - "I can only put up a few lab-approved codes, and that isn't one of them. A lab member can point you the right way."
+      - "That one's not on my list of things I can show, sorry. Want the project proposal code instead?"
+      - "I don't make up links or QR codes, I only show ones the lab has approved. Anything else I can help with?"
+      - "No can do on that one. My screen only shows lab-approved stuff."
+      - "I can't put that on the screen. I'm happy to tell you about the lab, though."
+
+  talk_one_at_a_time:
+    used_when: "Voice only. Overlapping speakers or a second voice talking over the visitor (speaker change detected or very long garbled transcript)."
+    jokes: true
+    lines:
+      - "Whoa, I heard a few voices at once. One at a time, please, and I'm all ears."
+      - "I can only follow one person at a time. Who wants to go first?"
+      - "Lots of voices! Could one of you ask again?"
+      - "My microphone got crowded there. One at a time, please."
+      - "I lost the thread with everyone talking. Try again, one person at a time?"
 
   goodbye:
     used_when: "Session ends by reset, 'bye', or inactivity timeout. Shown once, then the kiosk returns to idle."
@@ -197,7 +228,7 @@ categories:
     lines:
       - "Thanks for stopping by! I'll forget this chat now, privacy thing, so come say hi again anytime."
       - "Bye for now! Fresh memory for the next visitor."
-      - "That was fun. Come back anytime, I'll be the one without arms."
+      - "That was fun. Come back anytime, I'll be the blob without arms."
       - "See you around! Go build something cool."
       - "Thanks for chatting! My memory's resetting, but the lab will still be here."
 
