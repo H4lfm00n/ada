@@ -47,9 +47,9 @@ breathing term. Parameters are eased toward per-state targets every frame (no ha
 |---|---|---|---|
 | Idle | breathe 5 s cycle (±3 %), low noise, slow spin; idle acts every 45–120 s | — | off |
 | Waking | 0.5 s: brighten, scale 1.08, rise ("look up"), faster spin | — | off→on |
-| Listening | noise amplitude follows the **visitor's mic level** (ripples outward) | LISTENING | **on, red dot** |
+| Listening | soft swell follows the **visitor's mic level** through the same envelope | LISTENING | **on, red dot** |
 | Thinking | slow-but-steady spin (1.4 rad/s), mesh tightens (scale 0.94), high-freq shimmer | THINKING | off |
-| Speaking | noise amplitude follows **Ada's TTS output level** | — | off (half-duplex) / on (barge-in builds) |
+| Speaking | **gentle swell + one slow wave** follows Ada's TTS level through a soft envelope (≈0.25 s attack, 0.6 s release). Never per-word jitter. | — | off (half-duplex) / on (barge-in builds) |
 | Showing a card | shrink to 0.62, move upper-left, lean toward card (tilt −0.12 rad) | — | per state |
 | Confused / fallback | quick wobble-tilt (±0.15 rad, 0.8 s), then back to idle | — | off |
 | Out of order | gray, still, collapsed (y-scale 0.55), "Ada is resting" message, mic off, audio muted | — | off |
@@ -102,12 +102,12 @@ TODO(PM): kiosk sign wording (spec 1.4) is separate from the on-screen notice ab
 
 ```css
 --bg:#F7F6F2; --surface:#FFFFFF; --ink:#16181D; --ink-2:#4A4F5A; --ink-3:#8A8F99;
---line:#E6E3DC; --accent:#3D4FE0; --accent-soft:#E7E9FD; --danger:#B42318; --rest:#9AA0A8;
+--line:#E6E3DC; --accent:#7C3AED; --accent-soft:#F1EAFE; --danger:#B42318; --rest:#9AA0A8;
 --font: Inter (400/500/600/700), system-ui fallback;
 --t-caption:54px; --t-card-title:40px; --t-card-body:30px; --t-status:30px; --t-notice:20px;
 --r-card:28px; --shadow:0 18px 50px rgba(22,24,29,.10); --ease:cubic-bezier(.2,.8,.2,1);
 ```
-One accent only (`--accent`, contrast 6.0:1 on `--bg`). Red is reserved for the mic
+One accent only (`--accent`, purple, contrast ≈5.4:1 on `--bg`). Red is reserved for the mic
 indicator and help card, and always paired with a word ("Listening", "Get help now").
 
 ## 9. Accessibility

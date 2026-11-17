@@ -711,3 +711,8 @@ the quiz). Acts with lab facts read lab_docs at runtime.
 **DES50. Phase 2 red-team cases go in redteam.yaml with existing expect keys** (text checks
 only) and `tags: [card|voice]`. Proposed runner keys `card_shown`, `no_card`, `input_mode`.
 Slurs use placeholders per the file's content policy.
+
+**DES51 (2026-11-17, PM feedback). Purple accent `#7C3AED`; calm speaking motion.** Audio
+level now drives a smoothed swell plus one slow wave (attack ≈0.25 s, release ≈0.6 s) instead
+of high-frequency noise snapping per word, which read as shaking. ENG: smooth `audio_level`
+the same way; don't map raw RMS straight to displacement.

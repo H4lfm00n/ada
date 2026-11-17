@@ -12,7 +12,7 @@
 :root{
   --u: calc(min(100vw / 1920, 100vh / 1080));   /* 1 design px on the 1920x1080 canvas */
   --bg:#F7F6F2; --surface:#FFFFFF; --ink:#16181D; --ink-2:#4A4F5A; --ink-3:#8A8F99;
-  --line:#E6E3DC; --accent:#3D4FE0; --accent-soft:#E7E9FD; --danger:#B42318; --rest:#9AA0A8;
+  --line:#E6E3DC; --accent:#7C3AED; --accent-soft:#F1EAFE; --danger:#B42318; --rest:#9AA0A8;
   --r-card: calc(28 * var(--u)); --shadow: 0 calc(18*var(--u)) calc(50*var(--u)) rgba(22,24,29,.10);
   --t-caption: calc(54 * var(--u)); --t-status: calc(30 * var(--u)); --t-notice: calc(20 * var(--u));
   --t-card-title: calc(40 * var(--u)); --t-card-body: calc(30 * var(--u));
@@ -161,14 +161,14 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(35,16/9,0.1,100); camera.position.set(0,0,9);
 const geo=new THREE.IcosahedronGeometry(1,5);
 const base=geo.attributes.position.array.slice();
-const mat=new THREE.MeshBasicMaterial({color:0x3D4FE0,wireframe:true,transparent:true,opacity:.55});
+const mat=new THREE.MeshBasicMaterial({color:0x7C3AED,wireframe:true,transparent:true,opacity:.55});
 const blob=new THREE.Mesh(geo,mat);
 const group=new THREE.Group(); group.add(blob); scene.add(group);
 // inner faint core for depth
-const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.62,2),new THREE.MeshBasicMaterial({color:0x3D4FE0,wireframe:true,transparent:true,opacity:.12}));
+const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.62,2),new THREE.MeshBasicMaterial({color:0x7C3AED,wireframe:true,transparent:true,opacity:.12}));
 group.add(core);
 // juggling balls
-const balls=[0,1,2].map(()=>{const m=new THREE.Mesh(new THREE.IcosahedronGeometry(.17,1),new THREE.MeshBasicMaterial({color:0x3D4FE0,wireframe:true,transparent:true,opacity:0}));scene.add(m);return m});
+const balls=[0,1,2].map(()=>{const m=new THREE.Mesh(new THREE.IcosahedronGeometry(.17,1),new THREE.MeshBasicMaterial({color:0x7C3AED,wireframe:true,transparent:true,opacity:0}));scene.add(m);return m});
 
 function resize(){const r=kiosk.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
 addEventListener('resize',resize); resize();
@@ -181,17 +181,20 @@ let T={...P}; const set=o=>Object.assign(T,o);
 let level=0, levelTarget=0, reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 document.getElementById('rm').checked=reduced; document.getElementById('rm').onchange=e=>reduced=e.target.checked;
 
-let t=0,last=performance.now(),juggle=null,rotY=0;
+let t=0,last=performance.now(),juggle=null,rotY=0,swell=0;
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000); last=now; t+=dt;
   const k=1-Math.pow(.02,dt); for(const key in P) P[key]+=(T[key]-P[key])*k;
-  level+=(levelTarget-level)*(1-Math.pow(.001,dt));
+  // audio level -> soft envelope: ~0.25 s attack, ~0.6 s release (no per-word snapping)
+  const atk=levelTarget>level?.02:.2; level+=(levelTarget-level)*(1-Math.pow(atk,dt));
+  swell+=(level-swell)*(1-Math.pow(.15,dt));
   const rm=reduced?.35:1;
   const breath=Math.sin(t*2*Math.PI/5)*.03*rm;
   const pos=geo.attributes.position.array, ts=t*P.speed;
   for(let i=0;i<pos.length;i+=3){
     const bx=base[i],by=base[i+1],bz=base[i+2];
-    let r=1+breath+(P.amp*rm+level*.22*rm)*noise(bx*P.freq*1.6,by*P.freq*1.6,bz*P.freq*1.6,ts*2);
+    let r=1+breath+swell*.06*rm+P.amp*rm*noise(bx*P.freq*1.6,by*P.freq*1.6,bz*P.freq*1.6,ts*2)
+          +swell*.05*rm*Math.sin(by*2.2-t*3.2);   // one soft wave rolling over the mesh
     if(P.cube>.001){const c=.82/Math.max(Math.abs(bx),Math.abs(by),Math.abs(bz)); r=r*(1-P.cube)+c*P.cube}
     pos[i]=bx*r;pos[i+1]=by*r;pos[i+2]=bz*r;
   }
@@ -200,7 +203,7 @@ function frame(now){
   group.rotation.set(.25+Math.sin(t*.4)*.05*rm,rotY,P.tilt);
   group.position.set(P.x,P.y,0);
   group.scale.set(P.scale,P.scale*P.sy,P.scale);
-  const col=new THREE.Color(0x3D4FE0).lerp(new THREE.Color(0x9AA0A8),P.gray).lerp(new THREE.Color(0x8A97FF),P.bright);
+  const col=new THREE.Color(0x7C3AED).lerp(new THREE.Color(0x9AA0A8),P.gray).lerp(new THREE.Color(0xB794F6),P.bright);
   mat.color.copy(col); core.material.color.copy(col);
   mat.opacity=P.op+(Math.sin(t*9)*.06*(state==='thinking'?1:0)); core.material.opacity=P.op*.22;
   // juggling
@@ -222,7 +225,7 @@ const STATE={
   waking:{amp:.09,speed:1.4,spin:.4,scale:1.08,y:.7,op:.85,bright:.6},
   listening:{amp:.05,speed:.9,spin:.12,scale:1.04,y:.6,op:.75,bright:.1},
   thinking:{amp:.025,freq:2.4,speed:2.2,spin:1.4,scale:.94,y:.55,op:.7,bright:0},
-  speaking:{amp:.05,freq:1.1,speed:1,spin:.15,scale:1,y:.55,op:.7},
+  speaking:{amp:.04,freq:1,speed:.7,spin:.12,scale:1,y:.55,op:.72},
   showing:{amp:.05,speed:.8,spin:.12,scale:.62,x:-2.55,y:.95,tilt:-.12,op:.7},
   confused:{amp:.08,speed:1.2,spin:.05,scale:.98,op:.6},
   out:{amp:0,speed:0,spin:0,scale:.82,sy:.55,y:.2,op:.45,gray:1,bright:0,cube:0},
@@ -250,11 +253,11 @@ function speak(text,done){
   setState('speaking'); const cap=$('caption'); cap.classList.remove('fade');
   const words=text.split(' '); cap.innerHTML=words.map(w=>`<span class="w">${w}</span>`).join(' ');
   const spans=cap.querySelectorAll('.w'); let i=0;
-  const step=()=>{ if(state!=='speaking')return; if(i<spans.length){spans[i].classList.add('said'); levelTarget=.35+Math.random()*.65; later(()=>levelTarget=.15,140); i++; later(step,280+Math.random()*80)}
+  const step=()=>{ if(state!=='speaking')return; if(i<spans.length){spans[i].classList.add('said'); levelTarget=.45+Math.random()*.3; i++; later(step,280+Math.random()*80)}
     else{levelTarget=0; later(()=>{ if(state==='speaking'){setState('idle'); done&&done()}},500)} };
   step();
 }
-let listenH=null; function startListenSim(){stopListenSim();listenH=setInterval(()=>levelTarget=Math.random()<.25?.05:.25+Math.random()*.75,120)}
+let listenH=null; function startListenSim(){stopListenSim();listenH=setInterval(()=>levelTarget=Math.random()<.2?.1:.35+Math.random()*.45,300)}
 function stopListenSim(){if(listenH)clearInterval(listenH);listenH=null}
 
 /* ===================== cards + check-in loop ===================== */
