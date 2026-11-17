@@ -1,0 +1,177 @@
+# Idle act library v1: what Ada does when nobody is talking (PHASE2-SPEC section 3)
+# Owner: designer. Engineer: picker + blob animation. PM reviews captions.
+#
+# Rules (spec 3.1 + PM answers 8.3):
+#   - Visual only. No sound when idle, ever. Captions are optional, short, and readable at 2 m.
+#   - Pre-written and reviewed. Nothing here is generated live.
+#   - Any act stops instantly on "Hey Ada", a tap, or (later) a person in the talk zone.
+#     The blob goes straight to `waking` from wherever it is (no "finish the animation").
+#   - Never the same act twice in a row. Rotate every 45–120 s (random), breathing in between.
+#   - Captions with lab facts come only from lab_docs (marked `from_docs`) and are built at
+#     runtime by the engineer from the named section. Never invented.
+#   - Acts marked `after_idle_s` only run once the kiosk has been idle that long.
+#   - `blob:` names motions from docs/ui-spec.md section 3 (the engineer implements these).
+#
+# Fields: id, name, duration_s, weight (relative pick chance), blob (motion), caption
+# (optional, spoken never), after_idle_s (optional), from_docs (optional).
+
+version: 1
+
+rotation:
+  min_gap_s: 45
+  max_gap_s: 120
+  default_act: breathing
+  no_repeat: true
+  reduced_motion: "acts with `reduced_motion: skip` are skipped; others use their gentle variant"
+
+acts:
+
+  - id: breathing
+    name: Breathing
+    duration_s: 0          # default state between acts
+    weight: 0
+    blob: "slow inflate/deflate, 5 s cycle, scale 0.97–1.03, noise amplitude low"
+
+  - id: daydream_cube
+    name: "Daydream: cube"
+    duration_s: 6
+    weight: 3
+    blob: "noise rises, vertices ease toward a cube over 1.5 s, hold 2 s, melt back over 2 s"
+    reduced_motion: gentle
+
+  - id: daydream_star
+    name: "Daydream: star"
+    duration_s: 6
+    weight: 3
+    blob: "vertices push out into a 5-point star silhouette, hold, melt back"
+    reduced_motion: gentle
+
+  - id: daydream_arm
+    name: "Daydream: robot arm"
+    duration_s: 7
+    weight: 2
+    blob: "stretches into a simple two-segment arm outline, 'waves' once, melts back"
+    caption: "Practicing for when my arms arrive."
+    # TODO(PM): depends on the robot-arm tease (persona J1). Disable if J1 is dropped.
+    reduced_motion: skip
+
+  - id: juggling
+    name: Juggling
+    duration_s: 9
+    weight: 3
+    blob: "three small wireframe spheres orbit; on loop 3 one drops off-screen, blob squashes and tilts (embarrassed), small sphere rolls back in"
+    reduced_motion: skip
+
+  - id: juggling_success
+    name: "Juggling (nailed it)"
+    duration_s: 8
+    weight: 1
+    blob: "same orbit, all three caught; blob does a tiny proud bounce"
+    reduced_motion: skip
+
+  - id: dozing
+    name: Dozing
+    duration_s: 20
+    weight: 2
+    after_idle_s: 600
+    blob: "droops (scale y 0.9), breathing slows to 8 s, small wireframe 'z' shapes float up and fade"
+    on_interrupt: "snap awake: quick upward stretch, brighten, then `waking`"
+    reduced_motion: gentle
+
+  - id: hello_wave
+    name: Hello wave
+    duration_s: 4
+    weight: 3
+    blob: "single ripple from center outward, slight lean toward the room"
+    caption: "Hi! I'm Ada."
+
+  - id: try_asking_proposal
+    name: "Try asking: proposal"
+    duration_s: 6
+    weight: 2
+    blob: "breathing; caption fades in under the blob"
+    caption: "Try: \"Hey Ada, how do I submit a project?\""
+
+  - id: try_asking_ai
+    name: "Try asking: AI"
+    duration_s: 6
+    weight: 2
+    blob: "breathing"
+    caption: "Try: \"Hey Ada, what's a neural network?\""
+
+  - id: try_asking_where
+    name: "Try asking: where"
+    duration_s: 6
+    weight: 2
+    blob: "breathing"
+    caption: "Try: \"Hey Ada, what equipment do you have?\""
+
+  - id: fun_fact
+    name: Fun fact
+    duration_s: 8
+    weight: 2
+    blob: "slow half-turn, then breathing"
+    caption_from: "content/cards.yaml#ai_fact.facts"   # "Did you know…" + one fact, random
+    caption_prefix: "Did you know? "
+
+  - id: event_teaser
+    name: Event teaser
+    duration_s: 8
+    weight: 1
+    blob: "small hop, mini card slides in from the right and back out"
+    from_docs: "meetings-events.md"   # only an upcoming dated item; skip the act if none
+    caption_template: "Coming up: {event_title}, {weekday}."
+
+  - id: quiz_invite
+    name: Mini game invite
+    duration_s: 6
+    weight: 1
+    blob: "blob shifts into a '?' outline and back"
+    caption: "Say \"Hey Ada, quiz me\" for a thirty-second challenge."
+    # TODO(PM): the quiz itself is spec 2.4 item 2 (later). Keep this act disabled until it exists.
+    enabled: false
+
+  - id: stretch
+    name: Stretch
+    duration_s: 4
+    weight: 2
+    blob: "stretches tall and thin, then wide and flat, settles"
+
+  - id: look_around
+    name: Look around
+    duration_s: 5
+    weight: 3
+    blob: "a brighter 'gaze' region on the mesh drifts left, right, then back to center"
+
+  - id: shy_shrink
+    name: Shy
+    duration_s: 4
+    weight: 1
+    blob: "shrinks a little and slides slightly down, peeks back up to normal"
+
+  - id: wireframe_wave
+    name: Mesh wave
+    duration_s: 5
+    weight: 2
+    blob: "a band of displacement travels top to bottom across the mesh like a wave"
+
+  - id: spin_on_axis
+    name: Little spin
+    duration_s: 3
+    weight: 2
+    blob: "one quick full turn, slight overshoot, settle"
+    reduced_motion: skip
+
+  - id: fans_spinning
+    name: Fans spinning up
+    duration_s: 5
+    weight: 1
+    blob: "noise amplitude and frequency rise (excited jitter), then calm down"
+    caption: "Just thinking about robots. My fans are spinning up."
+
+  - id: count_vertices
+    name: Counting
+    duration_s: 6
+    weight: 1
+    blob: "vertices light up one ring at a time, top to bottom, then all fade"
+    caption: "Counting my triangles. Lost count. Again."

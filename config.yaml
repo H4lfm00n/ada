@@ -4,7 +4,7 @@
 # Use a different file with ADA_CONFIG=/path/to/config.yaml.
 
 # --- Character ---------------------------------------------------------------
-bot_name: Dum-E
+bot_name: Ada
 
 # --- Ollama (must be localhost: no runtime network calls off the machine) ----
 ollama_url: http://localhost:11434
