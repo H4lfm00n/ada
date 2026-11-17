@@ -52,6 +52,7 @@ from app.ollama_client import ChatStats
 from app.prompt import PromptBuilder
 from app.sentences import SentenceSplitter, split_sentences
 from app.sessions import InMemorySessionManager, Session
+from app.sinks import retract, send_sentence
 from app.transcripts import TranscriptLogger
 
 log = logging.getLogger(__name__)
@@ -119,6 +120,7 @@ class TurnResult:
     blocked_sentence: str | None = None  # never shown; redacted in the transcript
     kill_switch: bool = False
     added_to_history: bool = False
+    retracted: bool = False  # model sentences were shown, then taken back (M5, D50)
 
     @property
     def text(self) -> str:
@@ -210,6 +212,12 @@ class ChatPipeline:
             result.error = f"{type(exc).__name__}: {exc}"
             log.warning("chat model failed (session %s): %s", session.id, result.error)
 
+        replaced = result.kill_switch or result.output_block is not None or result.error
+        if replaced and result.sentences:
+            # A canned line is about to follow model text the visitor already saw: take
+            # that text back first, so a half reply never stays on screen (ui-spec 5.4).
+            result.retracted = True
+            await retract(self.sink, session.id)
         if result.kill_switch:
             await self._say(OUT_OF_ORDER, session, result, t0)
         elif result.output_block is not None:
@@ -388,4 +396,4 @@ class ChatPipeline:
         if result.first_sentence_s is None:
             result.first_sentence_s = self._clock() - t0
         result.sentences.append(sentence)
-        await self.sink.on_sentence(session_id, sentence)
+        await send_sentence(self.sink, session_id, sentence, result.source)

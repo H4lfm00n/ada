@@ -23,6 +23,8 @@ make kill-on REASON="demo"   # out-of-order mode, instantly (make kill-off / kil
 make admin     # localhost admin endpoint for staff tools (needs ADA_ADMIN_TOKEN)
 make m3-probe  # attack prompts through both guards, shows every guard decision
 make m3-latency  # first-sentence time with both guards on
+make kiosk     # the lab screen: http://127.0.0.1:8080/ui/ (websocket /ws, health /healthz)
+make kiosk-browser  # open it full screen in Chromium kiosk mode (Alt+F4 to leave)
 make test      # unit tests (Ollama mocked)
 make test-gb10 # live tests against local Ollama
 ```
@@ -33,15 +35,31 @@ Models and settings live in `config.yaml`. Override any key with `ADA_<KEY>`:
 ADA_CHAT_MODEL=gemma4:12b make bench
 ```
 
+## The kiosk screen (M5)
+
+`make kiosk` serves the screen on `127.0.0.1:8080` (`kiosk_host` / `kiosk_port` in
+config.yaml) and runs every message through the same guarded pipeline as `make chat`.
+`make kiosk-browser` (in another terminal, on the GB10's desktop) waits for the server and
+opens Chromium in kiosk mode with a throwaway incognito profile. Leave with Alt+F4.
+
+- UI: `ui/index.html`, `kiosk.css`, `orb.js`, `kiosk.js`; spec `docs/ui-spec.md`; copy in
+  `content/ui_strings.yaml` (designer-owned). Reload the page to pick up copy edits.
+- Kill switch: `make kill-on` / `make kill-off` (or `POST /admin/kill-switch` with
+  `ADA_ADMIN_TOKEN`) flips the live screen to "out of order" within ~0.5 s.
+- Start on boot (not enabled): `scripts/kiosk-autostart.sh install|uninstall|status`.
+
 ## Layout
 
 ```
-app/       Python package (config, Ollama client, prompt, lines, sessions, pipeline, chat CLI, rag/)
+app/       Python package (config, Ollama client, prompt, lines, sessions, pipeline, chat CLI,
+           rag/, guards/, evals/, server.py = kiosk)
 prompts/   system prompt templates (designer)
 content/   persona bible, lines (designer)
 lab_docs/  lab knowledge base (Markdown)
 evals/     eval sets + bench prompts
-ui/        kiosk web UI
+ui/        kiosk web UI (+ mockups/, fonts/)
+scripts/   kiosk browser launcher, autostart installer
+deploy/    systemd + autostart templates (not enabled)
 docs/      STATUS, DECISIONS, specs
 tests/     pytest
 ```

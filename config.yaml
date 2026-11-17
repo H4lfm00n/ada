@@ -64,6 +64,16 @@ kill_switch_file: data/kill_switch.json
 admin_host: 127.0.0.1
 admin_port: 8765
 
+# --- Kiosk (M5) -------------------------------------------------------------------
+# `make kiosk` serves the screen at http://<kiosk_host>:<kiosk_port>/ui/ and the websocket
+# at /ws. Keep it on loopback unless the screen's browser is on another machine; the admin
+# endpoints are only mounted on a loopback bind.
+kiosk_host: 127.0.0.1
+kiosk_port: 8080
+kiosk_ui_strings_file: content/ui_strings.yaml   # designer-owned UI copy (DES37)
+kiosk_warn_before_s: 30               # "Still there?" countdown before the idle reset
+kiosk_reduced_motion: false           # true = static orb, whatever the browser says
+
 # --- Transcripts (M3) -------------------------------------------------------------
 # Text only, local only, one JSONL file per visitor, guard decisions included (D37).
 transcripts_enabled: true

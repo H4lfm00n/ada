@@ -1,0 +1,19 @@
+# Kiosk UI copy (M5). Designer-owned; the engineer only wires it up.
+# Wording copied verbatim from docs/ui-spec.md sections 5.7 and 6 (DES37: this file is
+# where ui_strings live). {{bot_name}} is filled from config; {{seconds}} by the screen.
+# **text** in `notice` renders bold. Edit freely; reload the kiosk page to see changes
+# (the server re-reads this file on every page load and websocket connect).
+version: 1
+strings:
+  notice: "**AI** · {{bot_name}} can make mistakes · Text log only, no audio or video · Don't type personal info"
+  status_listening: Listening
+  status_thinking: Thinking
+  status_reconnecting: Reconnecting
+  status_out_of_order: Out of order
+  status_connection_lost: Connection lost
+  placeholder_idle: Type a question and press Enter
+  placeholder_ready: Ask me anything else
+  placeholder_fallback: Try asking another way
+  hint_busy: One sec, still answering
+  still_there: "Still there? I'll reset for the next visitor in {{seconds}}."
+  connection_lost_line: I'm having trouble connecting. Please ask a lab member.

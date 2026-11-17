@@ -680,3 +680,59 @@ still clears a half-shown reply. Start over is `Esc` only. The AI notice is one 
 **DES42. Status words only where the screen would otherwise be ambiguous.**
 LISTENING, THINKING, RECONNECTING, OUT OF ORDER under the orb; this plus movement keeps
 the "never by color alone" rule (DES34) without the v1 shape icons.
+
+## 2026-11-16 · M5 kiosk build (`task/m5-kiosk`)
+
+**D50. Two optional sink extensions instead of changing `OutputSink`.**
+The screen needs each sentence's `source` and a `reply_retracted` event. `OutputSink.on_sentence`
+stays the stable hook (TTS needs nothing more); a sink may also implement
+`on_sourced_sentence(session_id, sentence, source)` and `on_retract(session_id)` (`SourcedSink`,
+`RetractingSink` in `app/sinks.py`). `FanoutSink` forwards both, falling back to `on_sentence`.
+The pipeline retracts whenever a canned line follows model sentences already shown (output
+guard block, model error mid-reply, kill switch mid-reply) and sets `TurnResult.retracted`.
+History, transcripts and eval scoring are unchanged (they still see the full turn).
+Alternative: pass `source` through a new required parameter: breaks every sink and the M6 hook.
+
+**D51. One kiosk = one socket = one session; the server owns every clock.**
+`app/server.py` `Kiosk`: a newer websocket (page reload) takes over and the older one is closed
+with 4001, which the page doesn't retry (so two tabs can't fight). The session is created on the
+first non-empty message and ended (not just reset) on goodbye, timeout, Esc, or kill switch, so
+each visitor gets a fresh session id and transcript file. Idle clock: `session_warning`
+`kiosk_warn_before_s` (30) before `session_timeout_s`, then the goodbye as a normal turn
+(`turn_start` ... `turn_end`), then `session_reset`. `typing` touches the session.
+Esc during a reply cancels the turn and retracts what was shown; Esc twice skips the goodbye.
+
+**D52. Kill switch and Ollama reachability are pushed live; Ollama down = "connection lost" look.**
+The kiosk re-checks the kill switch every `kiosk_tick_s` (a stat call) and on every connect,
+sends `out_of_order {on, line}` and ends the session (next visitor starts fresh). Messages
+while it's on get the `out_of_order` event again, never a turn. New server event
+`backend {ok}` (polls `/api/version` every 5 s): when Ollama is unreachable the screen shows
+the spec's connection-lost look (status CONNECTION LOST, `connection_lost_line`), because
+for a visitor it is the same situation. Messages sent anyway still get canned lines (M3
+fail-safe). Warm-up retries with backoff until Ollama is up; the server never refuses to start.
+Not in the designer's event list; flagged in STATUS.
+
+**D53. Serving: loopback, strict CSP, same-origin socket, no stack traces.**
+`kiosk_host` 127.0.0.1 / `kiosk_port` 8080 (configurable). The M3 admin router is mounted on the
+kiosk server only on a loopback bind. CSP `default-src 'self'` (+ the same-host `ws:`), so the
+page can't fetch anything off the machine; fonts are bundled (Atkinson Hyperlegible, OFL, in
+`ui/fonts/`). The websocket refuses a browser `Origin` that isn't this server (stops another web
+page in the same browser from driving the kiosk). Unhandled errors return a plain JSON 500; a
+failed turn becomes a `guard_fallback` line. `index.html` gets the bot name and
+`content/ui_strings.yaml` embedded at serve time, so the page has its copy before the socket
+connects. Captions are built with text nodes only (no `innerHTML` of model text).
+
+**D54. `ui_strings` live in `content/ui_strings.yaml` (answers DES37).**
+Copied verbatim from ui-spec sections 5.7 + 6; the notice moved there too (spec 5.7 suggested
+a `kiosk_notice` config key; one file for all UI copy is simpler for the designer). Re-read on
+every page load and connect. Missing keys fail at startup.
+
+**D55. New dependency `websockets` (uvicorn's websocket protocol, `websockets-sansio` mode).**
+uvicorn has no websocket support without it. Pure Python with optional C speedups; aarch64
+wheels exist. Alternative `wsproto`: slower, no benefit here.
+
+**D56. Start-on-boot is prepared, not enabled.**
+`scripts/kiosk-autostart.sh install` would write a `systemd --user` unit (server, restart on
+failure) and a GNOME autostart entry (`scripts/kiosk-browser.sh`: waits for `/healthz`, then
+Chromium `--kiosk` with a throwaway incognito profile). Needs a desktop session on boot
+(auto-login) and, for the server before login, `loginctl enable-linger`. PM decision.
