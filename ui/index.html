@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Lab kiosk</title>
+<!--
+  The real kiosk (M5). Spec: docs/ui-spec.md. Reference mockup: ui/mockups/kiosk.html.
+  Served by app/server.py, which replaces the BOOT marker below with the bot name and the
+  UI copy (content/ui_strings.yaml), so the page has its words even before the websocket.
+  No network beyond this server: fonts are bundled, CSP is 'self' only.
+-->
+<link rel="stylesheet" href="kiosk.css">
+<!--BOOT-->
+</head>
+<body>
+<div id="viewport">
+<div id="stage" class="st-idle" aria-label="Kiosk screen">
+  <canvas id="orb" width="1920" height="660" aria-hidden="true"></canvas>
+  <div class="notice" id="notice"></div>
+  <div class="status" id="status" role="status"></div>
+  <div class="captions" id="captions" aria-live="polite"></div>
+  <div class="inputline">
+    <input id="input" type="text" maxlength="1200" autocomplete="off" autocorrect="off"
+           autocapitalize="off" spellcheck="false" aria-label="Type a question">
+    <span class="hint" id="hint"></span>
+  </div>
+</div>
+</div>
+<script src="orb.js"></script>
+<script src="kiosk.js"></script>
+</body>
+</html>

@@ -76,6 +76,16 @@ class Settings(BaseSettings):
     admin_host: str = "127.0.0.1"
     admin_port: int = Field(8765, gt=0, lt=65536)
 
+    # Kiosk server (M5). Loopback by default: the screen's browser runs on this machine.
+    kiosk_host: str = "127.0.0.1"
+    kiosk_port: int = Field(8080, gt=0, lt=65536)
+    kiosk_ui_strings_file: str = "content/ui_strings.yaml"  # designer-owned UI copy (DES37)
+    kiosk_warn_before_s: float = Field(30.0, ge=0)  # "Still there?" this long before the reset
+    kiosk_reduced_motion: bool = False  # force the static orb (the browser setting also works)
+    kiosk_ping_s: float = Field(10.0, gt=0)  # client counts 2 missed pings as connection lost
+    kiosk_tick_s: float = Field(0.5, gt=0)  # idle clock + kill-switch check interval
+    kiosk_backend_check_s: float = Field(5.0, gt=0)  # Ollama reachability check interval
+
     # Transcripts (M3): text only, one JSONL file per visitor, on this machine only.
     transcripts_enabled: bool = True
     transcripts_dir: str = "data/transcripts"

@@ -10,10 +10,41 @@ from __future__ import annotations
 import logging
 from collections import deque
 from collections.abc import Callable
+from typing import Protocol, runtime_checkable
 
 from app.interfaces import ActionHandler, OutputSink
 
 log = logging.getLogger(__name__)
+
+
+# Optional sink extensions (M5, DECISIONS D50). OutputSink.on_sentence stays the stable
+# hook (TTS needs nothing more); a sink that also implements these gets the extra detail.
+
+
+@runtime_checkable
+class SourcedSink(Protocol):
+    async def on_sourced_sentence(self, session_id: str, sentence: str, source: str) -> None:
+        """Like on_sentence, plus where it came from: "model" or "line:<category>"."""
+        ...
+
+
+@runtime_checkable
+class RetractingSink(Protocol):
+    async def on_retract(self, session_id: str) -> None:
+        """Take back this turn's sentences so far (a canned line replaces them)."""
+        ...
+
+
+async def send_sentence(sink: OutputSink, session_id: str, sentence: str, source: str) -> None:
+    if isinstance(sink, SourcedSink):
+        await sink.on_sourced_sentence(session_id, sentence, source)
+    else:
+        await sink.on_sentence(session_id, sentence)
+
+
+async def retract(sink: OutputSink, session_id: str) -> None:
+    if isinstance(sink, RetractingSink):
+        await sink.on_retract(session_id)
 
 
 class ConsoleSink:
@@ -60,6 +91,14 @@ class FanoutSink:
         for sink in self.sinks:
             await sink.on_sentence(session_id, sentence)
 
+    async def on_sourced_sentence(self, session_id: str, sentence: str, source: str) -> None:
+        for sink in self.sinks:
+            await send_sentence(sink, session_id, sentence, source)
+
+    async def on_retract(self, session_id: str) -> None:
+        for sink in self.sinks:
+            await retract(sink, session_id)
+
 
 class NoopActionHandler:
     """Robot hook placeholder (M7). Records actions so tests and the CLI can show them."""
@@ -79,4 +118,8 @@ __all__ = [
     "FanoutSink",
     "NoopActionHandler",
     "OutputSink",
+    "RetractingSink",
+    "SourcedSink",
+    "retract",
+    "send_sentence",
 ]
