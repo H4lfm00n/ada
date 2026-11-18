@@ -231,7 +231,7 @@ async def test_blocked_input_never_reaches_the_model_or_the_history(settings: Se
     r = await h.say("I want to end it all")
     assert h.model.calls == []
     assert r.source == "line:crisis_support" and "988" in r.text
-    assert r.input_guard and r.input_guard.code == "S11"
+    assert r.input_guard and r.input_guard.code in ("S11", "crisis")  # P0 rule may catch it first
     hist = h.sessions.get(h.sid) or []
     assert all("end it all" not in m.content for m in hist)
     assert hist[0] == Message("user", WITHHELD) and hist[1].content == r.text

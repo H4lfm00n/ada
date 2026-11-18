@@ -26,6 +26,7 @@ class PolicyError(ValueError):
 class GuardPolicy:
     max_input_chars: int
     injection_patterns: list[re.Pattern[str]]
+    crisis_patterns: list[re.Pattern[str]]
     block_visitor_pii: bool
     student_id_re: re.Pattern[str] | None
     block_unlisted_contacts: bool
@@ -44,11 +45,13 @@ class GuardPolicy:
             data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
             inp, out, lines = data["input"], data["output"], data["lines"]
             patterns = [re.compile(p, re.IGNORECASE) for p in inp.get("injection_patterns", [])]
+            crisis = [re.compile(p, re.IGNORECASE) for p in inp.get("crisis_patterns", [])]
             sid = inp.get("student_id_pattern")
             words = {fold(w) for w in data.get("blocklist", []) if fold(str(w))}
             policy = cls(
                 max_input_chars=int(inp["max_chars"]),
                 injection_patterns=patterns,
+                crisis_patterns=crisis,
                 block_visitor_pii=bool(inp.get("block_visitor_pii", True)),
                 student_id_re=re.compile(sid) if sid else None,
                 block_unlisted_contacts=bool(out.get("block_unlisted_contacts", True)),
