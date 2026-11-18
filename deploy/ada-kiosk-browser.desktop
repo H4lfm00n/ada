@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=AI Lab kiosk screen
+Comment=Opens the kiosk full screen once the server is up (scripts/kiosk-browser.sh)
+Exec=@REPO@/scripts/kiosk-browser.sh
+X-GNOME-Autostart-enabled=true
+NoDisplay=true

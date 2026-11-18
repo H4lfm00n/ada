@@ -681,6 +681,62 @@ still clears a half-shown reply. Start over is `Esc` only. The AI notice is one 
 LISTENING, THINKING, RECONNECTING, OUT OF ORDER under the orb; this plus movement keeps
 the "never by color alone" rule (DES34) without the v1 shape icons.
 
+## 2026-11-16 · M5 kiosk build (`task/m5-kiosk`)
+
+**D50. Two optional sink extensions instead of changing `OutputSink`.**
+The screen needs each sentence's `source` and a `reply_retracted` event. `OutputSink.on_sentence`
+stays the stable hook (TTS needs nothing more); a sink may also implement
+`on_sourced_sentence(session_id, sentence, source)` and `on_retract(session_id)` (`SourcedSink`,
+`RetractingSink` in `app/sinks.py`). `FanoutSink` forwards both, falling back to `on_sentence`.
+The pipeline retracts whenever a canned line follows model sentences already shown (output
+guard block, model error mid-reply, kill switch mid-reply) and sets `TurnResult.retracted`.
+History, transcripts and eval scoring are unchanged (they still see the full turn).
+Alternative: pass `source` through a new required parameter: breaks every sink and the M6 hook.
+
+**D51. One kiosk = one socket = one session; the server owns every clock.**
+`app/server.py` `Kiosk`: a newer websocket (page reload) takes over and the older one is closed
+with 4001, which the page doesn't retry (so two tabs can't fight). The session is created on the
+first non-empty message and ended (not just reset) on goodbye, timeout, Esc, or kill switch, so
+each visitor gets a fresh session id and transcript file. Idle clock: `session_warning`
+`kiosk_warn_before_s` (30) before `session_timeout_s`, then the goodbye as a normal turn
+(`turn_start` ... `turn_end`), then `session_reset`. `typing` touches the session.
+Esc during a reply cancels the turn and retracts what was shown; Esc twice skips the goodbye.
+
+**D52. Kill switch and Ollama reachability are pushed live; Ollama down = "connection lost" look.**
+The kiosk re-checks the kill switch every `kiosk_tick_s` (a stat call) and on every connect,
+sends `out_of_order {on, line}` and ends the session (next visitor starts fresh). Messages
+while it's on get the `out_of_order` event again, never a turn. New server event
+`backend {ok}` (polls `/api/version` every 5 s): when Ollama is unreachable the screen shows
+the spec's connection-lost look (status CONNECTION LOST, `connection_lost_line`), because
+for a visitor it is the same situation. Messages sent anyway still get canned lines (M3
+fail-safe). Warm-up retries with backoff until Ollama is up; the server never refuses to start.
+Not in the designer's event list; flagged in STATUS.
+
+**D53. Serving: loopback, strict CSP, same-origin socket, no stack traces.**
+`kiosk_host` 127.0.0.1 / `kiosk_port` 8080 (configurable). The M3 admin router is mounted on the
+kiosk server only on a loopback bind. CSP `default-src 'self'` (+ the same-host `ws:`), so the
+page can't fetch anything off the machine; fonts are bundled (Atkinson Hyperlegible, OFL, in
+`ui/fonts/`). The websocket refuses a browser `Origin` that isn't this server (stops another web
+page in the same browser from driving the kiosk). Unhandled errors return a plain JSON 500; a
+failed turn becomes a `guard_fallback` line. `index.html` gets the bot name and
+`content/ui_strings.yaml` embedded at serve time, so the page has its copy before the socket
+connects. Captions are built with text nodes only (no `innerHTML` of model text).
+
+**D54. `ui_strings` live in `content/ui_strings.yaml` (answers DES37).**
+Copied verbatim from ui-spec sections 5.7 + 6; the notice moved there too (spec 5.7 suggested
+a `kiosk_notice` config key; one file for all UI copy is simpler for the designer). Re-read on
+every page load and connect. Missing keys fail at startup.
+
+**D55. New dependency `websockets` (uvicorn's websocket protocol, `websockets-sansio` mode).**
+uvicorn has no websocket support without it. Pure Python with optional C speedups; aarch64
+wheels exist. Alternative `wsproto`: slower, no benefit here.
+
+**D56. Start-on-boot is prepared, not enabled.**
+`scripts/kiosk-autostart.sh install` would write a `systemd --user` unit (server, restart on
+failure) and a GNOME autostart entry (`scripts/kiosk-browser.sh`: waits for `/healthz`, then
+Chromium `--kiosk` with a throwaway incognito profile). Needs a desktop session on boot
+(auto-login) and, for the server before login, `loginctl enable-linger`. PM decision.
+
 ## 2026-11-17 — DES, phase 2 (task/des-ada-phase2)
 
 **DES43. The name is Ada (AY-duh), she/her** (PM decision, PHASE2-SPEC 0.1). `bot_name: Ada`
@@ -716,3 +772,65 @@ Slurs use placeholders per the file's content policy.
 level now drives a smoothed swell plus one slow wave (attack ≈0.25 s, release ≈0.6 s) instead
 of high-frequency noise snapping per word, which read as shaking. ENG: smooth `audio_level`
 the same way; don't map raw RMS straight to displacement.
+
+## 2026-11-17 · M5a rename + new look (`task/m5a-ada-look`)
+
+**D57. M5a is built on top of the unmerged M5 branch.** `task/m5-kiosk` (server, websocket,
+D50-D56) was never merged or run on the GB10, and M5a needs its events. The M5a branch is
+`main` + a merge of `task/m5-kiosk` (clean except DECISIONS.md; designer phase-2 content kept
+everywhere). Merging M5a merges M5. Alternative: merge M5 first (needs a GB10 run of the old
+dark UI that is about to be replaced).
+
+**D58. New UI copy in `content/ui_strings.yaml` v2, copied verbatim from ui-spec v3 section 7.**
+New keys: `talk_idle`, `talk_listening`, `talk_interrupt`, `mic_off`, `mic_on`, `rest_title`,
+`rest_body`; `notice` replaced with the v3 text. "Ada" written as `{{bot_name}}`. The v2 keys
+stay (typing box, connection states). Required keys are checked at startup. Designer to review.
+
+**D59. Idle acts are picked by the server, played by the page.** `app/idle.py` loads
+`idle_acts.yaml` (strict validation, fails at startup) and owns rotation: weighted random,
+never the same act twice in a row (even with one act: then it waits), gap uniform in
+`rotation.min_gap_s..max_gap_s`, `after_idle_s` counted from when the screen went quiet,
+`reduced_motion: skip` acts skipped when the page reports reduced motion. "Quiet" = a screen
+is connected, no session, no turn, kill switch off, Ollama reachable. New events: server ->
+page `idle_act {id, duration_s, caption, reduced_motion}`; page -> server `wake {source}` (a
+tap) and `screen {reduced_motion}`. Any interaction restarts the quiet clock; the page stops a
+running act itself, instantly, on any pointer or key. Why server-side: testable in Python,
+one clock, and the server already knows when a visitor is there. Acts that need unfinished
+content are left out with a logged reason: `fun_fact` (its `ai_fact` card isn't
+`approved: yes`), `event_teaser` (needs a lab_docs event reader, M5c), `quiz_invite`
+(`enabled: false`). `kiosk_idle_enabled: false` turns acts off.
+
+**D60. The blob: Three.js r169 ES module + Inter, both bundled; CPU displacement.** The
+mockup loads Three.js r128 and Inter from CDNs; the kiosk must not touch the network (CSP
+`'self'`), so `ui/vendor/three.module.min.js` (MIT, single file, sha256 f7cee3c7...) and
+`ui/fonts/inter-latin-{400..700}` (OFL) are committed. Atkinson Hyperlegible and `orb.js` are
+removed. Icosphere detail 5 (2,160 vertices), 3D simplex noise (Gustavson, public domain) on
+the CPU: ~1 ms per frame of JS in the sandbox, far under the 16.7 ms budget at 60 fps. Every
+act in `idle_acts.yaml` has a motion; a test fails if the file gains an act `blob.js` lacks.
+The audio envelope follows DES51 (smoothed swell + one slow wave).
+
+**D61. The mic indicator only turns on when audio is really being captured.** The spec's state
+table puts the red "Listening" dot on the Listening state. Before M6 there is no microphone,
+so a tap shows the LISTENING status word and blob motion, but the indicator stays "Mic off".
+It follows a `mic {on}` event the M6 audio pipeline will send. Privacy indicators must never
+claim recording that isn't happening, or miss recording that is. Flagged for designer/PM.
+
+**D62. States are derived on the page from the existing events (no server `state` event).**
+`turn_start` -> thinking; `sentence` -> speaking (captions light word by word at an estimated
+300 ms/word until TTS word timings exist, spec 4); `guard_fallback`/`didnt_catch` lines ->
+confused wobble first; `out_of_order` -> "Ada is resting"; `backend`/socket loss -> gray
+"lost". Tap -> waking (0.5 s) -> listening, and (until M6) opens the staff typing box so the
+screen stays usable; 10 s with nothing typed goes back to idle. The v2 rotating
+`idle_greetings` captions are dropped in favor of idle acts (the server still sends them in
+`hello`). Hooks only, not built: `audio_level`, `wake` and `mic` from the server (M6), and
+`show_card` / `card_mini` / `hide_card` accepted and ignored (M5b; the card pose exists in
+`blob.showing()`). Kiosk hooks `Kiosk.audio_level()` and `Kiosk.wake()` emit the first two.
+`/ui/?debug=1` adds a staff panel to force any state or act (visual only).
+
+**D63. Rename leftovers fixed outside the designer's files.** `Settings.bot_name` default ->
+"Ada"; tests that used the old name as a fixture; one line of the brief in the repo's
+`CLAUDE.md` (PM-owned; the Project-instructions copy of the brief in claude.ai still says
+the old name and needs the same edit by the PM). Kept on purpose: the `old_name` eval set,
+the persona's "never call herself ..." rule, red-team cases, history in DECISIONS/STATUS, and
+the retired dark mockup `ui/mockups/kiosk.html`.
+

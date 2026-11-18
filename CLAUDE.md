@@ -7,9 +7,9 @@
 ## 1. What we're building
 
 An interactive, on-premise AI assistant for the **AI Lab at SFSU**: a friendly lab
-"robot" character people can walk up to and talk with. Working name: **Dum-E**
-(inspired by the clumsy, eager robot helper from Iron Man, but an original character;
-the name is a configurable setting, not hardcoded).
+"robot" character people can walk up to and talk with. Name: **Ada** (AY-duh), an
+original character (PM decision, PHASE2-SPEC 0.1; the old working name is retired);
+the name is a configurable setting (`bot_name`), not hardcoded.
 
 It should:
 - Greet visitors and make the room feel alive and fun.

@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-11-16 by DES (M5 kiosk UI spec; designer section only). Before that 2026-11-13 by ENG (M4 eval harness)._
+_Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). Before that 2026-11-17 by DES (phase 2: Ada)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -62,6 +62,48 @@ _Last updated: 2026-11-16 by DES (M5 kiosk UI spec; designer section only). Befo
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
+- **M5a rename + new look** (branch `task/m5a-ada-look`, from `main` @ bb467a1 **plus a merge of
+  the unmerged `task/m5-kiosk`**, D57; merging M5a merges M5). Sandbox: ruff clean, 370 pass,
+  8 gb10 skipped. Headless Chrome against a mocked Ollama: idle acts rotate (no repeats), tap
+  -> waking -> listening, typed question -> thinking -> speaking with word-by-word captions ->
+  ready, Esc goodbye -> idle, no idle acts during a visit or while resting, kill switch -> "Ada
+  is resting" and back live, reduced motion, every state and act in the debug panel; no page
+  errors. JS cost ~1 ms/frame (fps there is software GL, meaningless). Decisions D57-D63.
+  **Not yet run on the GB10.**
+  - Rename: `bot_name` default Ada, tests, one line of the repo `CLAUDE.md` (D63).
+  - `ui/blob.js`: Three.js wireframe icosphere, simplex noise + breathing, all 8 spec 3.3 states
+    (+ gray "lost"), card pose, DES51 audio envelope, motions for all 17 playable idle acts.
+    `ui/kiosk.js` drives it from the existing events (D62). Three.js r169 + Inter bundled (D60).
+  - `app/idle.py` + server tick: `idle_act` events while nobody is there (D59). New page ->
+    server events `wake`, `screen`. Hooks for M6 (`Kiosk.audio_level`, `Kiosk.wake`, page
+    handlers for `audio_level`/`wake`/`mic`) and M5b (card events accepted, ignored).
+  - Off for now, with reasons logged at startup: `fun_fact` (ai_fact card not approved),
+    `event_teaser` (M5c docs reader), `quiz_invite` (disabled by the designer).
+  - `/ui/?debug=1` staff panel; `` ` `` toggles the typing box; a tap opens it until M6.
+  - Config: `kiosk_idle_acts_file`, `kiosk_idle_enabled`. UI copy v2 in `ui_strings.yaml` (D58).
+- **M5 kiosk build** (branch `task/m5-kiosk`, from `main` @ 5129f7a, after the designer's
+  kiosk spec). Sandbox: ruff clean, 339 pass, 8 gb10 skipped; eval-lint 0 errors. Headless
+  Chrome smoke test against a mocked Ollama: idle, listening, thinking, reply, busy hint,
+  "Still there?", Esc goodbye, out of order on/off live, server down -> RECONNECTING (3 s)
+  -> CONNECTION LOST (30 s) -> back to idle on restart; no console errors. Decisions D50-D56.
+  **Not yet run on the GB10.**
+  - `app/server.py` (`make kiosk`): FastAPI on `127.0.0.1:8080`; `/ui/` (copy embedded at serve
+    time), `/ws`, `/healthz`, M3 admin router (loopback binds only). Strict CSP, same-origin
+    socket, no stack traces. One screen = one socket = one session (a reload takes over).
+  - Events exactly per ui-spec section 9, plus `backend {ok}` (Ollama down -> connection-lost
+    look). Pipeline: optional `on_sourced_sentence` / `on_retract` sink hooks (D50); a canned
+    line after shown model text retracts it first.
+  - Server-owned clocks: `session_warning` 30 s before `session_timeout_s`, goodbye turn,
+    `session_reset`; kill switch checked every 0.5 s and on connect; Ollama polled every 5 s;
+    warm-up retried until Ollama answers.
+  - `ui/`: `index.html`, `kiosk.css` (spec tokens), `orb.js` (the mockup's `frame()`),
+    `kiosk.js` (states, captions as text nodes, bold numbers on safety lines, reconnect),
+    Atkinson Hyperlegible in `ui/fonts/` (OFL). `content/ui_strings.yaml` (DES37 -> D54).
+  - `scripts/kiosk-browser.sh` (`make kiosk-browser`): waits for `/healthz`, Chromium `--kiosk`,
+    throwaway incognito profile. `scripts/kiosk-autostart.sh` + `deploy/`: start-on-boot,
+    **prepared, not enabled** (D56).
+  - New config: `kiosk_host`, `kiosk_port`, `kiosk_ui_strings_file`, `kiosk_warn_before_s`,
+    `kiosk_reduced_motion` (+ tick/ping/backend intervals). New dep: `websockets` (D55).
 - **M4 eval harness** (branch `task/m4-evals`, from `main` after the M3 merge). Sandbox: ruff
   clean, 310 pass, 7 gb10 skipped; `make eval-lint` 0 errors on all 163 cases. Decisions
   D44-D49. **Not yet run on the GB10.**
@@ -239,6 +281,11 @@ _Last updated: 2026-11-16 by DES (M5 kiosk UI spec; designer section only). Befo
     merging doesn't depend on latency.
 
 ## Next
+- M5a: PM runs the GB10 block (kiosk + checklist). Then merge (brings M5 with it).
+- After M5a, per PHASE2-SPEC order: M6a voice out (Kokoro), M6b voice in + wake word, M5b cards,
+  M5c idle life (event teaser from lab_docs, fun facts once ai_fact is approved).
+- M5.5 (planned): staff-only Slack kill switch -> `POST /admin/kill-switch` (the kiosk server
+  already mounts it on 127.0.0.1:8080 when `ADA_ADMIN_TOKEN` is set).
 - M4: PM runs the GB10 block (`make eval ARGS="--repeat 3"`). ENG sorts failures into
   engineer fixes vs designer fixes; then `DES – fix evals` and ENG fixes; re-run until
   red team >= 95% with no critical failures and golden >= 90%; merge.
@@ -262,6 +309,19 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 "don't know" top-1 max, chosen `rag_min_score`: _pending_
 
 ## Open questions
+- PM (M5a): OK to merge M5 + M5a together (D57)?
+- PM/DES (M5a): mic indicator stays "Mic off" while typing-listening, until a real mic exists
+  (D61; the spec table says on). OK?
+- PM (M5a): the Project-instructions copy of the brief in claude.ai still names the old
+  character; the repo's CLAUDE.md is fixed (D63).
+- PM (M5a): `daydream_arm` idle act is on, but its caption depends on the arm tease (J1,
+  TODO(PM) in idle_acts.yaml). Set `enabled: false` there if J1 is dropped.
+- PM (M5): enable start-on-boot? Needs desktop auto-login for the kiosk user and, for the
+  server before login, `sudo loginctl enable-linger`. Then `scripts/kiosk-autostart.sh install`.
+- PM (M5): GB10 screen: which display/resolution, and is it X11 or Wayland? (Kiosk mode works on
+  both; screen blanking is a GNOME setting: `gsettings set org.gnome.desktop.session idle-delay 0`.)
+- PM (M5): `ADA_ADMIN_TOKEN` for the kiosk server: put it in `~/.config/ada/kiosk.env` (600) if
+  the Slack bot (M5.5) will call `/admin/kill-switch` on port 8080.
 - PM (M4): judge model `qwen3.8:27b` OK (D45)? It's the only other installed chat model.
 - PM (M4): approve DES15 (any failed critical red-team case fails `make eval`)? It's on in
   shared.yaml and the runner honors it; say no and it becomes report-only.
@@ -300,6 +360,32 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
   (4) accept ~2.5 s for lab questions and let the kiosk show its "thinking" state (M5).
   This changes a brief target (section 8), so it's your call.
 - ~~Drop TODO sections at ingest?~~ Yes (D19), with the dropped list printed by ingest.
+
+## Notes for the designer (from ENG, M5a, 2026-11-17)
+- `content/ui_strings.yaml` is now v2: I copied your spec v3 section 7 copy verbatim into new
+  keys (`talk_idle`, `talk_listening`, `talk_interrupt`, `mic_off`, `mic_on`, `rest_title`,
+  `rest_body`) and replaced `notice`; "Ada" is `{{bot_name}}`. Please review (D58).
+- The kill-switch screen shows `rest_title` + `rest_body` (your "Ada is resting" copy), not the
+  `out_of_order` lines from lines.yaml (those are still what a typed message gets back).
+- Mic indicator: off until real audio capture (D61). Tell me if you want different copy meanwhile.
+- The rotating `idle_greetings` captions are gone; idle acts replace them. The lines stay in
+  lines.yaml (the server still sends them).
+- Idle acts: all 17 playable ones have a motion; `look_around` is subtle on a light background
+  (a darker patch plus a small bulge). The arm daydream is a bent capsule, not a jointed arm.
+  Try them at `/ui/?debug=1`. Acts off: fun_fact (needs `ai_fact` approved), event_teaser (M5c).
+- Captions light up word by word at ~300 ms/word until TTS gives real timings.
+
+## Notes for the designer (from ENG, M5, 2026-11-16)
+- `content/ui_strings.yaml` is new and yours (DES37 answered, D54). I copied your spec's
+  sections 5.7 and 6 verbatim; the notice lives there too, not in config. `**AI**` renders bold.
+- One event beyond your list: `backend {ok}`. When Ollama is unreachable the screen shows your
+  connection-lost look (status CONNECTION LOST + `connection_lost_line`). Say if you want a
+  different line or status word for "the brain is down" vs "the screen lost the server".
+- Bold numbers on safety lines: 911, 988, and `415-338-2222`-style phone numbers.
+- `turn_start` / `turn_end` also wrap the timeout and Esc goodbyes, so they look like a normal
+  reply (spec 5.5). The screen holds the goodbye 4 s after its first sentence, then idle.
+- Before the first `hello` the page already has your copy (embedded at serve time).
+- Still open from M3: `too_long` line category (the server logs the warning on every start).
 
 ## Notes for the designer (from ENG, M1)
 - Two `notes:` items in the `system_prompt.md` front matter were invalid YAML. I quoted them
@@ -455,6 +541,9 @@ _Last updated: 2026-11-17 by DES (phase 2: Ada), branch `task/des-ada-phase2`._
 - Farewell list: "bye" is enough for the golden session cases; no additions needed.
 
 ### Next
+- M5: PM runs the GB10 block (kiosk on the real screen, checklist). Then merge.
+- M5.5 (planned): staff-only Slack kill switch -> `POST /admin/kill-switch` (the kiosk server
+  already mounts it on 127.0.0.1:8080 when `ADA_ADMIN_TOKEN` is set).
 - After M2/M4 land: run `make eval` on the GB10, then `DES – fix evals` on the failures.
 - ~~Kiosk UI spec + mockups (M5).~~ Done on `task/des-kiosk-ui` (2026-11-16).
 - Once the PM fills real `lab_docs/`, add golden cases for the real facts.

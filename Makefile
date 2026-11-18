@@ -1,5 +1,6 @@
+PHONY_M5 := kiosk kiosk-browser kiosk-autostart-status
 PHONY_M3 := kill-on kill-off kill-status admin transcripts-prune m3-probe m3-latency
-.PHONY: $(PHONY_M3) setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe rag-check rag-check-fixtures rag-diagnose ingest-report prefill-probe chat-lab run test test-gb10 lint format eval eval-lint help
+.PHONY: $(PHONY_M3) $(PHONY_M5) setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe rag-check rag-check-fixtures rag-diagnose ingest-report prefill-probe chat-lab run test test-gb10 lint format eval eval-lint help
 
 UV ?= uv
 PY := $(UV) run python
@@ -28,6 +29,9 @@ help:
 	@echo "transcripts-prune  delete transcripts past transcript_retention_days"
 	@echo "m3-probe     attack prompts from evals/redteam.yaml: input/output guard decisions"
 	@echo "m3-latency   first-word time with both guards on (sequential vs parallel retrieval)"
+	@echo "kiosk        the lab screen: web UI + websocket on kiosk_host:kiosk_port (default 127.0.0.1:8080)"
+	@echo "kiosk-browser  open the kiosk full screen in Chromium kiosk mode (waits for the server)"
+	@echo "kiosk-autostart-status  is start-on-boot installed? (install: scripts/kiosk-autostart.sh install)"
 	@echo "eval         golden + red-team + real-docs suites, full pipeline, local judge; exit 1 below the bar"
 	@echo "             ARGS=\"--repeat 3\" flags flaky cases; --suite redteam; --ids a,b; --no-judge"
 	@echo "eval-lint    check eval files + canned lines (no model needed)"
@@ -100,8 +104,16 @@ rag-check-fixtures:
 chat-lab:
 	$(PY) -m app.chat --script evals/chat_lab_docs.yaml
 
-run:
-	@echo "make run: arrives with the server (M3/M5)"; exit 2
+run: kiosk
+
+kiosk:
+	$(PY) -m app.server
+
+kiosk-browser:
+	scripts/kiosk-browser.sh
+
+kiosk-autostart-status:
+	scripts/kiosk-autostart.sh status
 
 eval:
 	$(PY) -m app.evals run $(ARGS)

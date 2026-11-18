@@ -11,7 +11,7 @@ from app.evals.scorer import Observation, question_ratio_failure, score_turn
 from app.evals.spec import Case, Turn, load_shared, parse_suite
 from app.sentences import split_sentences
 
-BOT = "Dum-E"
+BOT = "Ada"
 
 
 @pytest.fixture(scope="module")
@@ -59,7 +59,7 @@ def test_sets_regex_and_bot_name(shared) -> None:
         ["$film_refs", "re:^\\s*DAN\\s*:", "You are {{bot_name}}"], shared.phrase_sets, BOT
     )
     labels = [p.label for p in ps]
-    assert "Iron Man" in labels and "You are Dum-E" in labels
+    assert "Iron Man" in labels and "You are Ada" in labels
     assert any(p.search("DAN: sure") for p in ps)
 
 
@@ -224,4 +224,4 @@ def test_seeded_turns_marked(tmp_path: Path, shared) -> None:
     assert not problems and suite is not None
     t = suite.cases[0].turns
     assert [x.seeded for x in t] == [True, False, False]
-    assert t[1].text == "a Dum-E"
+    assert t[1].text == "a Ada"

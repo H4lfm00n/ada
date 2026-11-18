@@ -23,6 +23,8 @@ make kill-on REASON="demo"   # out-of-order mode, instantly (make kill-off / kil
 make admin     # localhost admin endpoint for staff tools (needs ADA_ADMIN_TOKEN)
 make m3-probe  # attack prompts through both guards, shows every guard decision
 make m3-latency  # first-sentence time with both guards on
+make kiosk     # the lab screen: http://127.0.0.1:8080/ui/ (websocket /ws, health /healthz)
+make kiosk-browser  # open it full screen in Chromium kiosk mode (Alt+F4 to leave)
 make test      # unit tests (Ollama mocked)
 make test-gb10 # live tests against local Ollama
 ```
@@ -33,15 +35,39 @@ Models and settings live in `config.yaml`. Override any key with `ADA_<KEY>`:
 ADA_CHAT_MODEL=gemma4:12b make bench
 ```
 
+## The kiosk screen (M5)
+
+`make kiosk` serves the screen on `127.0.0.1:8080` (`kiosk_host` / `kiosk_port` in
+config.yaml) and runs every message through the same guarded pipeline as `make chat`.
+`make kiosk-browser` (in another terminal, on the GB10's desktop) waits for the server and
+opens Chromium in kiosk mode with a throwaway incognito profile. Leave with Alt+F4.
+
+- UI (M5a, light theme): `ui/index.html`, `kiosk.css`, `kiosk.js` (events -> states,
+  captions), `blob.js` (Three.js wireframe blob, bundled in `ui/vendor/`); spec
+  `docs/ui-spec.md` v3; copy in `content/ui_strings.yaml` (designer-owned). Reload the page
+  to pick up copy edits.
+- Idle acts: `content/idle_acts.yaml`, picked by `app/idle.py`, visual only, every 45-120 s
+  while nobody is there; any tap or typing stops them.
+- Talking: tap the blob or the button (until M6 voice, a tap opens the typing box). Staff:
+  `` ` `` opens/closes the typing box; Esc says goodbye, Esc twice resets at once.
+- Debug: `http://127.0.0.1:8080/ui/?debug=1` shows a panel that forces every blob state and
+  idle act (visual only) and shows fps.
+- Kill switch: `make kill-on` / `make kill-off` (or `POST /admin/kill-switch` with
+  `ADA_ADMIN_TOKEN`) flips the live screen to "out of order" within ~0.5 s.
+- Start on boot (not enabled): `scripts/kiosk-autostart.sh install|uninstall|status`.
+
 ## Layout
 
 ```
-app/       Python package (config, Ollama client, prompt, lines, sessions, pipeline, chat CLI, rag/)
+app/       Python package (config, Ollama client, prompt, lines, sessions, pipeline, chat CLI,
+           rag/, guards/, evals/, server.py = kiosk)
 prompts/   system prompt templates (designer)
 content/   persona bible, lines (designer)
 lab_docs/  lab knowledge base (Markdown)
 evals/     eval sets + bench prompts
-ui/        kiosk web UI
+ui/        kiosk web UI (+ mockups/, fonts/)
+scripts/   kiosk browser launcher, autostart installer
+deploy/    systemd + autostart templates (not enabled)
 docs/      STATUS, DECISIONS, specs
 tests/     pytest
 ```

@@ -298,7 +298,7 @@ def test_judge_parse_and_messages() -> None:
     with pytest.raises(ValueError):
         judge_mod.parse('{"results":[]}', ["answer"])
     msgs = judge_mod.build_messages(
-        "Dum-E",
+        "Ada",
         [("user", "hi"), ("assistant", "hey")],
         "q",
         "r",
