@@ -80,6 +80,10 @@ _Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). B
   - **GB10: "what is this lab about?" -> not sure.** Index fine (recall 100%); kiosk phrasing
     scores 0.43 < 0.50 gate. Fixed with `rag_place_name: "the AI Lab"` (D67, two A/B runs); 3 junk "this place" questions
     now checked at the reply level (real_docs_qa 21-23).
+  - GB10: kiosk now answers "what is this lab about?" / "what do you guys do here?" from about.md
+    + faq.md. `make rag-diagnose` gave 26/26 canned lines: it only warmed the chat model, so a cold
+    guard timed out on every question (D41 again). Diagnose now warms all models and prints the
+    input-guard reason whenever a canned line replaces an answer.
   - Still open from the same check: the phase-2 prompt promises QR cards that don't exist yet
     (cards are M5b, all disabled) and forbids saying emails; Ada also said "I do not have any lab
     facts in my memory" (narration). Next ENG task: card tags stripped + prompt lists only
