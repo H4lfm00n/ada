@@ -135,6 +135,9 @@ def test_page_served_with_boot_copy_and_strict_csp(kiosk: Callable[..., TestClie
         "kiosk.js",
         "blob.js",
         "kiosk.css",
+        "cards.js",
+        "cards.css",
+        "vendor/qrcode.mjs",
         "vendor/three.module.min.js",
         "fonts/inter-latin-500-normal.woff2",
     ):
@@ -144,8 +147,9 @@ def test_page_served_with_boot_copy_and_strict_csp(kiosk: Callable[..., TestClie
 
 
 def test_page_has_no_external_urls(repo_root: Path) -> None:
-    for name in ("index.html", "kiosk.js", "blob.js", "kiosk.css"):
-        text = (repo_root / "ui" / name).read_text()
+    svg_ns = "http://www.w3.org/2000/svg"  # an XML namespace name, not a fetched URL
+    for name in ("index.html", "kiosk.js", "blob.js", "kiosk.css", "cards.js", "cards.css"):
+        text = (repo_root / "ui" / name).read_text().replace(svg_ns, "")
         assert "http://" not in text and "https://" not in text, name
 
 

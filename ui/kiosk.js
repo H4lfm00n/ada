@@ -14,6 +14,7 @@
 //   M5b cards: `show_card`, `card_mini`, `hide_card` are accepted and ignored; the blob's
 //             card pose is `blob.showing(true)` (try it in the debug panel).
 import { createBlob, ACT_IDS } from './blob.js';
+import { createCards } from './cards.js';
 
 const $ = id => document.getElementById(id);
 const stage = $('stage'), input = $('input'), hint = $('hint'), caps = $('captions');
@@ -34,6 +35,8 @@ const SAFETY = new Set(['line:emergency', 'line:crisis_support', 'line:medical_l
 const CONFUSED = new Set(['line:guard_fallback', 'line:didnt_catch']);
 
 const blob = createBlob($('blob'));
+// Cards (M5b): drawn here, decided by the server (content/cards.yaml + check-in loop).
+const cards = createCards(stage, { blob, send: o => send(o), strings: () => S });
 const media = matchMedia('(prefers-reduced-motion: reduce)');
 let forceReduced = false, reduced = false;
 function applyMotion() {
@@ -173,7 +176,7 @@ let actTimers = [], debugHoldUntil = 0;
 function playIdleAct(e, { forced = false } = {}) {
   if (!forced) {
     if (performance.now() < debugHoldUntil) return;   // the debug panel is driving the blob
-    if (view !== 'idle' || sessionActive || blocked() || typingOpen) return;
+    if (view !== 'idle' || sessionActive || blocked() || typingOpen || cards.current) return;
     if (reduced && e.reduced_motion === 'skip') return;
   }
   stopIdleAct();
@@ -292,7 +295,7 @@ const handlers = {
     showStill(e.seconds_left || warnBeforeS);
   },
   session_reset() {
-    sessionActive = false; stopStill();
+    sessionActive = false; stopStill(); cards.hide();
     // The goodbye finishes on screen and stays a moment, then idle.
     clearTimeout(idleLater);
     const later = () => { idleLater = setTimeout(toIdle, GOODBYE_HOLD_MS); };
@@ -301,7 +304,7 @@ const handlers = {
     else toIdle();
   },
   out_of_order(e) {
-    if (e.on) { ooo = true; turnOpen = false; micOpen = false; renderMic(); renderBlocked(); }
+    if (e.on) { cards.hide(); ooo = true; turnOpen = false; micOpen = false; renderMic(); renderBlocked(); }
     else { ooo = false; unblock(); }
   },
   backend(e) { backendOk = !!e.ok; if (backendOk) unblock(); else renderBlocked(); },
@@ -315,8 +318,11 @@ const handlers = {
   },
   wake(e) { wake(e.source || 'word', { tell: false }); },
   mic(e) { micOpen = !!e.on; renderMic(); },
-  // ---- M5b hooks: cards are not built yet ----
-  show_card() {}, card_mini() {}, hide_card() {},
+  // ---- M5b cards: the server picks the card and runs the check-in loop ----
+  show_card(e) { if (!blocked()) { stopIdleAct(); cards.show({ ...(e.data || {}), id: e.id }); } },
+  card_state(e) { cards.state(e.id, e.state, e); },
+  card_mini(e) { cards.mini(e.id); },
+  hide_card(e) { cards.hide(e.id); },
 };
 
 // ---------------------------------------------------------------- websocket + reconnecting

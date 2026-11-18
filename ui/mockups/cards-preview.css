@@ -1,0 +1,13 @@
+/* Preview-only controls for ui/mockups/cards.html. Not part of the kiosk. */
+#captions .sent { opacity: 1; }
+#statusword.on { color: var(--danger); }
+#panel {
+  position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 20; max-width: 96vw;
+  background: rgba(255, 255, 255, .97); border: 1px solid #ddd; border-radius: 14px; padding: 8px 12px;
+  font: 13px Inter, system-ui, sans-serif; color: #222; box-shadow: 0 6px 24px rgba(0, 0, 0, .12);
+}
+#panel .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0; }
+#panel .lbl { font-weight: 700; color: #555; min-width: 44px; }
+#panel button { font: inherit; border: 1px solid #ccc; background: #f6f6f6; border-radius: 8px; padding: 5px 9px; cursor: pointer; }
+#panel button:hover { background: #ede7fb; border-color: #7C3AED; }
+#panel .note { color: #777; margin-top: 2px; }

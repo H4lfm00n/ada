@@ -1,0 +1,172 @@
+/* Cards (M5b UI): things Ada puts on screen. docs/ui-spec.md section 5, PHASE2-SPEC 2.
+   1920x1080 design px, same tokens as kiosk.css. No inline styles anywhere (CSP style-src 'self'). */
+:root {
+  --t-card-title: 40px; --t-card-body: 30px; --r-card: 28px;
+  --ok: #157F3B; --ok-soft: #E7F6EC; --danger-soft: #FDECEA;
+}
+
+#cards { position: absolute; inset: 0; pointer-events: none; }
+
+/* ---------------------------------------------------------------- the card */
+.card {
+  position: absolute; right: 80px; top: 120px; width: 660px; max-height: 820px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card);
+  box-shadow: var(--shadow); padding: 40px 44px 0; overflow: hidden; pointer-events: auto;
+  display: flex; flex-direction: column;
+  transform: translateX(760px); opacity: 0;
+  transition: transform .7s var(--ease), opacity .5s var(--ease), width .6s var(--ease),
+              top .6s var(--ease), right .6s var(--ease), padding .6s var(--ease), max-height .6s var(--ease);
+}
+.card.in { transform: none; opacity: 1; }
+.card.out { transform: translateX(760px); opacity: 0; }
+.card.done { transform: scale(.92); opacity: 0; transition: transform .6s var(--ease) .9s, opacity .5s ease .9s; }
+
+.eyebrow {
+  font-size: 20px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--accent); display: flex; align-items: center; gap: 10px;
+}
+.eyebrow svg { width: 24px; height: 24px; }
+.card h2 { font-size: var(--t-card-title); line-height: 1.15; font-weight: 600; margin: 14px 0 0; letter-spacing: -.01em; }
+.card .sub { font-size: 26px; color: var(--ink-2); margin: 10px 0 0; line-height: 1.35; }
+.card .body { margin-top: 28px; font-size: var(--t-card-body); line-height: 1.35; }
+
+/* footer: check-in status + auto-hide bar */
+.card .foot { margin: 30px -44px 0; padding: 0 44px 28px; min-height: 28px; }
+.status {
+  display: none; align-items: center; gap: 14px; font-size: 26px; font-weight: 500; color: var(--ink-2);
+}
+.status.on { display: flex; }
+.status .chip {
+  font: inherit; font-size: 24px; font-weight: 600; border-radius: 999px; padding: 10px 22px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer;
+}
+.status .chip.yes { background: var(--accent); border-color: var(--accent); color: #fff; }
+.status .chip:active { transform: scale(.96); }
+.status .ear { width: 26px; height: 26px; color: var(--danger); flex: none; }
+.status.asking .ear { animation: pulse 1s infinite; }
+.status .spacer { flex: 1; }
+.status.done { color: var(--ok); font-weight: 600; }
+.status.done svg { width: 34px; height: 34px; }
+.status.done path { stroke-dasharray: 40; stroke-dashoffset: 40; animation: draw .5s var(--ease) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.timer { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--line); }
+.timer i { display: block; height: 100%; width: 100%; background: var(--accent); opacity: .55; transform-origin: left; }
+.timer.run i { animation: drain linear forwards; }
+.timer.paused i { animation-play-state: paused; }
+@keyframes drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* ---------------------------------------------------------------- QR */
+.qrwrap { display: flex; flex-direction: column; align-items: center; margin-top: 26px; }
+.qrbox {
+  width: 404px; height: 404px; padding: 12px; background: #fff; border-radius: 22px;
+  border: 1px solid var(--line); position: relative;
+}
+.qrbox svg { width: 100%; height: 100%; display: block; shape-rendering: crispEdges; }
+.qrbox .corner { position: absolute; width: 46px; height: 46px; border: 5px solid var(--accent); }
+.qrbox .tl { left: -12px; top: -12px; border-right: 0; border-bottom: 0; border-radius: 18px 0 0 0; }
+.qrbox .tr { right: -12px; top: -12px; border-left: 0; border-bottom: 0; border-radius: 0 18px 0 0; }
+.qrbox .bl { left: -12px; bottom: -12px; border-right: 0; border-top: 0; border-radius: 0 0 0 18px; }
+.qrbox .br { right: -12px; bottom: -12px; border-left: 0; border-top: 0; border-radius: 0 0 18px 0; }
+.qrbox.pulse .corner { animation: corners 1.6s ease-in-out infinite; }
+@keyframes corners { 50% { opacity: .35; } }
+.qrhint { display: flex; align-items: center; gap: 12px; margin-top: 22px; font-size: 26px; color: var(--ink-2); }
+.qrhint svg { width: 34px; height: 34px; color: var(--accent); flex: none; }
+.qrsample { margin-top: 10px; font-size: 18px; font-weight: 600; color: var(--danger); }
+.qrpending {
+  position: absolute; inset: 12px; display: flex; align-items: center; justify-content: center; text-align: center;
+  background: rgba(255, 255, 255, .86); font-size: 24px; font-weight: 600; color: var(--danger); padding: 30px; border-radius: 14px;
+}
+
+/* ---------------------------------------------------------------- directions */
+.where { display: flex; gap: 28px; align-items: center; }
+.where svg { width: 150px; height: 150px; color: var(--accent); flex: none; }
+.room { font-size: 76px; font-weight: 700; letter-spacing: -.02em; line-height: 1; }
+.where .sub { margin-top: 8px; }
+.lines { list-style: none; padding: 0; margin: 26px 0 0; }
+.lines li { padding: 14px 0; border-top: 1px solid var(--line); font-size: 28px; }
+.pill {
+  display: inline-flex; align-items: center; gap: 10px; margin-top: 18px; padding: 10px 20px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent); font-size: 24px; font-weight: 600;
+}
+.pill svg { width: 24px; height: 24px; }
+.here { background: var(--ok-soft); color: var(--ok); }
+
+/* ---------------------------------------------------------------- list (events) */
+.events { list-style: none; padding: 0; margin: 0; }
+.events li { display: flex; gap: 20px; align-items: flex-start; padding: 18px 0; border-top: 1px solid var(--line); }
+.events li:first-child { border-top: 0; padding-top: 0; }
+.date {
+  flex: none; width: 92px; text-align: center; border-radius: 16px; background: var(--accent-soft); color: var(--accent);
+  padding: 8px 0; font-weight: 700; line-height: 1.05;
+}
+.date b { display: block; font-size: 38px; }
+.date span { font-size: 18px; letter-spacing: .12em; text-transform: uppercase; }
+.date.none span { font-size: 16px; }
+.events .what { font-size: 28px; font-weight: 500; }
+.events .meta { font-size: 22px; color: var(--ink-3); margin-top: 4px; }
+
+/* ---------------------------------------------------------------- spotlight (equipment) */
+.gear { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.gear div {
+  border: 1px solid var(--line); border-radius: 20px; padding: 18px 10px 16px; text-align: center;
+  font-size: 22px; font-weight: 500; line-height: 1.2; background: var(--bg);
+}
+.gear svg { width: 74px; height: 74px; color: var(--accent); display: block; margin: 0 auto 10px; }
+.cardnote { margin-top: 20px; font-size: 24px; color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- checklist (rules) */
+.rules { list-style: none; padding: 0; margin: 0; }
+.rules li { display: flex; gap: 20px; align-items: center; padding: 18px 0; border-top: 1px solid var(--line); font-size: 28px; }
+.rules li:first-child { border-top: 0; padding-top: 0; }
+.rules .ico {
+  flex: none; width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+.rules .ico svg { width: 30px; height: 30px; }
+.rules .ico.no { background: var(--danger-soft); color: var(--danger); }
+
+/* ---------------------------------------------------------------- contact (campus help) */
+.card.help { border: 3px solid var(--danger); }
+.card.help .eyebrow { color: var(--danger); }
+.helprows { list-style: none; padding: 0; margin: 0; }
+.helprows li { padding: 16px 0; border-top: 1px solid var(--line); }
+.helprows li:first-child { border-top: 0; padding-top: 0; }
+.helprows .lbl { font-size: 22px; color: var(--ink-2); }
+.helprows .num { font-size: 40px; font-weight: 700; letter-spacing: .01em; margin-top: 2px; }
+.helprows li.first .num { color: var(--danger); font-size: 56px; }
+
+/* ---------------------------------------------------------------- fun (did you know) */
+.card.fun { background: var(--accent-soft); border-color: transparent; }
+.fact { font-size: 38px; line-height: 1.3; font-weight: 500; margin-top: 18px; }
+.spark { width: 60px; height: 60px; color: var(--accent); }
+
+/* ---------------------------------------------------------------- mini (visitor asked something else) */
+.card.mini { width: 300px; top: 100px; right: 40px; padding: 22px 22px 0; max-height: 420px; }
+.card.mini h2 { font-size: 24px; margin-top: 8px; }
+.card.mini .eyebrow { font-size: 14px; }
+.card.mini .eyebrow svg { display: none; }
+.card.mini .sub, .card.mini .qrhint, .card.mini .qrsample, .card.mini .status, .card.mini .lines,
+.card.mini .cardnote, .card.mini .pill { display: none; }
+.card.mini .body { margin-top: 14px; }
+.card.mini .qrwrap { margin-top: 12px; }
+.card.mini .qrbox { width: 256px; height: 256px; padding: 8px; border-radius: 14px; }   /* still scannable */
+.card.mini .qrbox .corner { display: none; }
+.card.mini .foot { margin: 14px -22px 0; padding: 0 22px 14px; min-height: 0; }
+.card.mini:not(.type-qr) .body { display: none; }
+.card.mini.type-qr h2 { display: none; }
+
+/* captions and the talk button move aside while a card is up (spec 2, 'card shown') */
+#stage.carding #captions { left: 120px; right: 860px; text-align: left; font-size: 46px; top: 700px; }
+#stage.carding #statusword { left: 120px; right: 860px; text-align: left; top: 660px; }
+#stage.carding.mini-card #captions, #stage.carding.mini-card #statusword { left: 200px; right: 200px; text-align: center; font-size: var(--t-caption); }
+#stage.carding.mini-card #statusword { top: 690px; }
+#stage.carding.mini-card #captions { top: 712px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .card.done { transition: opacity .3s; transform: none; }
+  .card.out { transform: none; }
+  .qrbox.pulse .corner, .status.asking .ear { animation: none; }
+  .status.done path { animation: none; stroke-dashoffset: 0; }
+}
+#stage.reduced .card { transition: opacity .3s; }
