@@ -255,10 +255,10 @@ async def test_visitor_pii_gets_the_privacy_line(settings: Settings) -> None:
     assert r.source == "line:public_screen_privacy" and h.model.calls == []
 
 
-async def test_too_long_falls_back_until_the_designer_adds_a_line(settings: Settings) -> None:
+async def test_too_long_gets_its_own_line(settings: Settings) -> None:
     h = H(settings, ["Never."])
     r = await h.say("word " * 400)
-    assert r.source == "line:guard_fallback" and r.input_guard.code == "too_long"  # type: ignore[union-attr]
+    assert r.source == "line:too_long" and r.input_guard.code == "too_long"  # type: ignore[union-attr]
 
 
 async def test_model_sees_normalized_text(settings: Settings) -> None:

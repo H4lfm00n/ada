@@ -1,30 +1,41 @@
 # Kiosk UI copy. Designer-owned; the engineer only wires it up.
-# v2 (M5a, ENG 2026-11-17): the new keys and `notice` are copied verbatim from
-# docs/ui-spec.md v3 section 7 (light theme, Ada). The v2 keys below them are still used by
-# the staff typing box and the connection states. Please review (D58).
+# v3 (DES, 2026-11-18, reviewed after ENG's D58 copy): split by output mode.
+#   - The plain keys are what ships NOW: screen mode (typed MVP, PM 2026-11-18). They must
+#     never promise a mic, a wake word, or listening that isn't happening.
+#   - `*_spoken` keys are the voice copy (docs/ui-spec.md section 7). ENG: when config
+#     `output_mode: spoken`, use each `<key>_spoken` in place of `<key>` if it exists.
+#     Until that's wired, the plain (screen) keys are the safe default.
+#   - Screen mode: hide the mic indicator entirely (there is no mic; D61 shows "Mic off",
+#     which visitors read as "turn the mic on"). If hiding it is more work than it's worth,
+#     `mic_off` below is fine as a fallback.
 # {{bot_name}} is filled from config; {{seconds}} by the screen.
-# **text** renders bold in `notice` and the talk_* lines. Edit freely; reload the kiosk page
-# to see changes (the server re-reads this file on every page load and websocket connect).
-version: 2
+# **text** renders bold in `notice` and the talk_* lines. Reload the kiosk page to see edits.
+version: 3
 strings:
-  # --- v3 (spec section 7) ---
-  notice: "**AI** · {{bot_name}} is an AI and can make mistakes · Listens only after “Hey {{bot_name}}” or a tap · No audio recorded"
-  talk_idle: "Say **“Hey {{bot_name}}”** or tap to talk"
-  talk_listening: "I'm listening…"
-  talk_interrupt: "Say **“stop”** to interrupt"   # barge-in builds only (M6c)
+  # --- notice + talk button ---
+  notice: "**AI** · {{bot_name}} is an AI and can make mistakes · Chats are saved as text on this computer · No audio or video"
+  notice_spoken: "**AI** · {{bot_name}} is an AI and can make mistakes · Listens only after “Hey {{bot_name}}” or a tap · No audio recorded"
+  talk_idle: "**Tap here** to ask {{bot_name}} a question"
+  talk_idle_spoken: "Say **“Hey {{bot_name}}”** or tap to talk"
+  talk_listening: "Type your question below"
+  talk_listening_spoken: "I'm listening…"
+  talk_interrupt: "Say **“stop”** to interrupt"   # spoken mode, barge-in builds only (M6c)
+  # --- mic indicator (spoken mode; hidden in screen mode, see header) ---
   mic_off: Mic off
   mic_on: Listening
+  # --- out of order ---
   rest_title: "{{bot_name}} is resting"
   rest_body: Back soon. A lab member can help you in the meantime.
-  # --- v2, still used ---
-  status_listening: Listening
+  # --- status words ---
+  status_listening: Listening        # spoken mode only; screen mode shows no status word while typing
   status_thinking: Thinking
   status_reconnecting: Reconnecting
   status_out_of_order: Out of order
   status_connection_lost: Connection lost
-  placeholder_idle: Type a question and press Enter
-  placeholder_ready: Ask me anything else
+  # --- typing box (the visitor's input in screen mode; staff-only in spoken mode) ---
+  placeholder_idle: Type a question, then press Enter
+  placeholder_ready: Ask me something else
   placeholder_fallback: Try asking another way
   hint_busy: One sec, still answering
-  still_there: "Still there? I'll reset for the next visitor in {{seconds}}."
+  still_there: "Still there? I'll reset for the next visitor in {{seconds}} seconds."
   connection_lost_line: I'm having trouble connecting. Please ask a lab member.

@@ -142,13 +142,13 @@ def test_real_catalog_loads_with_placeholder_qr_cards(repo_root: Path) -> None:
         "qr_project_proposal", "qr_discord", "map_where_we_are", "events_this_month",
         "equipment_spotlight", "compute_rules", "campus_help", "ai_fact",
     }  # fmt: skip
-    for cid, note in [
-        ("qr_discord", "Discord invite coming soon"),
-        ("qr_project_proposal", "Proposal form link coming soon"),
-    ]:
+    for cid, what in [("qr_discord", "discord invite"), ("qr_project_proposal", "proposal form")]:
         d = cat.cards[cid].data
         assert d["url"] == PLACEHOLDER and d["placeholder"] is True
-        assert d["placeholder_note"] == note
+        note = d[
+            "placeholder_note"
+        ].lower()  # DES53 copy, e.g. "Our Discord invite is coming soon..."
+        assert what in note and "coming soon" in note
     # The UI never gets server-only fields.
     for c in cat.cards.values():
         assert not {"say_before", "triggers", "doc_sections", "source", "approved"} & set(c.data)

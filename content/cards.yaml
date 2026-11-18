@@ -19,6 +19,16 @@
 # Approval: every card starts `enabled: false` with `approved: TODO(PM)`. The PM flips
 # `approved: yes` + `enabled: true` per card after reading it. The engineer must refuse
 # to load an enabled card whose `approved` isn't `yes`.
+#
+# Prompt slot (DES52): the engineer builds {{card_list}} in prompts/system_prompt.md from
+# every card that is enabled AND approved, one line each: "- <id>: <prompt_hint>". If none
+# qualify, the slot is the word "none". So flipping a card on here is the ONLY step needed
+# to offer it to the model; nothing in the prompt lists IDs by hand any more.
+# `prompt_hint` is written for the model (what the card is + when to use it), not shown.
+#
+# Placeholders (DES53): `placeholder: true` marks a card whose URL is a stand-in. Its
+# `placeholder_note` says what is coming and where the code really goes; the visible copy
+# (title, qr_caption, say_before, on_yes) and the prompt_hint must say the same thing.
 
 version: 1
 
@@ -27,67 +37,87 @@ defaults:
   retry_after_s: 10           # after "no / one sec", ask once more after this
   auto_hide_s: 60
   mini_when_new_question: true  # keep card small in the corner while answering something else
-  # PM 2026-11-18: until the real links arrive, both QR cards point to the official SFSU page
-  # that links our Discord. While a card's `url` equals this, its `placeholder_note` shows on
-  # screen. Swapping in the real link is ONE line (the card's `url:`); the note goes away.
+  # ENG (D68): while a card's `url` equals this, its `placeholder_note` shows on screen. When the
+  # real link arrives, swapping the card's `url` is enough for the note to disappear.
   placeholder_url: "https://ai.sfsu.edu/ai-students"
 
 cards:
 
   # ------------------------------------------------------------------ QR cards (2 only)
 
+  # MVP placeholders (PM decision 2026-11-18): both QR cards ship now and BOTH open SFSU's
+  # AI for Students page (ai.sfsu.edu/ai-students, already cited across lab_docs/), with an
+  # honest "coming soon" note, until the real proposal-form URL and a permanent Discord
+  # invite exist. When a real URL arrives: swap `url`, set `placeholder: false`, delete
+  # `placeholder_note`, restore the "real" copy kept in the comments, update prompt_hint,
+  # and update lab_docs/join.md + faq.md in the same PR.
+  # Display: cards.js shows `title` and `qr_caption` on QR cards (subtitle is hidden for QR),
+  # so the coming-soon note lives in those two fields. No code change needed.
+
   - id: qr_project_proposal
     type: qr
     enabled: true
-    approved: yes        # PM 2026-11-18 (placeholder URL for the MVP)
+    approved: yes            # PM 2026-11-18: placeholder URL approved for the MVP
     placeholder: true
-    placeholder_note: "Proposal form link coming soon"
-    title: "Submit a project proposal"
-    subtitle: "Scan with your phone camera"
-    # TODO(PM): no project-proposal / "student request form" URL exists in lab_docs yet.
-    # The only form URL in lab_docs is the "Join now!" sign-up form (join.md, HTML comment).
-    # Is the join form the same as the student request form? If yes, use it here and add
-    # a sentence to join.md saying so; if no, give me the real form URL and I'll add it to
-    # join.md so the docs and the card agree.
-    url: "https://ai.sfsu.edu/ai-students"   # TODO(PM): real proposal form URL (one-line swap)
-    say_before: "I've put a QR code on the screen. Point your phone camera at it to open the proposal form."
+    placeholder_note: "The proposal form link is coming soon. This code opens SFSU's AI for Students page."
+    title: "Proposal form: coming soon"
+    qr_caption: "For now, scan for SFSU's AI for Students page."
+    # TODO(PM): real student request / project proposal form URL. The only form URL in
+    # lab_docs is the "Join now!" sign-up form (join.md). Real-card copy for later:
+    #   title: "Submit a project proposal"
+    #   say_before: "I've put a QR code on the screen. Point your phone camera at it to open the proposal form."
+    #   on_yes: "Awesome! The team will follow up with you. Anything else?"
+    url: "https://ai.sfsu.edu/ai-students"
+    prompt_hint: >-
+      QR code for SFSU's AI for Students page. The proposal form link itself is coming soon,
+      so this is a stand-in. Use when someone asks how to propose or submit a project. Say
+      plainly that the form link is coming soon and the code opens SFSU's AI for Students page.
+    say_before: "The proposal form link is coming soon. For now, I've put a QR code on the screen for SFSU's AI for Students page."
     confirm: "Did you get it?"
-    on_yes: "Awesome! The team will follow up with you. Anything else?"
+    on_yes: "Great! A lab member can tell you more about proposals, too. Anything else?"
     on_no: "No rush, take your time."
     on_no_or_timeout: "No rush, it'll stay up for a bit."
     auto_hide_s: 60
     triggers: [project proposal, submit a project, start a project, student request form, propose a project, request form]
     doc_sections: ["join.md#How to start a project", "faq.md#Are there dues, and what happens after I submit a request form?"]
-    source: "join.md, projects.md, equipment.md, faq.md (process only; URL pending)"
+    source: "join.md, projects.md, equipment.md, faq.md (process only); URL = placeholder (faq.md cites ai.sfsu.edu/ai-students)"
 
   - id: qr_discord
     type: qr
     enabled: true
-    approved: yes        # PM 2026-11-18 (placeholder URL for the MVP)
+    approved: yes            # PM 2026-11-18: placeholder URL approved for the MVP
     placeholder: true
-    placeholder_note: "Discord invite coming soon"
-    title: "Join the Student AI Commons Discord"
-    subtitle: "Scan with your phone camera"
+    placeholder_note: "Our Discord invite is coming soon. This code opens SFSU's AI for Students page."
+    title: "Discord invite: coming soon"
+    qr_caption: "For now, scan for SFSU's AI for Students page."
     # TODO(PM): permanent, non-expiring invite URL (spec 8.1). join.md says the old invite
-    # changed and must not be re-added. Update lab_docs/join.md (faq.md "How do I join")
-    # in the same PR as this URL.
-    url: "https://ai.sfsu.edu/ai-students"   # TODO(PM): permanent Discord invite (one-line swap)
-    say_before: "I've put the Discord QR code on the screen. Scan it with your phone camera to join."
+    # changed and must not be re-added. Real-card copy for later:
+    #   title: "Join the Student AI Commons Discord"
+    #   say_before: "I've put the Discord QR code on the screen. Scan it with your phone camera to join."
+    #   on_yes: "Nice, see you in there! Anything else?"
+    url: "https://ai.sfsu.edu/ai-students"
+    prompt_hint: >-
+      QR code for SFSU's AI for Students page. The lab's own Discord invite is coming soon,
+      so this is a stand-in. Use when someone asks about the Discord or how to join the
+      Student AI Commons. Say plainly that the Discord invite is coming soon and the code
+      opens SFSU's AI for Students page. Never say or write a Discord link.
+    say_before: "Our Discord invite is coming soon. For now, I've put a QR code on the screen for SFSU's AI for Students page."
     confirm: "Did you scan it?"
-    on_yes: "Nice, see you in there! Anything else?"
+    on_yes: "Nice! Check back soon for the Discord invite. Anything else?"
     on_no: "No rush, take your time."
     on_no_or_timeout: "No rush, it'll stay up for a bit."
     auto_hide_s: 60
     triggers: [discord, join the discord, discord server, group chat, how do i join]
     doc_sections: ["faq.md#How do I join the Student AI Commons?"]
-    source: "faq.md (Discord is linked from ai.sfsu.edu/ai-students; URL pending)"
+    source: "faq.md (Discord and Join now! are linked from ai.sfsu.edu/ai-students); invite URL pending"
 
   # -------------------------------------------------- info cards (no links, no QR, no URLs)
 
   - id: map_where_we_are
     type: directions
     enabled: true
-    approved: yes        # PM 2026-11-18 (MVP)
+    approved: yes        # PM 2026-11-18 decision 2: all info cards on for the MVP
+    prompt_hint: "Directions card to the AI Studio. Use when someone asks where the lab or AI Studio is."
     title: "Where we are"
     lines:
       - "AI Studio · LIB 260"
@@ -106,7 +136,8 @@ cards:
   - id: events_this_month
     type: list
     enabled: true
-    approved: yes        # PM 2026-11-18 (MVP)
+    approved: yes        # PM 2026-11-18 decision 2: all info cards on for the MVP
+    prompt_hint: "List of upcoming events. Use when someone asks what's happening."
     title: "What's happening"
     # Built at runtime by the engineer from lab_docs/meetings-events.md: only sections whose
     # heading doesn't say "(past)", and only dated items on or after today. Never generated
@@ -126,7 +157,8 @@ cards:
   - id: equipment_spotlight
     type: spotlight
     enabled: true
-    approved: yes        # PM 2026-11-18 (MVP)
+    approved: yes        # PM 2026-11-18 decision 2: all info cards on for the MVP
+    prompt_hint: "Picture card of lab equipment. Use when someone asks what equipment the lab has."
     title: "Equipment for student projects"
     items:
       - "Robotic dogs"
@@ -145,7 +177,8 @@ cards:
   - id: compute_rules
     type: checklist
     enabled: true
-    approved: yes        # PM 2026-11-18 (MVP)
+    approved: yes        # PM 2026-11-18 decision 2: all info cards on for the MVP
+    prompt_hint: "Checklist of computer and printer rules. Use for GPU, overnight, or remote-access questions."
     title: "Computer rules"
     items:
       - "No remote access to AI Lab computers"
@@ -160,7 +193,8 @@ cards:
   - id: campus_help
     type: contact
     enabled: true
-    approved: yes        # PM 2026-11-18 (MVP)
+    approved: yes        # PM 2026-11-18 decision 2: all info cards on for the MVP
+    prompt_hint: "Emergency and crisis contacts. Use whenever you tell someone to call 911 or 988."
     title: "Get help now"
     # Pairs with the emergency / crisis_support lines. No jokes, no idle acts, no auto-hide
     # while the visitor is still there. Shown big, high contrast.
@@ -180,7 +214,8 @@ cards:
   - id: ai_fact
     type: fun
     enabled: true
-    approved: yes        # PM 2026-11-18 (MVP)
+    approved: yes        # PM 2026-11-18 decision 2: all info cards on for the MVP
+    prompt_hint: "A fun AI fact. Use when someone asks you to tell them something cool."
     title: "Did you know?"
     # Facts are pre-written and reviewed, never generated live. General AI/CS knowledge,
     # no lab facts, no numbers that go stale.

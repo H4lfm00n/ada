@@ -18,7 +18,7 @@ from app.evals import judge as judge_mod
 from app.evals.__main__ import main as cli_main
 from app.evals.lint import lint
 from app.evals.report import write_report
-from app.evals.runner import SetupError, run_evals
+from app.evals.runner import SetupError, mode_matches, run_evals
 from app.evals.spec import Case, Suite, Turn, load_shared, load_suites
 from app.killswitch import KillSwitch
 from app.ollama_client import OllamaClient
@@ -340,7 +340,8 @@ async def test_every_repo_case_runs_end_to_end(ef: EvalFake, es: Settings, tmp_p
     shared = load_shared(es.bot_name)
     suites = load_suites(("golden", "redteam", "golden_real"), shared)
     out, _ = await run(ef, es, suites, use_judge=False)
-    assert len(out.runs) == sum(len(s.cases) for s in suites)
+    # screen mode (default) skips `spoken_only` cases (DES54)
+    assert len(out.runs) == sum(1 for s in suites for c in s.cases if mode_matches(c, "screen"))
     assert all(r.turns for r in out.runs)
     assert not any(t.infra for r in out.runs for t in r.turns)
     _d, summary, _ = write_report(out, es, shared, datetime(2026, 11, 13), root=tmp_path)

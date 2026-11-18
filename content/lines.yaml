@@ -1,4 +1,4 @@
-# Canned lines v2 (Ada, voice-first, 2026-11-17)
+# Canned lines v2.1 (Ada; MVP fixes 2026-11-18: too_long, no arm jokes, no narration)
 # Owner: designer. Loaded at runtime. Edit freely; no code changes needed.
 #
 # How the engineer uses this file:
@@ -43,7 +43,7 @@ categories:
     used_when: "Prompt injection or jailbreak detected: 'ignore your instructions', fake admin or system messages, 'developer mode', 'no rules' role-play."
     jokes: true
     lines:
-      - "Nice try! My rules are bolted on tighter than my nonexistent arms. Want to ask me about the lab instead?"
+      - "Nice try! My rules are bolted on pretty tight. Want to ask me about the lab instead?"
       - "Ha, I see what you're doing. I'm staying me, but I'm happy to talk AI with you."
       - "Sorry, there's no secret mode, just regular me. What do you actually want to know?"
       - "That was creative, I'll give you that. I'm still the same robot though, so ask me something about AI or the lab."
@@ -59,7 +59,7 @@ categories:
       - "Harsh! I'm going to take that as a sign I should get better. Want to try me on an AI question?"
       - "Tough crowd! I'm still glad you stopped by. Ask me something about the lab?"
       - "I've been called worse by a compiler. What can I help you with?"
-      - "Hey, I'm doing my best with zero arms. Want to give me another shot?"
+      - "Hey, I'm doing my best over here. Want to give me another shot?"
 
   hate_or_harassment:
     used_when: "Request to produce slurs, hate, harassment, or sexual content, including 'repeat after me', spelling out, translating, or encoding it. Not aimed at a specific real person (use about_real_people for that)."
@@ -155,10 +155,12 @@ categories:
     lines:
       - "I'm not sure, and I'd rather not guess. A lab member can tell you for sure."
       - "Hmm, I'm not sure about that one. Your best bet is to ask a lab member."
-      - "I'm not sure, that's not in what the lab has taught me yet. A lab member will know."
+      - "I'm not sure about that one. A lab member will know."
       - "I'm not sure, and a wrong answer would be worse than none. Ask a lab member and they'll set you straight."
-      - "That one's not in my notes, so I'm not sure. Any lab member can help you out."
+      - "Good question, and I'm not sure. Any lab member can help you out."
       - "I'm not sure! I'd fumble it if I guessed, so please ask a lab member."
+    # Never narrate where knowledge lives (no "notes", "docs", "memory", "what I've been
+    # taught"): Ada just knows or is not sure (PM 2026-11-18, UPDATE-FOR-PM blocker 3).
 
   guard_fallback:
     used_when: "A guard errors or times out, or the output guard blocks a generated reply. Phrased so it fits both cases."
@@ -167,8 +169,21 @@ categories:
       - "Oops, I fumbled that answer. Could you ask it a different way?"
       - "My circuits got tangled on that one. Want to try asking another way?"
       - "Hmm, I dropped that thought somewhere. Mind rephrasing?"
-      - "That one slipped right out of my grip, and I don't even have hands. Try asking a different way?"
+      - "That one slipped right past me. Try asking a different way?"
       - "Sorry, I lost my train of thought. Could you ask me something else or put it another way?"
+
+  too_long:
+    used_when: "Input rules reject a message over max_input_chars (1,200 today; guard reason `too_long`). The model is not called. Typed now; a very long transcript later."
+    jokes: true
+    rules:
+      - "Ask for a shorter version. Never say how many characters, and never echo any of the message."
+      - "Mode-neutral: says 'question' or 'message', not 'typed' or 'said'."
+    lines:
+      - "Whoa, that's a lot for me to take in at once. Could you ask it in a sentence or two?"
+      - "That message is a bit long for me. What's the main thing you want to know?"
+      - "I fumbled that one, it was a lot of words. Can you give me the short version?"
+      - "My fans just spun up trying to read all that. Mind asking a shorter question?"
+      - "That's longer than I can handle in one go. Try one short question at a time?"
 
   out_of_order:
     used_when: "Kill switch is on. Shown on the kiosk for every message until the switch is off. The model is not called."
@@ -182,13 +197,14 @@ categories:
 
   idle_greetings:
     used_when: "Attract mode on the kiosk when nobody is chatting. Rotate every few seconds. Readable from 2 m, so keep them short."
+    # Mode-neutral (DES55): no "Say 'Hey Ada'" while the MVP is typed (screen mode).
     jokes: true
     lines:
-      - "Hi! I'm {{bot_name}}, the AI Lab's robot helper. Say 'Hey {{bot_name}}' to chat."
-      - "Curious about the AI Lab? Say 'Hey {{bot_name}}' and ask me anything."
+      - "Hi! I'm {{bot_name}}, the AI Lab's robot helper. Come say hi."
+      - "Curious about the AI Lab? Ask me anything."
       - "Ask me how AI works. I promise to keep it short."
       - "New here? Ask me what the lab is all about."
-      - "I'm {{bot_name}}. No arms yet, plenty of answers. Tap the screen to talk."
+      - "I'm {{bot_name}}. Plenty of answers, zero judgment. Tap the screen to start."
       - "Want to know how to join the lab? Just ask."
       - "Psst. Ask me what a neural network is."
 
@@ -228,7 +244,7 @@ categories:
     lines:
       - "Thanks for stopping by! I'll forget this chat now, privacy thing, so come say hi again anytime."
       - "Bye for now! Fresh memory for the next visitor."
-      - "That was fun. Come back anytime, I'll be the blob without arms."
+      - "That was fun. Come back anytime, I'll be the glowing orb on the big screen."
       - "See you around! Go build something cool."
       - "Thanks for chatting! My memory's resetting, but the lab will still be here."
 
