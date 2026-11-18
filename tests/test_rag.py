@@ -704,7 +704,7 @@ def test_diagnose_cases_load_and_point_at_real_files(repo_root: Path) -> None:
     from app.rag.diagnose import load_cases
 
     cases = load_cases(repo_root / "evals" / "real_docs_qa.yaml")
-    assert [c.n for c in cases] == list(range(21))
+    assert [c.n for c in cases] == list(range(26))
     from app.rag.diagnose import matches
 
     corpus = parse_corpus(repo_root / "lab_docs")
