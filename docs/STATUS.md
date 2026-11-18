@@ -75,6 +75,8 @@ _Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). B
   - **After run 1:** smooth shaded solid blob, phases integrated, no per-word pulsing, no strobe
     (D64). Sandbox: 370 pass with the kill switch on or off; acts and states re-checked in
     headless Chrome; ~0.4 ms/frame of JS.
+  - **PM, after D64: "add substance, like Siri"** -> glass orb with flowing pink/sky/lavender
+    light inside and a soft halo (D66). Needs a GB10 look check.
   - Rename: `bot_name` default Ada, tests, one line of the repo `CLAUDE.md` (D63).
   - `ui/blob.js`: Three.js shaded blob (wireframe until D64), noise + breathing, all 8 spec 3.3 states
     (+ gray "lost"), card pose, DES51 audio envelope, motions for all 17 playable idle acts.
@@ -375,7 +377,8 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 - Mic indicator: off until real audio capture (D61). Tell me if you want different copy meanwhile.
 - The rotating `idle_greetings` captions are gone; idle acts replace them. The lines stay in
   lines.yaml (the server still sends them).
-- **The blob is no longer a wireframe (PM, D64):** a smooth shaded solid in the accent purples.
+- **The blob is no longer a wireframe (PM, D64, D66):** a violet glass orb with ribbons of pink,
+  sky and lavender light inside and a soft halo; these three hues live only inside the orb.
   Spec v3 section 3 and the mockup still say wireframe; please update them when you can.
   `wireframe_wave` and `count_vertices` keep their ids but now show a soft band / a light
   sweep from the top. The arm daydream is a bent capsule, not a jointed arm.

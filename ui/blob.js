@@ -3,8 +3,9 @@
 //
 // A finely subdivided sphere deformed in the vertex shader by slow, low-frequency 3D simplex
 // noise plus a breathing term and the audio swell; normals are re-derived in the shader so
-// the shading stays smooth. Lit with a soft wrap light, a gentle rim and a small highlight,
-// so it reads as a calm, matte-glossy purple blob on the light background.
+// the shading stays smooth. It reads as a violet glass orb: a bright rim and a crisp highlight
+// outside, and soft ribbons of pink, sky and lavender light flowing inside at two depths,
+// with a colored halo behind it (PM, D66). State sets how bright and how fast the light flows.
 //
 // Smoothness rules (the v1 wireframe twitched):
 //   - Every phase is integrated (phase += rate * dt), never `time * rate`, so changing a rate
@@ -56,7 +57,7 @@ uniform float uNoiseT, uAmp, uFreq, uBreath, uSwell, uSwellT, uG;
 uniform float uCube, uStar, uArmM, uArmBend, uRippleC, uRippleA, uWaveC, uWaveA;
 uniform float uGazeAmt, uCountC, uCountFade, uSweep, uSweepT;
 uniform vec3 uRight, uUp, uFront, uGaze;
-varying vec3 vN; varying vec3 vV; varying float vGlow;
+varying vec3 vN; varying vec3 vV; varying vec3 vD; varying float vGlow;
 ${NOISE}
 vec3 shapeAt(vec3 d, out float h){
   float U=dot(d,uUp), F=dot(d,uFront), X=dot(d,uRight);
@@ -87,44 +88,78 @@ void main(){
   vec3 n=normalize(cross(p1-p,p2-p)); if(dot(n,d)<0.0) n=-n;
   vN=normalize(normalMatrix*n);
   vec4 mv=modelViewMatrix*vec4(p,1.0);
-  vV=-mv.xyz; vGlow=h;
+  vV=-mv.xyz; vGlow=h; vD=d;
   gl_Position=projectionMatrix*mv;
 }`;
 
 const FRAG = /* glsl */`
-uniform vec3 uDeep, uLight, uRim; uniform float uGray, uBright, uOpacity;
-varying vec3 vN; varying vec3 vV; varying float vGlow;
+uniform vec3 uDeep, uMid, uRim, uC1, uC2, uC3;
+uniform float uGray, uBright, uOpacity, uFlowT, uEnergy, uSwellF;
+varying vec3 vN; varying vec3 vV; varying vec3 vD; varying float vGlow;
+${NOISE}
+// Three soft ribbons of light winding through the orb, warped by slow noise so they flow.
+vec3 ribbons(vec3 q, float t){
+  float n1=snoise(q*0.75+vec3(0.0,t*0.22,t*0.14));
+  float n2=snoise(q*1.05+vec3(t*0.17,0.0,-t*0.2)+n1*0.4);
+  float b1=abs(sin(q.y*1.5+n1*0.9+t*0.55));
+  float b2=abs(sin(dot(q,normalize(vec3(0.8,0.3,0.5)))*1.7+n2*0.85-t*0.45));
+  float b3=abs(sin(dot(q,normalize(vec3(-0.4,0.7,0.6)))*1.3+(n1+n2)*0.6+t*0.35));
+  return uC1*pow(1.0-b1,4.0)+uC2*pow(1.0-b2,4.0)+uC3*0.8*pow(1.0-b3,3.5);
+}
 void main(){
   vec3 n=normalize(vN), v=normalize(vV);
+  float facing=max(dot(n,v),0.0);
   vec3 L=normalize(vec3(-0.45,0.75,0.55));
-  float diff=smoothstep(0.0,1.0,dot(n,L)*0.5+0.5);       // soft wrap light
-  vec3 col=mix(uDeep,uLight,diff);
-  float rim=pow(1.0-max(dot(n,v),0.0),2.4);
-  col=mix(col,uRim,rim*0.5);                                // gentle edge glow
-  col+=pow(max(dot(reflect(-L,n),v),0.0),30.0)*0.22;      // small soft highlight
-  col=mix(col,uRim,vGlow*0.55);                             // act highlights
-  col=mix(col,uLight,uBright*0.35);
-  vec3 gray=mix(vec3(0.50,0.52,0.56),vec3(0.84,0.85,0.87),diff); gray=mix(gray,vec3(0.93),rim*0.4);
+  float diff=smoothstep(0.0,1.0,dot(n,L)*0.5+0.5);
+  vec3 col=mix(uDeep,uMid,diff*0.55+(1.0-facing)*0.25);      // deep violet glass, lighter toward the edge
+  float e=uEnergy*(1.0+uSwellF*0.9);
+  // two layers at different depths: parallax makes it read as light inside a volume
+  vec3 inner=ribbons(vD,uFlowT)+0.4*ribbons(vD*0.7+vec3(0.31,-0.22,0.13),uFlowT*0.8+3.1);
+  col+=inner*e*0.8*(0.3+0.7*smoothstep(0.0,0.85,facing));
+  col+=uC3*0.28*e*pow(facing,3.0);                           // soft inner core
+  float rim=pow(1.0-facing,2.6);
+  col=mix(col,uRim,rim*0.75);                                // bright glassy edge
+  vec3 R=reflect(-L,n); float sp=max(dot(R,v),0.0);
+  col+=pow(sp,70.0)*0.75+pow(sp,8.0)*0.07;                   // crisp highlight + sheen
+  col=mix(col,uRim,vGlow*0.45);
+  col=mix(col,uRim,uBright*0.25);
+  vec3 gray=mix(vec3(0.42,0.44,0.48),vec3(0.80,0.81,0.84),diff); gray=mix(gray,vec3(0.94),rim*0.6);
+  gray+=pow(sp,70.0)*0.5;
   col=mix(col,gray,uGray);
-  gl_FragColor=vec4(col,uOpacity);
+  gl_FragColor=vec4(clamp(col,0.0,1.0),uOpacity);
+}`;
+
+// The halo: a soft colored glow behind the orb, slowly shifting hue.
+const HALO_VERT = /* glsl */`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`;
+const HALO_FRAG = /* glsl */`
+uniform vec3 uC1, uC2, uC3; uniform float uHalo, uFlowT; varying vec2 vUv;
+void main(){
+  vec2 p=vUv*2.0-1.0; float r=length(p), a=atan(p.y,p.x);
+  vec3 c=mix(uC1,uC2,0.5+0.5*sin(a+uFlowT*0.4));
+  c=mix(c,uC3,0.25+0.25*sin(a*2.0-uFlowT*0.3));
+  float x=max(r-0.52,0.0)/0.2;
+  gl_FragColor=vec4(c,uHalo*0.38*exp(-x*x)*smoothstep(1.0,0.75,r));
 }`;
 
 const rgb = hex => new THREE.Vector3(((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255);
-const DEEP = 0x4C1D95, LIGHT = 0xA78BFA, RIM = 0xEDE9FE;   // around --accent #7C3AED
+// Ada's palette: violet glass around --accent #7C3AED, with pink, sky and lavender light inside.
+const DEEP = 0x2E1065, MID = 0x6D28D9, RIM = 0xEDE9FE, C1 = 0xF472B6, C2 = 0x60A5FA, C3 = 0xC4B5FD;
 
 // ---------------------------------------------------------------- look parameters
 // Units: 1 world unit = 260 design px (spec: r ~ 260 px); y = 0.615 puts the centre at 380 px.
-const BASE = { amp: .036, freq: .85, speed: .14, spin: .05, scale: 1, sx: 1, sy: 1, x: 0, y: .615, tilt: 0,
-  op: 1, bright: 0, gray: 0, sweep: 0, breath: 1 };
+const BASE = { amp: .026, freq: .85, speed: .14, spin: .05, scale: 1, sx: 1, sy: 1, x: 0, y: .615, tilt: 0,
+  op: 1, bright: 0, gray: 0, sweep: 0, breath: 1, energy: .75, flow: .3, halo: .6 };
 const STATES = {
   idle:      {},
-  waking:    { amp: .055, speed: .3, scale: 1.05, y: .7, bright: .5 },
-  listening: { amp: .05, speed: .25, scale: 1.03, y: .65, bright: .15 },
-  thinking:  { amp: .035, freq: 1.15, speed: .4, scale: .95, sweep: 1 },
-  speaking:  { amp: .038, speed: .2 },
-  confused:  { amp: .06, speed: .25, scale: .98 },
-  out:       { amp: .012, speed: .05, spin: 0, scale: .82, sy: .6, y: .32, gray: 1, breath: .2, op: .92 },
-  lost:      { amp: .02, speed: .08, spin: 0, scale: .86, sy: .82, y: .45, gray: .85, breath: .4, op: .88 },
+  waking:    { amp: .04, speed: .3, scale: 1.05, y: .7, bright: .5, energy: 1.15, flow: .6, halo: .95 },
+  listening: { amp: .036, speed: .25, scale: 1.03, y: .65, bright: .15, energy: .95, flow: .45, halo: .85 },
+  thinking:  { amp: .026, freq: 1.15, speed: .4, scale: .95, sweep: 1, energy: 1, flow: .95, halo: .9 },
+  speaking:  { amp: .03, speed: .2, energy: .9, flow: .45, halo: .8 },
+  confused:  { amp: .045, speed: .25, scale: .98, energy: .7, flow: .35 },
+  out:       { amp: .012, speed: .05, spin: 0, scale: .82, sy: .6, y: .32, gray: 1, breath: .2, op: .92,
+               energy: 0, flow: .03, halo: 0 },
+  lost:      { amp: .02, speed: .08, spin: 0, scale: .86, sy: .82, y: .45, gray: .85, breath: .4, op: .88,
+               energy: .1, flow: .05, halo: 0 },
 };
 const SHOWING = { scale: .62, x: -1.87, y: .69, tilt: -.12 };   // card pose (spec 3.3)
 
@@ -198,18 +233,25 @@ export function createBlob(canvas) {
     uGazeAmt: { value: 0 }, uCountC: { value: 0 }, uCountFade: { value: 0 }, uSweep: { value: 0 }, uSweepT: { value: 0 },
     uRight: { value: new THREE.Vector3(1, 0, 0) }, uUp: { value: new THREE.Vector3(0, 1, 0) },
     uFront: { value: new THREE.Vector3(0, 0, 1) }, uGaze: { value: new THREE.Vector3(0, 0, 1) },
-    uDeep: { value: rgb(DEEP) }, uLight: { value: rgb(LIGHT) }, uRim: { value: rgb(RIM) },
+    uDeep: { value: rgb(DEEP) }, uMid: { value: rgb(MID) }, uRim: { value: rgb(RIM) },
+    uC1: { value: rgb(C1) }, uC2: { value: rgb(C2) }, uC3: { value: rgb(C3) },
     uGray: { value: 0 }, uBright: { value: 0 }, uOpacity: { value: 1 },
+    uFlowT: { value: 0 }, uEnergy: { value: BASE.energy }, uSwellF: { value: 0 },
   };
   const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: VERT, fragmentShader: FRAG, transparent: true });
   const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 40), mat);
   const group = new THREE.Group();
   group.add(mesh);
-  scene.add(group);
+  const haloU = { uC1: uniforms.uC1, uC2: uniforms.uC2, uC3: uniforms.uC3, uHalo: { value: 0 }, uFlowT: { value: 0 } };
+  const halo = new THREE.Mesh(new THREE.PlaneGeometry(4, 4),
+    new THREE.ShaderMaterial({ uniforms: haloU, vertexShader: HALO_VERT, fragmentShader: HALO_FRAG,
+      transparent: true, depthWrite: false }));
+  halo.renderOrder = -1;
+  scene.add(halo, group);
   // juggling balls: the same look, no deformation
   const balls = [0, 1, 2].map(() => {
     const m = mat.clone();
-    m.uniforms.uAmp.value = 0; m.uniforms.uOpacity.value = 0;
+    m.uniforms.uAmp.value = 0; m.uniforms.uOpacity.value = 0; m.uniforms.uEnergy.value = .8;
     const b = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 8), m);   // the shader normalizes,
     b.scale.setScalar(.17);                                              // so size comes from scale
     b.visible = false; scene.add(b); return b;
@@ -220,7 +262,7 @@ export function createBlob(canvas) {
   let level = 0, levelTarget = 0, swell = 0, levelAt = 0;
   let act = null;   // { id, fn, t0, dur }
   let t = 0, last = performance.now(), frames = 0, fpsVal = 0, fpsAt = performance.now(), cpuMs = 0;
-  let rotY = 0, noiseT = 0, breathPh = 0, swellT = 0, sweepT = 0, wobbleT0 = -1;
+  let rotY = 0, noiseT = 0, breathPh = 0, swellT = 0, sweepT = 0, flowT = 0, wobbleT0 = -1;
   const AV = {};   // smoothed act values, so acts fade in and out instead of popping
   const qInv = new THREE.Quaternion();
 
@@ -254,6 +296,7 @@ export function createBlob(canvas) {
     breathPh += dt * 2 * Math.PI / (A && A.breathPeriod ? A.breathPeriod : 5);
     swellT += dt * 1.4;
     sweepT += dt * 1.1;
+    flowT += P.flow * dt * (reducedOn ? .4 : 1);
     rotY += P.spin * dt * (reducedOn ? 0 : 1);
 
     // confused: one gentle wobble-tilt (±0.09 rad over 1.2 s)
@@ -298,6 +341,10 @@ export function createBlob(canvas) {
     U.uUp.value.set(0, 1, 0).applyQuaternion(qInv);
     U.uFront.value.set(0, 0, 1).applyQuaternion(qInv);
     U.uGray.value = P.gray; U.uBright.value = P.bright * (1 - P.gray); U.uOpacity.value = P.op;
+    U.uFlowT.value = flowT; U.uEnergy.value = P.energy; U.uSwellF.value = swell;
+    halo.position.set(P.x, P.y, -.9);
+    halo.scale.setScalar(P.scale * (1 + .04 * swell));
+    haloU.uHalo.value = P.halo * (1 + .5 * swell); haloU.uFlowT.value = flowT;
 
     // juggling balls
     const B = A && A.balls;
@@ -314,7 +361,7 @@ export function createBlob(canvas) {
       }
       if (jt < .6) op *= smooth(0, .6, jt);
       b.position.set(x, y, .6); b.visible = true; b.rotation.y += dt;
-      bu.uOpacity.value = op; bu.uGray.value = P.gray;
+      bu.uOpacity.value = op; bu.uGray.value = P.gray; bu.uFlowT.value = flowT + i * 2.0;
     });
 
     renderer.render(scene, camera);

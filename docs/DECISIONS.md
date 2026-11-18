@@ -856,3 +856,15 @@ had 3 failures (`test_chat` x2, `test_rag_diagnose_end_to_end`): the kill switch
 path. Reproduced in the sandbox. An autouse fixture now points `ADA_KILL_SWITCH_FILE` and
 `ADA_TRANSCRIPTS_DIR` at a temp folder. Not an M5a regression.
 
+**D66 (2026-11-17, PM: "add structure/substance, like how Siri looks"). The blob becomes a
+glass orb with flowing light inside.** An original design in Ada's palette, not a copy of
+any product's assistant: a deep violet glass body (`#2E1065` -> `#6D28D9`), a bright
+lavender rim and a crisp highlight, and three broad ribbons of light (pink `#F472B6`, sky
+`#60A5FA`, lavender `#C4B5FD`) winding through it at two depths for parallax, warped by slow
+noise. A soft halo behind it shifts hue slowly. Each state sets the light's energy, flow
+speed and halo (thinking flows fastest; listening/speaking brighten with the audio swell;
+resting and lost are gray glass with no inner light). The silhouette is rounder (noise
+amplitude 0.026). Same integrated, slow-easing motion as D64; ~0.4 ms/frame of JS. This adds
+three hues next to the single accent of ui-spec section 8 (only inside the orb; UI chrome
+stays one accent). Flagged to the designer.
+
