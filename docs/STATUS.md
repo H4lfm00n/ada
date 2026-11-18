@@ -84,6 +84,9 @@ _Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). B
     + faq.md. `make rag-diagnose` gave 26/26 canned lines: it only warmed the chat model, so a cold
     guard timed out on every question (D41 again). Diagnose now warms all models and prints the
     input-guard reason whenever a canned line replaces an answer.
+  - **GB10 rag-diagnose (warm):** 21/26 OK, 0 retrieval misses, first token 1.32 s median [PASS].
+    Real miss: case 15 holds back ai@sfsu.edu (card/no-email prompt rule). Cases 3/11/19/22: checks
+    too narrow (spoken "LIB two-sixty", phrasing); widened. PM summary: docs/UPDATE-FOR-PM.md.
   - Still open from the same check: the phase-2 prompt promises QR cards that don't exist yet
     (cards are M5b, all disabled) and forbids saying emails; Ada also said "I do not have any lab
     facts in my memory" (narration). Next ENG task: card tags stripped + prompt lists only

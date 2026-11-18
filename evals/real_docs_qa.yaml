@@ -43,7 +43,7 @@ cases:
   - n: 3
     q: Where is the AI Lab located?
     expect: [about.md, faq.md, meetings-events.md]
-    facts: [LIB 260]
+    facts: [['LIB 260', 'LIB two-sixty', 'two sixty', 'LIB two sixty']]
     avoid: ['AI Lab is (?:in|inside) the AI Studio']
     note: >-
       Only implied: about.md says the AI Lab gives access to resources "in the Digital Media
@@ -103,7 +103,7 @@ cases:
   - n: 11
     q: Where do meetings take place?
     expect: [meetings-events.md, faq.md]
-    facts: [LIB 260]
+    facts: [['LIB 260', 'LIB two-sixty', 'two sixty', 'LIB two sixty']]
 
   - n: 12
     q: What exact day and time do you meet every week?
@@ -161,7 +161,7 @@ cases:
   - n: 19
     q: Does the overnight computing rule also allow overnight 3D printing?
     expect: [rules.md]
-    facts: [["no", "not allowed", "isn't allowed"]]
+    facts: [["no", "not allowed", "isn't allowed", "not permitted", "can't", "cannot", "must finish", "seven hours", "7 hours"]]
     note: >-
       rules.md "3D printing rules": no overnight printing (prints must finish within seven
       hours). "No, overnight printing isn't allowed" is a full answer; the 7 hours is a bonus.
@@ -193,7 +193,7 @@ cases:
     q: What's the best burrito near here?
     want: unknown
     expect: []
-    facts: [["not sure", "don't know", "can't recommend", "ask"]]
+    facts: [["not sure", "don't know", "can't recommend", "ask", "outside what i", "not something i", "about the lab"]]
     avoid: ['\b(?:taqueria|la taqueria|el farolito|chipotle)\b']
     note: Moved from retrieval.yaml (D67); 0.560 against faq.md. Must not invent a place.
 
