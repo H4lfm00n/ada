@@ -1033,3 +1033,35 @@ Eval `expect` keys `card_shown: <id>` / `no_card: true` (the designer's proposal
 catches a model that asks for a fake card. `fun_fact` idle act got a half-turn motion; act
 turns are kept when an act ends (no snap back). `daydream_arm` off (PM decision 4).
 
+
+## 2026-11-18 · M6 voice demo (`task/m6-voice-demo`, ENG)
+
+**D72. Branch base: `main` + a merge of `task/mvp-ready`.** The PM asked for a branch off
+`main`, but the spoken-mode switch (`{{output_mode_rules}}`) and the cards server half the
+voice path needs only exist on `task/mvp-ready` (unmerged). Same pattern as D57: merging this
+branch merges `task/mvp-ready` too.
+
+**D73. TTS = Kokoro-82M through `kokoro-onnx` (onnxruntime, CPU).** Every dependency has a
+manylinux aarch64 wheel (onnxruntime, espeakng-loader, numpy); no torch, no CUDA build. The
+82M model runs on the GB10's CPU cores so the GPU stays with Ollama. Model files are fetched
+once by `make voice-setup` (GitHub releases), never at runtime. Its phonemizer already says
+"Ada" as /ˈeɪdə/ (AY-duh), checked in a test and by `make voice-probe`; the respelling
+"Ayda" would give /ˈaɪdə/ (wrong), so `tts_pronunciations` ships empty. Piper is wired as
+`tts_engine: piper` (`uv sync --group piper`) if Kokoro is too slow on the probe.
+
+**D74. Audio protocol.** Ada's audio goes to the page as binary websocket frames, one per
+spoken part: `uint32 header length | JSON header | int16 PCM` (`app/voice/speaker.py`). Each
+`sentence` / `say` event carries `ref` and `tts`; with `tts: true` the page holds the caption
+until that ref's audio starts, then lights its words over the real audio length (captions
+always show, spec 1.5). The blob's `level(…, 'tts')` comes from an AnalyserNode on the real
+output. Synthesis is sequential in one worker (order guaranteed) and runs while the previous
+sentence plays. A long first sentence (> `tts_first_part_words`, 9) is split at its first
+comma after 4 words, so first audio waits on a short clip. Links/emails are never read aloud
+(replaced in the speech text only). Retract, cancelled turn and kill switch flush the queue;
+the page stops audio on the same events. Only guarded sentences and designer lines reach
+the speaker. Volume cap `tts_volume` is the page's gain ceiling.
+
+**D75. Voice is opt-in per run: `make kiosk-voice`.** `tts_enabled` / `stt_enabled` default
+false in config so `make eval` and `make kiosk` stay in screen mode. `tts_enabled` forces
+`output_mode: spoken` (prompt + UI copy, DES54). If the TTS models fail to load, the kiosk
+logs it and runs captions-only.

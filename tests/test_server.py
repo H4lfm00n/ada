@@ -786,6 +786,8 @@ def test_tag_shows_the_card_and_never_reaches_the_screen(card_kiosk: Any, fake: 
             "type": "say",
             "text": "Did you scan it?",
             "source": "card:qr_discord",
+            "ref": "say1",
+            "tts": False,  # TTS off in tests (M6a)
         }
     # the output guard never saw the tag either
     guard_texts = [str(r["messages"]) for r in fake.requests

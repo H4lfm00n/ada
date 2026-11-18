@@ -143,6 +143,7 @@ function showStatic(text, opts = {}) {   // shown at once, fully lit (status-lik
   pushCaption(n);
 }
 function clearCaptions() {
+  stopAudio();
   queue = []; clearTimeout(speakingTimer); speakingTimer = null; blob.talking(false);
   caps.replaceChildren(); caps.classList.remove('long');
 }
@@ -152,7 +153,7 @@ function enqueue(text, bold) {
 }
 function speakNext() {
   const item = queue.shift();
-  if (!item) { speakingTimer = null; blob.talking(false); onSpeechDone(); return; }
+  if (!item) { speakingTimer = null; blob.talking(false); if (!audioBusy()) onSpeechDone(); return; }
   const node = sentenceNode(item.text, { bold: item.bold });
   pushCaption(node);
   const words = [...node.querySelectorAll('.w')];
@@ -174,7 +175,134 @@ function onSpeechDone() {
   if (view === 'speaking' || view === 'confused') setView('ready');
   if (afterSpeech) { const f = afterSpeech; afterSpeech = null; f(); }
 }
-const speaking = () => !!speakingTimer || queue.length > 0;
+const speaking = () => !!speakingTimer || queue.length > 0 || audioBusy();
+
+// ---------------------------------------------------------------- Ada's voice (M6a)
+// The server sends one binary frame per spoken part (app/voice/speaker.py): a JSON header
+// {ref, part, last, words, sr} + int16 PCM. A `sentence`/`say` with tts:true holds its
+// caption until its audio starts; then its words light up over the real audio length.
+// The blob pulses with the real output level. Nothing is stored; buffers are dropped
+// after playing. Volume never goes above the server's cap (config tts_volume).
+let voice = { tts: false, stt: false, volume: 0.8, constraints: {} };
+const TTS_WAIT_MS = 8000;      // the next line's audio hasn't started by then: caption it silently
+let actx = null, outGain = null, analyser = null, nextAt = 0, levelRaf = 0;
+const pend = new Map();        // ref -> {text, bold, node, words, said, timer, started}
+let sources = new Set();
+function audioOut() {
+  if (!actx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    actx = new AC();
+    outGain = actx.createGain();
+    analyser = actx.createAnalyser(); analyser.fftSize = 1024;
+    outGain.connect(analyser); analyser.connect(actx.destination);
+  }
+  outGain.gain.value = Math.max(0, Math.min(1, +voice.volume || 0));
+  if (actx.state === 'suspended') actx.resume().catch(() => {});
+  return actx;
+}
+// Browsers only allow sound after a gesture: any tap or key unlocks it.
+['pointerdown', 'keydown'].forEach(t => document.addEventListener(t, () => { if (voice.tts) audioOut(); }, true));
+
+function audioBusy() { return sources.size > 0 || pend.size > 0; }
+function holdCaption(ref, text, bold) {
+  pend.set(ref, { text, bold, node: null, words: [], said: 0, started: false, timer: null });
+  armWait();
+}
+// Only the oldest waiting line has a give-up timer: later lines queue behind its audio.
+function armWait() {
+  for (const [ref, it] of pend) {
+    if (it.started) continue;
+    if (!it.timer) it.timer = setTimeout(() => silentCaption(ref), TTS_WAIT_MS);
+    return;
+  }
+}
+function silentCaption(ref) {   // synthesis failed or too slow: captions still work
+  const item = pend.get(ref);
+  if (!item) return;
+  clearTimeout(item.timer); pend.delete(ref);
+  if (item.started === true) { item.words.forEach(w => w.classList.add('said')); armWait(); checkAudioDone(); return; }
+  enqueue(item.text, item.bold);
+  armWait();
+}
+function onAudioFrame(buf) {
+  if (buf.byteLength < 8) return;
+  const n = new DataView(buf).getUint32(0, true);
+  let h; try { h = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, n))); } catch (_) { return; }
+  const item = pend.get(h.ref);
+  const ctx = audioOut();
+  if (!item || !ctx || blocked()) return;   // flushed, retracted or blocked: drop it
+  clearTimeout(item.timer); item.timer = null; item.started = item.started || 'queued';
+  const pcm = new Int16Array(buf.slice(4 + n));
+  if (!pcm.length) { if (h.last) silentCaption(h.ref); return; }
+  const ab = ctx.createBuffer(1, pcm.length, h.sr || 24000);
+  const ch = ab.getChannelData(0);
+  for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
+  const src = ctx.createBufferSource(); src.buffer = ab; src.connect(outGain);
+  const at = Math.max(ctx.currentTime + 0.04, nextAt);
+  nextAt = at + ab.duration;
+  src.start(at); sources.add(src);
+  src.onended = () => {
+    sources.delete(src);
+    if (h.last && pend.get(h.ref) === item) {
+      item.words.forEach(w => w.classList.add('said'));
+      pend.delete(h.ref);
+      armWait();
+    }
+    checkAudioDone();
+  };
+  const startIn = Math.max(0, (at - ctx.currentTime) * 1000);
+  const durMs = ab.duration * 1000;
+  setTimeout(() => {
+    if (pend.get(h.ref) !== item) return;
+    if (item.started !== true) {
+      item.started = true;
+      if (h.part === 0) send({ type: 'tts_playing', ref: h.ref });
+      item.node = sentenceNode(item.text, { bold: item.bold });
+      pushCaption(item.node);
+      item.words = [...item.node.querySelectorAll('.w')];
+      if (view !== 'confused') setView('speaking');
+      blob.talking(false); startLevel();
+    }
+    const from = item.said, to = Math.min(item.words.length, h.last ? item.words.length : from + (h.words || 0));
+    item.said = to;
+    const span = to - from;
+    for (let k = 0; k < span; k++) {
+      const w = item.words[from + k];
+      if (reduced) { w.classList.add('said'); continue; }
+      setTimeout(() => w.classList.add('said'), (durMs * k) / Math.max(1, span));
+    }
+  }, startIn);
+}
+function startLevel() {
+  if (levelRaf) return;
+  const data = new Float32Array(analyser.fftSize);
+  const loop = () => {
+    if (!sources.size) { levelRaf = 0; return; }
+    analyser.getFloatTimeDomainData(data);
+    let sum = 0; for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+    const rms = Math.sqrt(sum / data.length);
+    ttsAt = performance.now();
+    blob.level(Math.min(1, rms * 5), 'tts');
+    levelRaf = requestAnimationFrame(loop);
+  };
+  levelRaf = requestAnimationFrame(loop);
+}
+function stopAudio() {
+  pend.forEach(it => clearTimeout(it.timer)); pend.clear();
+  sources.forEach(src => { src.onended = null; try { src.stop(); } catch (_) { /* not started */ } });
+  sources.clear(); nextAt = 0;
+  if (levelRaf) { cancelAnimationFrame(levelRaf); levelRaf = 0; }
+}
+function checkAudioDone() {
+  if (audioBusy() || speakingTimer || queue.length) return;
+  blob.talking(false); blob.level(0, 'tts');
+  onSpeechDone();
+}
+function captionLine(e, bold) {   // a sentence or card line: spoken (tts) or paced captions
+  if (e.tts && voice.tts && e.ref) { audioOut(); holdCaption(e.ref, e.text, bold); }
+  else enqueue(e.text, bold);
+}
 
 // ---------------------------------------------------------------- idle acts
 let actTimers = [], debugHoldUntil = 0;
@@ -267,6 +395,8 @@ const handlers = {
   hello(e) {
     S = e.ui_strings || S;
     if (e.output_mode) { mode = e.output_mode === 'spoken' ? 'spoken' : 'screen'; applyMode(); }
+    voice = { ...voice, ...(e.voice || {}) };
+    if (outGain) outGain.gain.value = Math.max(0, Math.min(1, +voice.volume || 0));
     renderCopy();
     pingS = e.ping_s || 10; warnBeforeS = e.warn_before_s || 30;
     forceReduced = !!e.reduced_motion; applyMotion();
@@ -286,7 +416,7 @@ const handlers = {
     if (CONFUSED.has(e.source) && !speaking() && caps.children.length === 0) {
       setView('confused');   // wobble once, then the line plays
     }
-    enqueue(e.text, turnSafety);
+    captionLine(e, turnSafety);
   },
   reply_retracted(e) { if (e.turn_id === turnId) clearCaptions(); },
   action() {},   // `wave` on a visitor's first message: robot arm later (M7)
@@ -330,7 +460,8 @@ const handlers = {
   card_state(e) { cards.state(e.id, e.state, e); },
   // A card line Ada says outside a reply ("Did you scan it?", "Nice, see you in there!"):
   // captioned like any sentence (TTS speaks it later, M6a). Inside a reply it's a `sentence`.
-  say(e) { if (!blocked() && e.text) { stopIdleAct(); enqueue(e.text, false); } },
+  say(e) { if (!blocked() && e.text) { stopIdleAct(); captionLine(e, false); } },
+  tts_skip(e) { silentCaption(e.ref); },
   card_mini(e) { cards.mini(e.id); },
   hide_card(e) { cards.hide(e.id); },
 };
@@ -345,12 +476,14 @@ function connect() {
   let sock;
   try { sock = new WebSocket(`${proto}://${location.host}/ws`); } catch (_) { return scheduleRetry(); }
   ws = sock;
+  sock.binaryType = 'arraybuffer';
   sock.onopen = () => {
     conn = 'ok'; retryMs = 1000; downSince = 0; lastPing = Date.now();
     viewTimers.forEach(clearTimeout); viewTimers = [];
     send({ type: 'screen', reduced_motion: reduced });
   };
   sock.onmessage = ev => {
+    if (ev.data instanceof ArrayBuffer) { onAudioFrame(ev.data); return; }
     let e; try { e = JSON.parse(ev.data); } catch (_) { return; }
     const h = handlers[e && e.type]; if (h) h(e);
   };

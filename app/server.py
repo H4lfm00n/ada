@@ -59,6 +59,7 @@ from app.idle import IdleCatalog, IdlePicker, IdleScheduler, load_idle_acts
 from app.lines import GUARD_FALLBACK, IDLE_GREETINGS, OUT_OF_ORDER, SLOT_RE
 from app.ollama_client import OllamaClient
 from app.sentences import split_sentences
+from app.voice.speaker import Speaker
 
 log = logging.getLogger("app.server")
 
@@ -191,6 +192,14 @@ class Kiosk:
         self.screen_reduced = settings.kiosk_reduced_motion  # updated by the page's `screen`
         # Cards (M5b): the card on screen and its check-in loop (app/cards.py, spec 2.2).
         self.cards = CardStage(rng) if built.cards and built.cards.cards else None
+        # Voice (M6): Ada's speech out; latency marks per voice turn (logged as VOICE lines).
+        self.speaker = (
+            Speaker(settings, self._send_bytes, self._send, self._audio_sent)
+            if settings.tts_enabled
+            else None
+        )
+        self._says = itertools.count(1)
+        self._marks: dict[str, dict[str, float]] = {}
 
     # -- events out ----------------------------------------------------------------------
 
@@ -219,19 +228,64 @@ class Kiosk:
             except Exception as exc:  # closed under us; the receive loop cleans up
                 log.debug("send failed (%s): %s", event.get("type"), exc)
 
+    def _speaking(self) -> bool:
+        return bool(self.speaker and self.speaker.ready and not self.status.kill_on)
+
     async def sentence(self, text: str, source: str) -> None:
         t = self.turn
         if t is None:
             return
+        ref, tts = f"{t.id}:{t.index}", self._speaking()
         await self.emit({"type": "sentence", "turn_id": t.id, "index": t.index, "text": text,
-                         "source": source})  # fmt: skip
+                         "source": source, "ref": ref, "tts": tts})  # fmt: skip
+        if tts and self.speaker:
+            self.speaker.speak(ref, text, first=t.index == 0)
+        self._mark(t.id, "sentence")
         t.index += 1
         t.shown += 1
+
+    async def _send_bytes(self, data: bytes) -> None:
+        ws = self.ws
+        if ws is None:
+            return
+        async with self._send_lock:
+            try:
+                await ws.send_bytes(data)
+            except Exception as exc:
+                log.debug("send bytes failed: %s", exc)
+
+    def _mark(self, turn_id: str, what: str) -> None:
+        m = self._marks.get(turn_id)
+        if m is None or what in m:
+            return
+        m[what] = time.monotonic()
+        if what == "playing":
+            self._log_voice(turn_id)
+
+    def _audio_sent(self, ref: str) -> None:
+        self._mark(ref.split(":", 1)[0], "audio_sent")
+
+    def _log_voice(self, turn_id: str) -> None:
+        m = self._marks.pop(turn_id, {})
+        eos = m.get("eos")
+        if eos is None:
+            return
+        parts = [f"stt {m.get('stt', 0.0):.2f}s"]
+        for key, label in (("sentence", "first sentence"), ("audio_sent", "first audio sent"),
+                           ("playing", "first audio PLAYING")):  # fmt: skip
+            if key in m:
+                parts.append(f"{label} {m[key] - eos:.2f}s")
+        target = "PASS" if "playing" in m and m["playing"] - eos < 2.5 else "MISS"
+        log.info("VOICE %s end-of-speech -> %s [%s, target 2.5s; includes the %d ms "
+                 "end-of-turn wait]", turn_id, " | ".join(parts), target,
+                 self.settings.stt_end_silence_ms)  # fmt: skip
 
     async def retract(self) -> None:
         t = self.turn
         if t is None:
             return
+        if self.speaker:
+            self.speaker.flush()
         t.shown = 0
         await self.emit({"type": "reply_retracted", "turn_id": t.id})
 
@@ -256,10 +310,25 @@ class Kiosk:
             "ping_s": self.settings.kiosk_ping_s,
             "idle_acts": self.idle is not None,
             "output_mode": self.settings.output_mode,
+            "voice": self.voice_info(),
         }
         if self.status.kill_on:
             event["out_of_order_line"] = self.out_of_order_line()
         return event
+
+    def voice_info(self) -> dict[str, Any]:
+        s = self.settings
+        return {
+            "tts": bool(self.speaker),
+            "volume": s.tts_volume,
+            "stt": s.stt_enabled,
+            "wake_word": s.wake_word_enabled,
+            "constraints": {
+                "echoCancellation": s.voice_echo_cancellation,
+                "noiseSuppression": s.voice_noise_suppression,
+                "autoGainControl": s.voice_auto_gain,
+            },
+        }
 
     # -- connection ----------------------------------------------------------------------
 
@@ -275,8 +344,13 @@ class Kiosk:
         await self.emit(self.hello())
         try:
             while True:
-                raw = await ws.receive_text()
-                await self.on_client(raw)
+                msg = await ws.receive()
+                if msg["type"] == "websocket.disconnect":
+                    raise WebSocketDisconnect(msg.get("code", 1000))
+                if msg.get("bytes") is not None:
+                    await self.on_audio(msg["bytes"])
+                elif msg.get("text") is not None:
+                    await self.on_client(msg["text"])
         except WebSocketDisconnect:
             pass
         except Exception:
@@ -284,6 +358,9 @@ class Kiosk:
         finally:
             if self.ws is ws:
                 self.ws = None
+
+    async def on_audio(self, data: bytes) -> None:
+        """Mic audio from the page (16 kHz int16 mono). Dropped unless a capture is open."""
 
     async def on_client(self, raw: str) -> None:
         try:
@@ -311,6 +388,9 @@ class Kiosk:
             await self.on_reset(bool(data.get("immediate")))
         elif kind == "pong":
             pass
+        elif kind == "tts_playing":  # the page started playing a reply's first audio
+            ref = str(data.get("ref") or "")
+            self._mark(ref.split(":", 1)[0], "playing")
         else:
             log.debug("ignored client event %r", kind)
 
@@ -348,6 +428,11 @@ class Kiosk:
         for e in events:
             if e["type"] == "say" and in_turn and self.turn is not None:
                 await self.sentence(e["text"], e["source"])
+            elif e["type"] == "say":  # a card line outside a reply ("Did you scan it?")
+                ref, tts = f"say{next(self._says)}", self._speaking()
+                await self.emit({**e, "ref": ref, "tts": tts})
+                if tts and self.speaker:
+                    self.speaker.speak(ref, e["text"])
             else:
                 await self.emit(e)
             if e["type"] in ("show_card", "card_state") and self.sid and self.pipeline.transcripts:
@@ -458,6 +543,8 @@ class Kiosk:
         if self.turn is turn:
             self.turn = None
         self._pending_reset = None
+        if self.speaker:
+            self.speaker.flush()
         if turn.shown:
             await self.emit({"type": "reply_retracted", "turn_id": turn.id})
         await self.emit({"type": "turn_end", "turn_id": turn.id, "source": "cancelled"})
@@ -549,6 +636,8 @@ class Kiosk:
         self.status.kill_on = on
         log.warning("kill switch %s", "ON" if on else "OFF")
         if on:
+            if self.speaker:  # the kill switch also mutes Ada (spec 5)
+                self.speaker.flush()
             await self.emit({"type": "out_of_order", "on": True, "line": self.out_of_order_line()})
             if self.turn is None:
                 self._drop_session("kill_switch")
@@ -579,10 +668,17 @@ class Kiosk:
         ]
         if warm:
             self._tasks.append(asyncio.create_task(self._warm_up()))
+        if self.speaker:
+            from app.voice.tts import make_tts
+
+            self.speaker.start()
+            self._tasks.append(asyncio.create_task(self.speaker.load(make_tts)))
 
     async def stop(self) -> None:
         if self.turn is not None:
             await self._cancel_turn()
+        if self.speaker:
+            await self.speaker.stop()
         for t in self._tasks:
             t.cancel()
         for t in self._tasks:

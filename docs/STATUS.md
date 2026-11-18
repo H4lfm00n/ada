@@ -62,6 +62,14 @@ _Last updated: 2026-11-18 by ENG (`task/mvp-ready`: cards server half, screen mo
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
+- **M6 voice demo (branch `task/m6-voice-demo` = `main` + `task/mvp-ready`, D72). Demo
+  2026-11-19.** Mac browser does all audio (ssh -L 8080 tunnel, localhost = secure context);
+  models on the GB10 CPU. `make voice-setup` (once), `make voice-probe`, `make kiosk-voice`.
+  - Step 1, Ada speaks (D73-D75): Kokoro-82M via kokoro-onnx, sentence by sentence over the
+    websocket, captions timed to the real audio, blob driven by the real output level,
+    volume cap, "Ada" = AY-duh, spoken mode on with TTS. Sandbox: headless Chrome against a
+    fake Ollama + real Kokoro: thinking -> speaking -> ready, all 3 sentences in order with
+    audio, no page errors. **Not yet run on the GB10.**
 - **MVP-ready** (branch `task/mvp-ready`, from `main` @ 71c104b; D68-D71). Sandbox: ruff clean,
   446 pass. Headless Chrome: Discord QR card with placeholder note, check-in caption + chips,
   tap yes -> "Nice, see you in there!", card slides out; screen mode hides the mic.
