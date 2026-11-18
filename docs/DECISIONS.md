@@ -1046,3 +1046,67 @@ match (the P0 case); everyday phrases ("kill a process", "this exam is killing m
 layers is too many") don't match. The `crisis_support` line also brings the campus_help card
 (D68). Llama Guard S11 still maps to `crisis_support` for wording the patterns miss.
 
+
+
+## 2026-11-18 · M6 voice demo (`task/m6-voice-demo`, ENG)
+
+**D73. Branch base: `main` + a merge of `task/mvp-ready`.** The PM asked for a branch off
+`main`, but the spoken-mode switch (`{{output_mode_rules}}`) and the cards server half the
+voice path needs only exist on `task/mvp-ready` (unmerged). Same pattern as D57: merging this
+branch merges `task/mvp-ready` too.
+
+**D74. TTS = Kokoro-82M through `kokoro-onnx` (onnxruntime, CPU).** Every dependency has a
+manylinux aarch64 wheel (onnxruntime, espeakng-loader, numpy); no torch, no CUDA build. The
+82M model runs on the GB10's CPU cores so the GPU stays with Ollama. Model files are fetched
+once by `make voice-setup` (GitHub releases), never at runtime. Its phonemizer already says
+"Ada" as /ˈeɪdə/ (AY-duh), checked in a test and by `make voice-probe`; the respelling
+"Ayda" would give /ˈaɪdə/ (wrong), so `tts_pronunciations` ships empty. Piper is wired as
+`tts_engine: piper` (`uv sync --group piper`) if Kokoro is too slow on the probe.
+
+**D75. Audio protocol.** Ada's audio goes to the page as binary websocket frames, one per
+spoken part: `uint32 header length | JSON header | int16 PCM` (`app/voice/speaker.py`). Each
+`sentence` / `say` event carries `ref` and `tts`; with `tts: true` the page holds the caption
+until that ref's audio starts, then lights its words over the real audio length (captions
+always show, spec 1.5). The blob's `level(…, 'tts')` comes from an AnalyserNode on the real
+output. Synthesis is sequential in one worker (order guaranteed) and runs while the previous
+sentence plays. A long first sentence (> `tts_first_part_words`, 9) is split at its first
+comma after 4 words, so first audio waits on a short clip. Links/emails are never read aloud
+(replaced in the speech text only). Retract, cancelled turn and kill switch flush the queue;
+the page stops audio on the same events. Only guarded sentences and designer lines reach
+the speaker. Volume cap `tts_volume` is the page's gain ceiling.
+
+**D76. Voice is opt-in per run: `make kiosk-voice`.** `tts_enabled` / `stt_enabled` default
+false in config so `make eval` and `make kiosk` stay in screen mode. `tts_enabled` forces
+`output_mode: spoken` (prompt + UI copy, DES54). If the TTS models fail to load, the kiosk
+logs it and runs captions-only.
+
+_(Voice decisions renumbered D73-D76 by the PM when merging main: main already had D72, the P0 crisis rule.)_
+
+**D77. STT = Parakeet TDT 0.6B v3 through `onnx-asr` (onnxruntime, CPU, int8), VAD = Silero
+v5 ONNX.** NeMo would pull torch + a CUDA aarch64 build; `onnx-asr` loads NVIDIA's model
+exported to ONNX with numpy + onnxruntime only (aarch64 wheels). `make voice-setup` downloads
+it once into `data/voice/`; an existing folder keeps `onnx-asr` offline at runtime. int8
+(`stt_quantization`) for CPU speed; "" = fp32 if accuracy suffers. faster-whisper is wired as
+`stt_engine: whisper` (`uv sync --group whisper`).
+
+**D78. Tap-to-talk, half-duplex, server-side endpointing.** Tap or space opens the mic
+(`getUserMedia`, echoCancellation/noiseSuppression/autoGainControl from config). An
+AudioWorklet in a 16 kHz AudioContext streams 512-sample int16 frames as binary websocket
+messages. The server runs Silero on each frame: done after `stt_end_silence_ms` (700) of
+silence following ≥ `stt_min_speech_ms` of speech; no speech in `stt_no_speech_s` (6) closes
+the mic; `stt_max_utterance_s` (15) caps it; a second tap means "done". The server refuses a
+capture while a turn runs (`mic {on:false, reason:"busy"}`), and the page never opens the mic
+while Ada thinks or talks. The mic tracks are stopped after every question, so the browser's
+own mic dot and our indicator are on only while capturing. Audio is kept in memory for one
+capture and dropped after transcription. The transcript takes the same route as typed text:
+a card's yes/no while Ada is asking "did you scan it?" (keyword `classify_reply`), else the
+guarded pipeline. Empty transcript -> `didnt_catch` line. `heard {text}` goes to the staff
+debug panel only (raw visitor words are never put on the big screen unguarded).
+Latency: one `VOICE` log line per spoken turn, end of speech (last voiced frame, so it
+includes the 700 ms wait) -> transcript, first sentence, first audio sent, first audio
+playing (the page reports `tts_playing`).
+
+**D79. Wake word: hook only.** `wake_word_enabled: false`; `Kiosk.wake("word")` is the entry
+point M6b will call. While it's off, the talk button uses a tap-only line
+(`talk_idle_tap_spoken`, ENG stand-in, TODO(designer)) because `talk_idle_spoken` promises
+"Hey Ada".

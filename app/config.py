@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -95,6 +95,42 @@ class Settings(BaseSettings):
     kiosk_idle_acts_file: str = "content/idle_acts.yaml"  # designer-owned idle acts (M5a)
     kiosk_idle_enabled: bool = True  # false = breathing only, no idle acts
 
+    # Voice (M6). Audio I/O lives in the kiosk browser (getUserMedia / Web Audio, spec 1.3a);
+    # the models run here, on CPU, in memory. Audio is never written to disk.
+    # tts_enabled switches the prompt and UI copy to spoken mode (output_mode).
+    tts_enabled: bool = False
+    tts_engine: Literal["kokoro", "piper"] = "kokoro"
+    tts_model_file: str = "data/voice/kokoro-v1.0.onnx"
+    tts_voices_file: str = "data/voice/voices-v1.0.bin"
+    tts_voice: str = "af_heart"  # TODO(designer): shortlist 3, PM picks by ear (spec 1.5)
+    tts_lang: str = "en-us"
+    tts_speed: float = Field(1.0, gt=0.5, le=2.0)
+    tts_piper_model: str = "data/voice/piper/en_US-lessac-medium.onnx"
+    tts_volume: float = Field(0.8, ge=0, le=1)  # cap: the page's gain never goes above this
+    tts_threads: int = Field(8, ge=1, le=64)
+    # Spoken respellings, applied to the speech text only (captions keep the real words).
+    # Kokoro already says "Ada" as AY-duh; add entries only for words it gets wrong.
+    tts_pronunciations: dict[str, str] = Field(default_factory=dict)
+    # Faster first audio: a reply's first sentence longer than this many words is spoken in
+    # two parts, split at its first comma/dash after 4 words. 0 = off.
+    tts_first_part_words: int = Field(9, ge=0)
+    stt_enabled: bool = False
+    stt_engine: Literal["parakeet", "whisper"] = "parakeet"
+    stt_model_dir: str = "data/voice/parakeet-tdt-0.6b-v3"
+    stt_quantization: str = "int8"  # "" = full precision
+    stt_whisper_model: str = "small.en"  # faster-whisper fallback (uv sync --group whisper)
+    stt_threads: int = Field(8, ge=1, le=64)
+    stt_vad_file: str = "data/voice/silero_vad.onnx"
+    stt_vad_threshold: float = Field(0.5, gt=0, lt=1)
+    stt_end_silence_ms: int = Field(700, ge=200, le=3000)  # end of turn (spec 1.3.4)
+    stt_no_speech_s: float = Field(6.0, gt=0)  # tapped but said nothing: mic closes
+    stt_max_utterance_s: float = Field(15.0, gt=1)
+    stt_min_speech_ms: int = Field(200, ge=0)  # shorter blips are noise, not a question
+    voice_echo_cancellation: bool = True  # browser getUserMedia constraints (spec 1.3a)
+    voice_noise_suppression: bool = True
+    voice_auto_gain: bool = True
+    wake_word_enabled: bool = False  # M6b, next week; Kiosk.wake("word") is the hook
+
     # Transcripts (M3): text only, one JSONL file per visitor, on this machine only.
     transcripts_enabled: bool = True
     transcripts_dir: str = "data/transcripts"
@@ -141,6 +177,13 @@ class Settings(BaseSettings):
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"unknown timezone {v!r}") from exc
         return v
+
+    @model_validator(mode="after")
+    def _spoken_with_tts(self) -> Settings:
+        # DES54: when Ada speaks, the prompt writes for the ear and the UI uses voice copy.
+        if self.tts_enabled and self.output_mode != "spoken":
+            self.output_mode = "spoken"
+        return self
 
     def content_path(self, rel: str) -> Path:
         p = Path(rel)

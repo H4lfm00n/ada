@@ -1,4 +1,4 @@
-PHONY_M5 := kiosk kiosk-browser kiosk-autostart-status
+PHONY_M5 := kiosk kiosk-browser kiosk-autostart-status kiosk-voice voice-setup voice-probe
 PHONY_M3 := kill-on kill-off kill-status admin transcripts-prune m3-probe m3-latency
 .PHONY: $(PHONY_M3) $(PHONY_M5) setup health health-quick bench chat chat-demo ingest ingest-fixtures rag-search rag-probe rag-check rag-check-fixtures rag-diagnose ingest-report prefill-probe chat-lab run test test-gb10 lint format eval eval-lint help
 
@@ -30,6 +30,9 @@ help:
 	@echo "m3-probe     attack prompts from evals/redteam.yaml: input/output guard decisions"
 	@echo "m3-latency   first-word time with both guards on (sequential vs parallel retrieval)"
 	@echo "kiosk        the lab screen: web UI + websocket on kiosk_host:kiosk_port (default 127.0.0.1:8080)"
+	@echo "kiosk-voice  the kiosk with voice on (ADA_TTS_ENABLED=1 ADA_STT_ENABLED=1); logs VOICE latency lines"
+	@echo "voice-setup  download Kokoro TTS, Silero VAD, Parakeet STT into data/voice/ (once)"
+	@echo "voice-probe  TTS + STT timings on this machine, no mic needed"
 	@echo "kiosk-browser  open the kiosk full screen in Chromium kiosk mode (waits for the server)"
 	@echo "kiosk-autostart-status  is start-on-boot installed? (install: scripts/kiosk-autostart.sh install)"
 	@echo "eval         golden + red-team + real-docs suites, full pipeline, local judge; exit 1 below the bar"
@@ -108,6 +111,15 @@ run: kiosk
 
 kiosk:
 	$(PY) -m app.server
+
+kiosk-voice:
+	ADA_TTS_ENABLED=1 ADA_STT_ENABLED=1 $(PY) -m app.server
+
+voice-setup:
+	$(PY) -m app.voice.setup $(ARGS)
+
+voice-probe:
+	$(PY) -m app.voice.probe
 
 kiosk-browser:
 	scripts/kiosk-browser.sh

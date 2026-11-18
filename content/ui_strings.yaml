@@ -17,6 +17,9 @@ strings:
   notice_spoken: "**AI** · {{bot_name}} is an AI and can make mistakes · Listens only after “Hey {{bot_name}}” or a tap · No audio recorded"
   talk_idle: "**Tap here** to ask {{bot_name}} a question"
   talk_idle_spoken: "Say **“Hey {{bot_name}}”** or tap to talk"
+  # TODO(designer): ENG stand-in for the M6 demo (tap-to-talk only, no wake word until M6b).
+  # Used instead of talk_idle_spoken while config wake_word_enabled is false.
+  talk_idle_tap_spoken: "**Tap here** or press space to talk to {{bot_name}}"
   talk_listening: "Type your question below"
   talk_listening_spoken: "I'm listening…"
   talk_interrupt: "Say **“stop”** to interrupt"   # spoken mode, barge-in builds only (M6c)
