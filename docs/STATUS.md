@@ -71,6 +71,12 @@ _Last updated: 2026-11-18 by ENG (`task/mvp-ready`: cards server half, screen mo
     hide on reset + kill switch, transcripts. New event `say`.
   - C. `output_mode: screen` (default) -> `{{output_mode_rules}}` + UI copy by mode.
   - D. `daydream_arm` off and its orb motion removed. E. Tests for all of it.
+  - Headless Chrome on the merged content: screen-mode copy, no mic, placeholder Discord card,
+    check-in chips, yes -> slides out. Placeholder QR shrinks 404 -> 360 px so the note fits.
+  - DES, small: the placeholder card now says "coming soon" three times (title, `qr_caption`,
+    `placeholder_note`). The PM asked for the note; maybe shorten the caption or the note.
+  - Next: PM merges `task/mvp-ready` to main (main alone fails 121 tests: the loader didn't
+    know the new slots), then the GB10 run (`make eval` + `rag-diagnose` + kiosk checklist).
   - **Merged with `main` after DES MVP fixes (#22).** Conflicts: cards.yaml (DES copy +
     `defaults.placeholder_url` + the 6 info cards set approved/enabled per PM decision 2,
     which the DES branch hadn't done), idle_acts.yaml (DES), docs. 6 tests updated to the new
