@@ -834,3 +834,29 @@ the old name and needs the same edit by the PM). Kept on purpose: the `old_name`
 the persona's "never call herself ..." rule, red-team cases, history in DECISIONS/STATUS, and
 the retired dark mockup `ui/mockups/kiosk.html`.
 
+
+## PM-built: cards UI (M5b, UI half), 2026-11-18
+
+**PMC1. Cards are drawn by `ui/cards.js`, decided by the server.** The UI renders whatever
+`show_card {id, data}` sends (one `content/cards.yaml` entry) and the check-in states the
+server sends as `card_state {id, state}` (`intro | asking | waiting | yes | timeout`), plus
+`card_mini {id}` and `hide_card {id}`. The UI never picks a card, never runs the check-in
+timers, and never builds a URL. ENG still owns the server half: tag stripping, catalog
+validation (`enabled` + `approved: yes`), the check-in state machine, and yes/no detection.
+
+**PMC2. QR codes are rendered in the browser** from the catalog URL with the vendored
+`qrcode-generator` 1.4.4 (MIT, `ui/vendor/qrcode.mjs`), as one SVG path: no network, no data
+URLs, no inline styles (CSP `style-src 'self'`). Error correction M, quiet zone 4 modules.
+Defense in depth: only `type: qr` cards get a code, and only for an `https://` URL.
+
+**PMC3. Tap as well as voice for "did you scan it?".** The QR card shows "Yes, got it" /
+"Not yet" chips while Ada is asking. A tap sends `{type: 'card_reply', id, answer}`; the
+server treats it exactly like the spoken answer. Loud room, so a tap is a useful backup.
+
+**PMC4. Mini card keeps the QR scannable** (256 px code in a 300 px corner tile) while the
+visitor asks something else; captions go back to centered and the orb returns to its normal
+pose. Idle acts don't run while any card is up.
+
+**PMC5. Preview:** `ui/mockups/cards.html` uses the real `blob.js` + `cards.js` and plays the
+server events with fake data. QR cards there encode a public sample page and are labeled
+"Preview only". Real URLs ship only after PM approval in `content/cards.yaml`.

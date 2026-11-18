@@ -62,6 +62,12 @@ _Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). B
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
+- **M5b cards UI (PM-built, branch `task/m5b-cards-ui`, 2026-11-18):** `ui/cards.js` +
+  `ui/cards.css` render all 7 card types, the check-in states, the mini tile and the tap
+  replies; wired into `kiosk.js` (`show_card`, `card_state`, `card_mini`, `hide_card`).
+  Preview: `ui/mockups/cards.html`. **ENG next:** the server half (strip `<card/>` tags,
+  validate catalog, check-in state machine, send `card_state`, handle `card_reply`), per
+  DECISIONS PMC1-PMC5. All cards stay `enabled: false` until the PM approves URLs.
 - **M5a rename + new look** (branch `task/m5a-ada-look`, from `main` @ bb467a1 **plus a merge of
   the unmerged `task/m5-kiosk`**, D57; merging M5a merges M5). Sandbox: ruff clean, 370 pass,
   8 gb10 skipped. Headless Chrome against a mocked Ollama: idle acts rotate (no repeats), tap

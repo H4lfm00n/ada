@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ada · cards preview</title>
+<!--
+  Cards preview (M5b UI). Uses the real kiosk modules: ../blob.js (Ada's orb) and ../cards.js,
+  with the real stylesheets. Fake data only, no server: the buttons play the events the server
+  will send (show_card, card_state, card_mini, hide_card). Content mirrors content/cards.yaml.
+  QR cards show a SAMPLE link (ai.sfsu.edu/ai-students) until the PM approves real URLs.
+-->
+<link rel="stylesheet" href="../kiosk.css">
+<link rel="stylesheet" href="../cards.css">
+<link rel="stylesheet" href="cards-preview.css">
+</head>
+<body>
+<div id="viewport">
+<div id="stage" aria-label="Ada kiosk screen">
+  <canvas id="blob" aria-hidden="true"></canvas>
+  <div id="notice"><b>AI</b>Ada is an AI and can make mistakes · Listens only after "Hey Ada" or a tap · No audio recorded</div>
+  <div id="mic" role="status"><span class="dot"></span><span id="mictext">Mic off</span></div>
+  <div id="statusword"></div>
+  <div id="captions" aria-live="polite"></div>
+  <div id="bottom"><button id="talk" type="button"><span id="talktext">Say <b>"Hey Ada"</b> or tap to talk</span></button></div>
+</div>
+</div>
+<div id="panel">
+  <div class="row"><span class="lbl">Flows</span>
+    <button data-flow="yes">QR: "Yes"</button>
+    <button data-flow="notyet">QR: "Not yet" → "Yes"</button>
+    <button data-flow="else">QR: asks something else</button>
+    <button data-flow="timeout">QR: walks away</button>
+  </div>
+  <div class="row"><span class="lbl">Cards</span>
+    <button data-card="qr_project_proposal">Proposal QR</button>
+    <button data-card="qr_discord">Discord QR</button>
+    <button data-card="map_where_we_are">Where we are</button>
+    <button data-card="events_this_month">Events</button>
+    <button data-card="equipment_spotlight">Equipment</button>
+    <button data-card="compute_rules">Compute rules</button>
+    <button data-card="campus_help">Campus help</button>
+    <button data-card="ai_fact">Fun fact</button>
+    <button data-hide>Hide</button>
+  </div>
+  <div class="note">Tap "Yes, got it" / "Not yet" on a QR card too. Visitors can say it or tap it.</div>
+</div>
+<script type="module" src="cards-preview.js"></script>
+</body>
+</html>
