@@ -3,350 +3,68 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ada kiosk mockup (phase 2)</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<style>
-/* ---------- design tokens (docs/ui-spec.md section 7) ---------- */
-:root{
-  --u: calc(min(100vw / 1920, 100vh / 1080));   /* 1 design px on the 1920x1080 canvas */
-  --bg:#F7F6F2; --surface:#FFFFFF; --ink:#16181D; --ink-2:#4A4F5A; --ink-3:#8A8F99;
-  --line:#E6E3DC; --accent:#7C3AED; --accent-soft:#F1EAFE; --danger:#B42318; --rest:#9AA0A8;
-  --r-card: calc(28 * var(--u)); --shadow: 0 calc(18*var(--u)) calc(50*var(--u)) rgba(22,24,29,.10);
-  --t-caption: calc(54 * var(--u)); --t-status: calc(30 * var(--u)); --t-notice: calc(20 * var(--u));
-  --t-card-title: calc(40 * var(--u)); --t-card-body: calc(30 * var(--u));
-  --ease: cubic-bezier(.2,.8,.2,1);
-}
-*{box-sizing:border-box}
-html,body{margin:0;height:100%;background:#E9E7E1;font-family:Inter,system-ui,sans-serif;color:var(--ink)}
-body{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:12px}
-
-/* ---------- the kiosk screen (16:9) ---------- */
-#kiosk{position:relative;width:min(100vw - 24px, (100vh - 120px) * 16 / 9);aspect-ratio:16/9;background:var(--bg);
-  border-radius:14px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.12);--u:calc(min(100vw - 24px, (100vh - 120px) * 16 / 9) / 1920)}
-#blob{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
-#notice{position:absolute;top:calc(28*var(--u));left:calc(36*var(--u));display:flex;align-items:center;gap:calc(14*var(--u));
-  font-size:var(--t-notice);color:var(--ink-2)}
-#notice b{font-weight:600;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:calc(4*var(--u)) calc(12*var(--u))}
-#mic{position:absolute;top:calc(24*var(--u));right:calc(36*var(--u));display:flex;align-items:center;gap:calc(10*var(--u));
-  font-size:var(--t-notice);font-weight:600;color:var(--ink-3);padding:calc(8*var(--u)) calc(16*var(--u));border-radius:999px;border:1px solid var(--line);background:var(--surface);transition:all .25s}
-#mic .dot{width:calc(14*var(--u));height:calc(14*var(--u));border-radius:50%;background:var(--ink-3)}
-#mic.on{color:var(--danger);border-color:#F3C9C4}
-#mic.on .dot{background:var(--danger);animation:pulse 1s infinite}
-@keyframes pulse{50%{opacity:.35}}
-#statusword{position:absolute;left:0;right:0;top:calc(690*var(--u));text-align:center;font-size:calc(24*var(--u));letter-spacing:.18em;
-  font-weight:600;color:var(--ink-3);transition:left .6s var(--ease),right .6s var(--ease)}
-#caption{position:absolute;left:calc(200*var(--u));right:calc(200*var(--u));top:calc(760*var(--u));text-align:center;
-  font-size:var(--t-caption);line-height:1.22;font-weight:500;min-height:calc(140*var(--u));transition:left .6s var(--ease),right .6s var(--ease)}
-#caption .w{opacity:.18;transition:opacity .12s}
-#caption .w.said{opacity:1}
-#caption.fade{opacity:.0;transition:opacity .6s}
-#status{position:absolute;left:0;right:0;bottom:calc(46*var(--u));display:flex;justify-content:center}
-#status button{font:inherit;font-size:var(--t-status);font-weight:500;color:var(--ink);background:var(--surface);border:1px solid var(--line);
-  border-radius:999px;padding:calc(16*var(--u)) calc(40*var(--u));display:flex;align-items:center;gap:calc(16*var(--u));cursor:pointer;box-shadow:var(--shadow)}
-#status button .k{color:var(--accent);font-weight:700}
-#status button svg{width:calc(30*var(--u));height:calc(30*var(--u))}
-.kiosk-showing #caption{top:calc(620*var(--u));left:calc(120*var(--u));right:calc(860*var(--u));font-size:calc(46*var(--u));text-align:left}
-.kiosk-showing #statusword{right:calc(740*var(--u))}
-
-/* ---------- cards ---------- */
-#card{position:absolute;top:calc(150*var(--u));right:calc(90*var(--u));width:calc(660*var(--u));background:var(--surface);border-radius:var(--r-card);
-  box-shadow:var(--shadow);border:1px solid var(--line);padding:calc(44*var(--u));transform:translateX(130%);opacity:0;
-  transition:transform .7s var(--ease),opacity .4s, width .5s var(--ease), top .5s var(--ease), padding .5s}
-#card.in{transform:none;opacity:1}
-#card .eyebrow{font-size:calc(20*var(--u));letter-spacing:.14em;font-weight:600;color:var(--accent);text-transform:uppercase}
-#card h2{font-size:var(--t-card-title);margin:calc(10*var(--u)) 0 calc(24*var(--u));line-height:1.15}
-#card .sub{font-size:var(--t-card-body);color:var(--ink-2);margin-top:calc(18*var(--u))}
-#card ul{list-style:none;margin:0;padding:0}
-#card li{font-size:var(--t-card-body);padding:calc(14*var(--u)) 0;border-top:1px solid var(--line);display:flex;gap:calc(16*var(--u))}
-#card li:first-child{border-top:0}
-#card li .ic{flex:none;width:calc(36*var(--u));height:calc(36*var(--u));border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:calc(20*var(--u))}
-#card .qr{width:calc(380*var(--u));height:calc(380*var(--u));margin:0 auto;display:block;position:relative}
-#card .sample{position:absolute;inset:auto 0 calc(-6*var(--u)) 0;text-align:center;font-size:calc(18*var(--u));color:var(--danger);font-weight:600}
-#card .timer{height:calc(6*var(--u));background:var(--line);border-radius:9px;margin-top:calc(28*var(--u));overflow:hidden}
-#card .timer i{display:block;height:100%;background:var(--accent);width:100%;transition:width linear}
-#card.mini{top:calc(40*var(--u));width:calc(300*var(--u));padding:calc(20*var(--u))}
-#card.mini h2{font-size:calc(22*var(--u));margin:calc(4*var(--u)) 0 calc(10*var(--u))}
-#card.mini .qr{width:calc(200*var(--u));height:calc(200*var(--u))}
-#card.mini .sub,#card.mini li,#card.mini .eyebrow{display:none}
-#card.mini li:nth-child(-n+2){display:flex;font-size:calc(18*var(--u));padding:calc(6*var(--u)) 0}
-#card.help{border:3px solid var(--danger)}
-#card.help .eyebrow{color:var(--danger)}
-#card.help li .ic{background:#FDECEA;color:var(--danger)}
-
-/* ---------- out of order ---------- */
-#rest{position:absolute;left:0;right:0;top:calc(760*var(--u));text-align:center;display:none}
-#rest h1{font-size:calc(60*var(--u));margin:0;font-weight:600;color:var(--ink-2)}
-#rest p{font-size:calc(30*var(--u));color:var(--ink-3);margin:calc(14*var(--u)) 0 0}
-.kiosk-out #rest{display:block}.kiosk-out #caption,.kiosk-out #status,.kiosk-out #mic,.kiosk-out #statusword{display:none}
-
-/* ---------- idle caption + zzz ---------- */
-#idlecap{position:absolute;left:0;right:0;top:calc(780*var(--u));text-align:center;font-size:calc(40*var(--u));color:var(--ink-2);opacity:0;transition:opacity .8s}
-#idlecap.on{opacity:1}
-.z{position:absolute;font-weight:300;color:var(--accent);font-size:calc(48*var(--u));pointer-events:none;animation:zfloat 3.2s ease-out forwards}
-@keyframes zfloat{from{transform:translate(0,0) scale(.6);opacity:0}20%{opacity:.9}to{transform:translate(calc(60*var(--u)),calc(-180*var(--u))) scale(1.3);opacity:0}}
-
-/* ---------- reviewer panel (not part of the kiosk) ---------- */
-#panel{width:min(100vw - 24px, 1400px);background:#fff;border-radius:12px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
-#panel .grp{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
-#panel .lbl{font-weight:700;color:#555;margin-right:2px}
-#panel button{font:inherit;font-size:12.5px;border:1px solid #ddd;background:#fafafa;border-radius:7px;padding:5px 9px;cursor:pointer}
-#panel button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-#panel button.v{background:#FFF7E6;border-color:#F2D7A1}
-#panel label{display:flex;gap:4px;align-items:center}
-#hint{font-size:12px;color:#777}
-@media (prefers-reduced-motion: reduce){ #card{transition:opacity .3s} }
-</style>
+<title>Ada · kiosk mockup (v3.1: glass orb, screen + spoken modes)</title>
+<!--
+  Designer mockup for docs/ui-spec.md v3.1. Built on the REAL kiosk modules so the review
+  shows exactly what ships: ../blob.js (Ada's glass orb, D64/D66), ../cards.js and the real
+  stylesheets. Fake data only, no server. Copy mirrors content/ui_strings.yaml v3 and
+  content/cards.yaml (placeholder QR cards, DES53).
+  Open: from the repo root run `python3 -m http.server 8000`, then
+  http://localhost:8000/ui/mockups/ada.html  (ES modules don't load from file://).
+  Replaces the v3 wireframe mockup (Three.js r128 from a CDN).
+-->
+<link rel="stylesheet" href="../kiosk.css">
+<link rel="stylesheet" href="../cards.css">
+<link rel="stylesheet" href="cards-preview.css">
+<link rel="stylesheet" href="ada.css">
 </head>
 <body>
-
-<div id="kiosk" aria-label="Ada kiosk screen">
+<div id="viewport">
+<div id="stage" aria-label="Ada kiosk screen">
   <canvas id="blob" aria-hidden="true"></canvas>
-  <div id="notice"><b>AI</b><span>Ada is an AI and can make mistakes · Listens only after “Hey Ada” or a tap · No audio recorded</span></div>
-  <div id="mic" role="status" aria-live="polite"><span class="dot"></span><span id="mictext">Mic off</span></div>
+  <div id="tap" aria-hidden="true"></div>
+  <div id="notice"></div>
+  <div id="mic" role="status" aria-live="polite"><span class="dot"></span><span id="mictext"></span></div>
   <div id="statusword" aria-live="polite"></div>
-  <div id="idlecap"></div>
-  <div id="caption" aria-live="polite"></div>
-  <div id="card" role="region" aria-label="Card from Ada"></div>
-  <div id="rest"><h1>Ada is resting</h1><p>Back soon. A lab member can help you in the meantime.</p></div>
-  <div id="status"><button id="talk" aria-label="Tap to talk to Ada">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
-    <span id="statustext">Say <span class="k">“Hey Ada”</span> or tap to talk</span></button></div>
+  <div id="idlecap" aria-hidden="true"></div>
+  <div id="captions" aria-live="polite"></div>
+  <div id="rest" role="status"><h1 id="resttitle"></h1><p id="restbody"></p></div>
+  <div id="bottom">
+    <button id="talk" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      <span id="talktext"></span>
+    </button>
+    <div id="typing">
+      <input id="input" type="text" maxlength="1200" autocomplete="off" spellcheck="false" aria-label="Type a question">
+      <span id="hint"></span>
+    </div>
+  </div>
+</div>
 </div>
 
 <div id="panel">
-  <div class="grp"><span class="lbl">State</span>
-    <button data-s="idle" class="on">Idle</button><button data-s="waking">Waking</button><button data-s="listening">Listening</button>
-    <button data-s="thinking">Thinking</button><button data-s="speaking">Speaking</button><button data-s="confused">Confused</button><button data-s="out">Out of order</button></div>
-  <div class="grp"><span class="lbl">Cards</span>
-    <button data-c="qr_project_proposal">QR + check-in</button><button data-c="map_where_we_are">Where we are</button>
-    <button data-c="compute_rules">Compute rules</button><button data-c="equipment_spotlight">Equipment</button><button data-c="campus_help">Campus help</button><button data-c="ai_fact">AI fact</button></div>
-  <div class="grp"><span class="lbl">Visitor says</span>
-    <button class="v" data-v="yes">“Yes, got it”</button><button class="v" data-v="wait">“One sec”</button><button class="v" data-v="other">Asks something else</button></div>
-  <div class="grp"><span class="lbl">Idle acts</span>
-    <button data-a="daydream_cube">Daydream</button><button data-a="juggling">Juggling</button><button data-a="dozing">Dozing</button>
-    <button data-a="hello_wave">Hello wave</button><button data-a="try_asking">Try asking</button><button data-a="spin">Spin</button><button data-a="auto">Auto-rotate</button></div>
-  <div class="grp"><button id="demo" style="font-weight:700">▶ Play full demo</button>
-    <label><input type="checkbox" id="rm"> Reduced motion</label></div>
-  <div id="hint">Tap the blob or the talk button to wake Ada. Mic level is simulated. The QR is a fake pattern, not a scannable code.</div>
+  <div class="row"><span class="lbl">Mode</span>
+    <button data-mode="screen" class="on">Screen (typed MVP, now)</button>
+    <button data-mode="spoken">Spoken (after M6a)</button>
+    <button id="demo"><b>▶ Play a visit</b></button>
+    <label><input type="checkbox" id="rm"> Reduced motion</label>
+  </div>
+  <div class="row"><span class="lbl">State</span>
+    <button data-s="idle">Idle</button><button data-s="waking">Waking</button>
+    <button data-s="listening">Listening / typing</button><button data-s="thinking">Thinking</button>
+    <button data-s="speaking">Speaking</button><button data-s="confused">Confused</button>
+    <button data-s="out">Out of order</button><button data-s="lost">Connection lost</button>
+  </div>
+  <div class="row"><span class="lbl">Cards</span>
+    <button data-flow="yes">Proposal QR → "Yes"</button>
+    <button data-flow="notyet">Discord QR → "Not yet" → "Yes"</button>
+    <button data-flow="else">QR → asks something else</button>
+    <button data-flow="timeout">QR → walks away</button>
+  </div>
+  <div class="row"><span class="lbl">Idle</span><span id="acts"></span>
+    <button id="auto">Auto-rotate</button></div>
+  <div class="note">Both QR cards are MVP placeholders: they open SFSU's AI for Students page (scannable). Type in the box in screen mode; tap the orb or the pill to start.</div>
 </div>
-
-<script>
-/* ===================== content (mirrors content/cards.yaml, lines.yaml) ===================== */
-const CARDS = {
-  qr_project_proposal:{type:'qr',eyebrow:'Scan me',title:'Submit a project proposal',sub:'Point your phone camera at the code.',
-    say:"I've put a QR code on the screen. Point your phone camera at it to open the proposal form.",
-    confirm:"Did you get it?", on_yes:"Awesome! The team will follow up with you. Anything else?", on_no:"No rush, take your time.", hide:60},
-  map_where_we_are:{type:'list',eyebrow:'Where we are',title:'AI Studio · LIB 260',
-    items:[['2F','2nd floor, J. Paul Leonard Library'],['◎','Inside the Digital Media Studio and MakerSpace'],['⏱','Mon–Thu 10–7 · Fri 10–5 (semester)']],
-    say:"Here's where to find us. It's room LIB two-sixty, on the second floor of the library.", hide:30},
-  compute_rules:{type:'list',eyebrow:'Computer rules',title:'Before you run a job',
-    items:[['✕','No remote access to AI Lab computers'],['☾','Overnight jobs only if started in person'],['✓','GPU booking: ask the AI Lab team (ai@sfsu.edu)']],
-    say:"Here are the computer rules. Quick version: no remote access, and overnight jobs have to start here in person.", hide:40},
-  equipment_spotlight:{type:'list',eyebrow:'Equipment',title:'Gear for student projects',
-    items:[['🐕︎','Robotic dogs'],['⟋','Robotic arms'],['▣','3D printer'],['◇','NVIDIA GB10 and Jetson Orin checkout']],sub:'To use it: submit a project proposal.',
-    say:"Here's some of the gear students can use for projects.", hide:40},
-  campus_help:{type:'list',help:true,eyebrow:'Get help now',title:'Emergency: call 911',
-    items:[['!','From a cell phone on campus: 415-338-2222'],['988','Crisis or thoughts of suicide: call or text 988'],['☎','Counseling (CAPS): 415-338-2208'],['☎','University Police, non-emergency: 415-338-7200']],
-    say:"Please call nine one one right now. If anyone nearby knows first aid, get them to help.", hide:0},
-  ai_fact:{type:'fact',eyebrow:'Did you know?',title:'Ada Lovelace wrote what’s often called the first computer program, in the 1840s.',
-    say:"Here's a fun one. My name twin wrote the first computer program. Pretty good legacy to live up to.", hide:20},
-};
-
-/* ===================== three.js blob ===================== */
-const kiosk=document.getElementById('kiosk'), canvas=document.getElementById('blob');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(35,16/9,0.1,100); camera.position.set(0,0,9);
-const geo=new THREE.IcosahedronGeometry(1,5);
-const base=geo.attributes.position.array.slice();
-const mat=new THREE.MeshBasicMaterial({color:0x7C3AED,wireframe:true,transparent:true,opacity:.55});
-const blob=new THREE.Mesh(geo,mat);
-const group=new THREE.Group(); group.add(blob); scene.add(group);
-// inner faint core for depth
-const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.62,2),new THREE.MeshBasicMaterial({color:0x7C3AED,wireframe:true,transparent:true,opacity:.12}));
-group.add(core);
-// juggling balls
-const balls=[0,1,2].map(()=>{const m=new THREE.Mesh(new THREE.IcosahedronGeometry(.17,1),new THREE.MeshBasicMaterial({color:0x7C3AED,wireframe:true,transparent:true,opacity:0}));scene.add(m);return m});
-
-function resize(){const r=kiosk.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
-addEventListener('resize',resize); resize();
-
-function noise(x,y,z,t){return Math.sin(x*1.7+t)*Math.cos(y*1.3-t*.8)*.5+Math.sin(z*2.1+t*1.3+y)*.3+Math.sin((x+y+z)*3.1-t*1.7)*.2}
-
-/* animation params eased toward targets each frame */
-const P={amp:.06,freq:1,speed:.6,spin:.08,scale:1,sy:1,x:0,y:.55,tilt:0,op:.55,cube:0,bright:0,gray:0};
-let T={...P}; const set=o=>Object.assign(T,o);
-let level=0, levelTarget=0, reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-document.getElementById('rm').checked=reduced; document.getElementById('rm').onchange=e=>reduced=e.target.checked;
-
-let t=0,last=performance.now(),juggle=null,rotY=0,swell=0;
-function frame(now){
-  const dt=Math.min(.05,(now-last)/1000); last=now; t+=dt;
-  const k=1-Math.pow(.02,dt); for(const key in P) P[key]+=(T[key]-P[key])*k;
-  // audio level -> soft envelope: ~0.25 s attack, ~0.6 s release (no per-word snapping)
-  const atk=levelTarget>level?.02:.2; level+=(levelTarget-level)*(1-Math.pow(atk,dt));
-  swell+=(level-swell)*(1-Math.pow(.15,dt));
-  const rm=reduced?.35:1;
-  const breath=Math.sin(t*2*Math.PI/5)*.03*rm;
-  const pos=geo.attributes.position.array, ts=t*P.speed;
-  for(let i=0;i<pos.length;i+=3){
-    const bx=base[i],by=base[i+1],bz=base[i+2];
-    let r=1+breath+swell*.06*rm+P.amp*rm*noise(bx*P.freq*1.6,by*P.freq*1.6,bz*P.freq*1.6,ts*2)
-          +swell*.05*rm*Math.sin(by*2.2-t*3.2);   // one soft wave rolling over the mesh
-    if(P.cube>.001){const c=.82/Math.max(Math.abs(bx),Math.abs(by),Math.abs(bz)); r=r*(1-P.cube)+c*P.cube}
-    pos[i]=bx*r;pos[i+1]=by*r;pos[i+2]=bz*r;
-  }
-  geo.attributes.position.needsUpdate=true;
-  rotY+=P.spin*dt*rm;
-  group.rotation.set(.25+Math.sin(t*.4)*.05*rm,rotY,P.tilt);
-  group.position.set(P.x,P.y,0);
-  group.scale.set(P.scale,P.scale*P.sy,P.scale);
-  const col=new THREE.Color(0x7C3AED).lerp(new THREE.Color(0x9AA0A8),P.gray).lerp(new THREE.Color(0xB794F6),P.bright);
-  mat.color.copy(col); core.material.color.copy(col);
-  mat.opacity=P.op+(Math.sin(t*9)*.06*(state==='thinking'?1:0)); core.material.opacity=P.op*.22;
-  // juggling
-  if(juggle){const jt=t-juggle.t0;
-    balls.forEach((b,i)=>{let a=jt*2.4+i*2.094, R=1.55*P.scale;
-      let x=P.x+Math.cos(a)*R, y=P.y+Math.sin(a)*R*.55+.2, op=.7;
-      if(juggle.drop&&i===2&&jt>3.2){const ft=jt-3.2; x=P.x+Math.cos(3.2*2.4+i*2.094)*R+ft*.4; y=P.y+Math.sin(3.2*2.4+i*2.094)*R*.55-ft*ft*4.5; op=Math.max(0,.7-ft*.4)}
-      b.position.set(x,y,.6); b.material.opacity=op; b.rotation.y+=dt*2; b.material.color.copy(col)});
-    if(juggle.drop&&jt>3.6&&jt<4.4) set({tilt:.18,sy:.92}); if(jt>4.4&&!juggle.done){juggle.done=1;set({tilt:0,sy:1})}
-    if(jt>6.5){juggle=null;balls.forEach(b=>b.material.opacity=0)}
-  }
-  renderer.render(scene,camera); requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);
-
-/* ===================== states ===================== */
-const STATE={
-  idle:{amp:.06,freq:1,speed:.6,spin:.08,scale:1,sy:1,x:0,y:.55,tilt:0,op:.55,cube:0,bright:0,gray:0},
-  waking:{amp:.09,speed:1.4,spin:.4,scale:1.08,y:.7,op:.85,bright:.6},
-  listening:{amp:.05,speed:.9,spin:.12,scale:1.04,y:.6,op:.75,bright:.1},
-  thinking:{amp:.025,freq:2.4,speed:2.2,spin:1.4,scale:.94,y:.55,op:.7,bright:0},
-  speaking:{amp:.04,freq:1,speed:.7,spin:.12,scale:1,y:.55,op:.72},
-  showing:{amp:.05,speed:.8,spin:.12,scale:.62,x:-2.55,y:.95,tilt:-.12,op:.7},
-  confused:{amp:.08,speed:1.2,spin:.05,scale:.98,op:.6},
-  out:{amp:0,speed:0,spin:0,scale:.82,sy:.55,y:.2,op:.45,gray:1,bright:0,cube:0},
-};
-const WORD={idle:'',waking:'',listening:'LISTENING',thinking:'THINKING',speaking:'',confused:'',out:''};
-let state='idle', cardOn=false, timers=[];
-const $=id=>document.getElementById(id);
-function later(fn,ms){const h=setTimeout(fn,ms);timers.push(h);return h}
-function clearAll(){timers.forEach(clearTimeout);timers=[];levelTarget=0;stopListenSim()}
-
-function setState(s){
-  state=s; kiosk.classList.toggle('kiosk-out',s==='out');
-  const base={...STATE.idle,...STATE[s]}; if(cardOn&&s!=='out'){Object.assign(base,STATE.showing,s==='thinking'?{spin:1.4,freq:2.4,speed:2.2}:{})}
-  set(base); $('statusword').textContent=WORD[s];
-  const mic=s==='listening'; $('mic').classList.toggle('on',mic); $('mictext').textContent=mic?'Listening':'Mic off';
-  $('statustext').innerHTML = s==='listening'?'I’m listening…' : s==='speaking'||s==='thinking'?'Say <span class="k">“stop”</span> to interrupt' : 'Say <span class="k">“Hey Ada”</span> or tap to talk';
-  if(s==='confused'){set({tilt:.15});later(()=>set({tilt:-.1}),250);later(()=>set({tilt:.06}),500);later(()=>set({tilt:0}),800)}
-  if(s==='waking'){later(()=>set({bright:0}),500)}
-  if(s==='out'){hideCard(true);$('caption').innerHTML='';levelTarget=0;stopIdle()}
-  document.querySelectorAll('[data-s]').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
-}
-
-/* speech: words light up in time, mesh pulses with a fake envelope */
-function speak(text,done){
-  setState('speaking'); const cap=$('caption'); cap.classList.remove('fade');
-  const words=text.split(' '); cap.innerHTML=words.map(w=>`<span class="w">${w}</span>`).join(' ');
-  const spans=cap.querySelectorAll('.w'); let i=0;
-  const step=()=>{ if(state!=='speaking')return; if(i<spans.length){spans[i].classList.add('said'); levelTarget=.45+Math.random()*.3; i++; later(step,280+Math.random()*80)}
-    else{levelTarget=0; later(()=>{ if(state==='speaking'){setState('idle'); done&&done()}},500)} };
-  step();
-}
-let listenH=null; function startListenSim(){stopListenSim();listenH=setInterval(()=>levelTarget=Math.random()<.2?.1:.35+Math.random()*.45,300)}
-function stopListenSim(){if(listenH)clearInterval(listenH);listenH=null}
-
-/* ===================== cards + check-in loop ===================== */
-let cardId=null, timerBar=null;
-function qrSVG(){ // fake QR-like pattern (NOT scannable), seeded
-  let s=7,rnd=()=>(s=(s*16807)%2147483647)/2147483647, n=25, c='';
-  const fp=(x,y)=>`<rect x="${x}" y="${y}" width="7" height="7" fill="#16181D"/><rect x="${x+1}" y="${y+1}" width="5" height="5" fill="#fff"/><rect x="${x+2}" y="${y+2}" width="3" height="3" fill="#16181D"/>`;
-  for(let y=0;y<n;y++)for(let x=0;x<n;x++){const inF=(x<8&&y<8)||(x>16&&y<8)||(x<8&&y>16); if(!inF&&rnd()<.48)c+=`<rect x="${x}" y="${y}" width="1" height="1" fill="#16181D"/>`}
-  return `<svg class="qr" viewBox="-2 -2 29 29" shape-rendering="crispEdges"><rect x="-2" y="-2" width="29" height="29" fill="#fff"/>${c}${fp(0,0)}${fp(18,0)}${fp(0,18)}</svg>`;
-}
-function renderCard(id){
-  const c=CARDS[id], el=$('card'); el.className=c.help?'help':'';
-  let body='';
-  if(c.type==='qr') body=`<div style="position:relative">${qrSVG()}<div class="sample">SAMPLE · not a real code</div></div><div class="sub">${c.sub}</div>`;
-  if(c.type==='list') body=`<ul>${c.items.map(([i,t])=>`<li><span class="ic">${i}</span><span>${t}</span></li>`).join('')}</ul>${c.sub?`<div class="sub">${c.sub}</div>`:''}`;
-  el.innerHTML=`<div class="eyebrow">${c.eyebrow}</div><h2>${c.title}</h2>${body}${c.hide?'<div class="timer"><i></i></div>':''}`;
-}
-function showCard(id){
-  clearAll(); stopIdle(); cardId=id; renderCard(id); cardOn=true; kiosk.classList.add('kiosk-showing');
-  requestAnimationFrame(()=>$('card').classList.add('in'));
-  const c=CARDS[id];
-  setState('thinking');
-  later(()=>speak(c.say,()=>{ startHideTimer(c.hide); if(c.confirm) later(()=>speak(c.confirm,()=>setState('listening')),2500) }),900);
-  document.querySelectorAll('[data-c]').forEach(b=>b.classList.toggle('on',b.dataset.c===id));
-}
-function startHideTimer(s){ if(!s)return; const bar=$('card').querySelector('.timer i'); if(!bar)return;
-  bar.style.transition='none';bar.style.width='100%';requestAnimationFrame(()=>{bar.style.transition=`width ${s/4}s linear`;bar.style.width='0%'});
-  timerBar=later(()=>{hideCard();setState('idle')},s*250); } // 4x faster in the mockup
-function hideCard(quiet){ $('card').classList.remove('in','mini'); cardOn=false; cardId=null; kiosk.classList.remove('kiosk-showing');
-  document.querySelectorAll('[data-c]').forEach(b=>b.classList.remove('on')); if(!quiet&&state!=='out')set({...STATE.idle,...STATE[state]}) }
-function visitor(v){
-  if(!cardId||!CARDS[cardId].confirm){ $('caption').innerHTML='<span style="color:var(--ink-3)">(Show the QR card first)</span>'; return }
-  const c=CARDS[cardId]; clearAll(); setState('thinking');
-  if(v==='yes') later(()=>{hideCard(); speak(c.on_yes)},500);
-  if(v==='wait') later(()=>speak(c.on_no,()=>{startHideTimer(c.hide); later(()=>speak(c.confirm,()=>setState('listening')),4000)}),500);
-  if(v==='other') later(()=>{ $('card').classList.add('mini'); kiosk.classList.remove('kiosk-showing'); cardOn=false; set({...STATE.idle});
-    speak("A transformer is the design behind most modern language models. It reads every word at once, using a trick called attention.") },600);
-}
-
-/* ===================== idle acts ===================== */
-let idleH=null, autoOn=false, lastAct=null;
-function stopIdle(){ if(idleH)clearTimeout(idleH); idleH=null; juggle=null; balls.forEach(b=>b.material.opacity=0);
-  $('idlecap').classList.remove('on'); document.querySelectorAll('.z').forEach(z=>z.remove()); set({cube:0}); }
-function act(a){
-  if(state==='out')return; stopIdle(); if(cardOn)hideCard(); setState('idle'); $('caption').innerHTML=''; lastAct=a;
-  const cap=txt=>{$('idlecap').textContent=txt;$('idlecap').classList.add('on');later(()=>$('idlecap').classList.remove('on'),4200)};
-  if(a==='daydream_cube'){set({amp:.12,speed:1.2});later(()=>set({cube:.95,amp:.02,spin:.35}),700);later(()=>set({cube:0,amp:.06,spin:.08,speed:.6}),3800)}
-  if(a==='juggling'){juggle={t0:t,drop:true}; later(()=>cap('Oops. Still practicing.'),3600)}
-  if(a==='dozing'){set({sy:.88,y:.42,speed:.25,amp:.035,op:.4}); let n=0; const zz=()=>{if(n++>4)return; const z=document.createElement('div');z.className='z';z.textContent='z';
-      const r=kiosk.getBoundingClientRect(); z.style.left=(r.width*.56)+'px'; z.style.top=(r.height*.30)+'px'; kiosk.appendChild(z); later(()=>z.remove(),3300); later(zz,900)}; zz();
-      later(()=>{set({sy:1.12,y:.7,bright:.5,op:.8});later(()=>set({...STATE.idle}),450)},6000)}
-  if(a==='hello_wave'){set({amp:.16,speed:2});later(()=>set({amp:.06,speed:.6}),900);cap('Hi! I’m Ada.')}
-  if(a==='try_asking'){const qs=['Try: “Hey Ada, how do I submit a project?”','Try: “Hey Ada, what’s a neural network?”','Try: “Hey Ada, what equipment do you have?”'];cap(qs[Math.floor(Math.random()*3)])}
-  if(a==='spin'){set({spin:7});later(()=>set({spin:.08}),700)}
-  document.querySelectorAll('[data-a]').forEach(b=>b.classList.toggle('on',b.dataset.a===a||(b.dataset.a==='auto'&&autoOn)));
-}
-function autoRotate(){ if(!autoOn)return; const acts=['daydream_cube','juggling','hello_wave','try_asking','spin','dozing'].filter(x=>x!==lastAct);
-  if(state==='idle'&&!cardOn) act(acts[Math.floor(Math.random()*acts.length)]);
-  idleH=null; setTimeout(autoRotate,7000+Math.random()*5000); } // spec: 45–120 s; shortened for review
-
-/* ===================== wake / tap ===================== */
-function wake(){
-  if(state==='out')return; clearAll(); stopIdle(); $('caption').innerHTML=''; setState('waking');
-  later(()=>{setState('listening');startListenSim();
-    later(()=>{stopListenSim();levelTarget=0;setState('thinking');
-      later(()=>speak("Hi, I'm Ada! You can ask me about the lab, how to join, or anything about AI."),1200)},2600)},550);
-}
-$('talk').onclick=wake; canvas.onclick=wake;
-
-/* ===================== demo script ===================== */
-function demo(){
-  clearAll(); stopIdle(); hideCard(); setState('idle'); $('caption').innerHTML='';
-  const q=[[0,()=>act('hello_wave')],[3500,()=>{clearAll();setState('waking')}],[4100,()=>{setState('listening');startListenSim()}],
-    [6600,()=>{stopListenSim();setState('thinking')}],[7800,()=>showCard('qr_project_proposal')],
-  ];
-  q.forEach(([ms,f])=>setTimeout(f,ms));
-  setTimeout(()=>visitor('yes'),21000);
-}
-$('demo').onclick=demo;
-
-/* ===================== panel wiring ===================== */
-document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{clearAll();stopIdle();const s=b.dataset.s;
-  if(s==='speaking') speak("It's the design behind most modern language models, including me. Its big trick is called attention.");
-  else{setState(s); if(s==='listening')startListenSim(); if(s==='confused')$('caption').textContent="Sorry, I didn't catch that. Could you say it again?"; if(s==='idle'||s==='waking')$('caption').innerHTML=''}});
-document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>showCard(b.dataset.c));
-document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>visitor(b.dataset.v));
-document.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{ if(b.dataset.a==='auto'){autoOn=!autoOn;b.classList.toggle('on',autoOn);if(autoOn)autoRotate()} else act(b.dataset.a)});
-addEventListener('keydown',e=>{if(e.key===' '&&e.target===document.body){e.preventDefault();wake()}});
-setState('idle');
-</script>
+<script type="module" src="ada.js"></script>
 </body>
 </html>

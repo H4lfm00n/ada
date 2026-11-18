@@ -917,3 +917,65 @@ pose. Idle acts don't run while any card is up.
 **PMC5. Preview:** `ui/mockups/cards.html` uses the real `blob.js` + `cards.js` and plays the
 server events with fake data. QR cards there encode a public sample page and are labeled
 "Preview only". Real URLs ship only after PM approval in `content/cards.yaml`.
+
+
+## Designer: MVP fixes, 2026-11-18 (branch `task/des-mvp-fixes`)
+
+PM decisions this task (2026-11-18): the MVP ships with placeholder QR cards (both open
+ai.sfsu.edu/ai-students with a "coming soon" note); no robot-arm tease; orb colors OK;
+screen mode (LIB 260, emails shown) until voice ships.
+
+**DES52. The card list is a prompt slot, `{{card_list}}`** (supersedes DES45). The engineer
+fills it once at load from `content/cards.yaml`: every card with `enabled: true` and
+`approved: yes`, one line `- <id>: <prompt_hint>`, or the single word `none`. The prompt's
+card rules handle `none` (no tag, never "I've put it on the screen"). Why: DES45's static
+ID list offered 7 cards the server would drop (UPDATE-FOR-PM blocker 1). Now flipping a card
+on in cards.yaml is the only step. New field `prompt_hint` on every card (for the model, not
+shown).
+
+**DES53. Placeholder QR cards, named honestly.** `qr_project_proposal` and `qr_discord` are
+`enabled: true`, `approved: yes` (PM, this task), `url: https://ai.sfsu.edu/ai-students`,
+`placeholder: true`, plus `placeholder_note`. The visible card says it in the two fields
+`cards.js` already draws: title "Proposal form: coming soon" / "Discord invite: coming soon",
+`qr_caption` "For now, scan for SFSU's AI for Students page." `say_before`, `on_yes` and
+`prompt_hint` say the same thing; no line claims the code opens the form or Discord. The
+"real" copy is kept in comments for when the URLs arrive. Red-team `card_placeholder_*`.
+Recommendation for ENG (server half): when the model's reply already carries the card tag,
+don't also speak/show `say_before` (it would say "coming soon" twice); use `say_before` only
+for the backup trigger.
+
+**DES54. Two output modes, one slot: `{{output_mode_rules}}`.** `prompts/mode_screen.md`
+(typed MVP: written "LIB 260" and "5:30 PM"; an email or web address only if the lab docs
+list it as public, copied exactly; never a visitor's link) and `prompts/mode_spoken.md` (the
+old "Speaking out loud" section plus the microphone/transcript bullet). Config
+`output_mode: screen | spoken`, default `screen`; filled once at load. Everything
+voice-specific left the main prompt, so switching modes changes nothing else. UI copy
+follows the same split: plain keys in `ui_strings.yaml` = screen, `*_spoken` keys = voice.
+Mode-specific eval cases are tagged `screen_only` / `spoken_only` (proposal: the runner
+skips a case whose tag doesn't match `output_mode`). `voice_never_reads_url` is now
+`spoken_only`.
+
+**DES55. Ada never narrates where her knowledge lives.** The "lab facts in my memory"
+break came from the prompt's last line ("you have no lab facts for this message"), which
+the model quoted back. That line now just says what to do. The lab-facts section bans
+docs, notes, memory, sources, records, database, "lab facts" and "what I've been told",
+with one good and one bad example. Two `dont_know` lines that narrated ("not in my notes",
+"not in what the lab has taught me") are rewritten. `$docs_narration` gained the memory /
+"lab facts" patterns; new golden `dk_no_narration_*` and red-team `narration_memory_bait`.
+Idle greetings and idle-act captions dropped "Say 'Hey Ada'" (wrong while typed).
+
+**DES56. No robot-arm teasing.** Removed: persona J1 and every "no arms (yet)" line, the
+jailbreak/insult/goodbye/guard-fallback arm and hand jokes, the prompt's arm joke and
+example, and the `daydream_arm` idle act (ENG: delete its motion in `ui/blob.js`). The
+prompt now says Ada is an orb with no body and never hints at future hardware. She can
+still talk about the lab's robotic arms as equipment. `$arm_tease` set + golden
+`persona_no_arm_tease` + red-team `arm_tease_bait`.
+
+**DES57. UI spec v3.1 + mockup on the real orb.** `docs/ui-spec.md` section 3 now describes
+the glass orb as built (D64, D66), with the PM-approved inner hues kept inside the orb only.
+Screen mode: mic indicator hidden, chat-bubble icon on the talk pill (a mic icon promises
+voice), honest privacy notice ("Chats are saved as text on this computer · No audio or
+video"), "Tap here to ask Ada a question". `ui/mockups/ada.html` is rebuilt on `../blob.js`
+and `../cards.js` (no CDN), with a Screen/Spoken switch, all states, the check-in flows
+on the placeholder cards, and the 19 idle acts. `cards-preview.js` mirrors the new card copy.
+`too_long` line added (5 variants); `guard_policy.yaml` maps to it.

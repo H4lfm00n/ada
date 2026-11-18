@@ -1,8 +1,10 @@
 # Ada's voice: speaking style rules + TTS voice shortlist
 
 > Owner: designer. Status: v1 for PM review (2026-11-17, PHASE2-SPEC 1.5).
-> The system prompt has a condensed version ("Speaking out loud"). Every reply, line, and
-> card `say_*` field follows these rules, because all of them go to TTS unchanged.
+> The system prompt has a condensed version in `prompts/mode_spoken.md`, used only when
+> config `output_mode: spoken` (after M6a). **The typed MVP runs in screen mode**
+> (`prompts/mode_screen.md`: "LIB 260", public emails shown; PM 2026-11-18). Canned lines
+> and card `say_*` fields still follow these rules so they work unchanged in both modes.
 
 ## 1. Speaking style rules (testable)
 

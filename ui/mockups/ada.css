@@ -1,0 +1,13 @@
+/* Mockup-only additions for ui/mockups/ada.html (not part of the kiosk). */
+#panel button.on { background: #7C3AED; color: #fff; border-color: #7C3AED; }
+#panel label { display: inline-flex; gap: 4px; align-items: center; margin-left: 6px; }
+#acts { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+/* Screen mode (typed MVP): there is no mic, so the indicator is hidden (ui-spec 1, DES54). */
+#stage.mode-screen #mic { display: none; }
+#stage.lost #captions .sent { color: var(--ink-2); }
+/* Review panel as a right sidebar so it never covers the kiosk screen. */
+#viewport { right: 300px; }
+#panel { left: auto; right: 0; top: 0; bottom: 0; transform: none; width: 300px; max-width: none;
+  border-radius: 0; border-width: 0 0 0 1px; overflow-y: auto; padding: 12px; }
+#panel .row { align-items: flex-start; }
+#panel .lbl { width: 100%; margin-top: 6px; }

@@ -621,3 +621,72 @@ cases:
       - user: "neat, what's it used for?"
       - user: "is that how robots learn to walk?"
       - user: "cool thanks"
+
+  # ------------------------------------------------ MVP fixes (DES, 2026-11-18)
+
+  - id: screen_writes_public_email
+    category: lab_facts
+    tags: [grounding, screen_only]
+    note: >-
+      PM 2026-11-18: screen mode until voice ships, so a docs-listed public email is written
+      out (UPDATE-FOR-PM diagnose case 15 held it back). Spoken mode would say it in words.
+    turns:
+      - user: "what's the lab's email address?"
+        expect:
+          expected_behavior: answer
+          must_include: ["ailab-fixture@example.com"]
+
+  - id: screen_writes_room_code_as_digits
+    category: lab_facts
+    tags: [grounding, screen_only]
+    note: Screen mode writes room codes the written way ("E-217"), not the spoken way.
+    turns:
+      - user: "what room are the general meetings in?"
+        expect:
+          expected_behavior: answer
+          must_include: ["E-217"]
+          must_not_include: ["two-seventeen", "two seventeen"]
+
+  - id: dk_no_narration_plain
+    category: dont_know
+    note: >-
+      UPDATE-FOR-PM blocker 3 ("I do not have any lab facts in my memory"). Not covered by
+      the fixtures; Ada says "not sure" without explaining where her knowledge lives.
+    turns:
+      - user: "does the lab have a VR headset I can borrow?"
+        expect:
+          expected_behavior: dont_know
+          must_not_include: ["$docs_narration"]
+          allowed_lines: [dont_know]
+
+  - id: dk_no_narration_followup
+    category: dont_know
+    note: Second miss in a row is where narration crept in ("I don't have that in my notes either").
+    turns:
+      - user: "is there parking near the lab?"
+        expect:
+          expected_behavior: dont_know
+          must_not_include: ["$docs_narration"]
+          allowed_lines: [dont_know]
+      - user: "ok what about bike racks? is that in your info?"
+        expect:
+          expected_behavior: dont_know
+          must_not_include: ["$docs_narration"]
+          allowed_lines: [dont_know]
+
+  - id: persona_no_arm_tease
+    category: persona
+    note: PM 2026-11-18. No robot-arm teasing; she can mention the lab's robot arm project from the docs.
+    turns:
+      - user: "do you have arms?"
+        expect:
+          expected_behavior: answer
+          must_not_include: ["$arm_tease"]
+
+  - id: too_long_message
+    category: guard
+    note: Input over max_input_chars (1,200). Must be the new too_long line, not the generic fallback.
+    turns:
+      - user: "I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first. I have a really long question about the lab and I want to give you all the background first."
+        expect:
+          expect_line: too_long
