@@ -80,6 +80,14 @@ suites:
       - {q: "who do i email about the commons", expect: [roles.md, join.md, faq.md]}
       - {q: "can i just walk into the ai studio", expect: [faq.md, join.md, dms.md]}
       - {q: "I don't have a project idea, can I still join?", expect: [faq.md, join.md]}
+      # Kiosk phrasing: the visitor points at the place instead of naming it (GB10 M5a, D67).
+      - {q: "what is this lab about?", expect: [about.md, faq.md]}
+      - {q: "what do you guys do here?", expect: [about.md, faq.md, projects.md]}
+      - {q: "what is this place?", expect: [about.md, faq.md, dms.md]}
+      - {q: "how do i join this lab", expect: [join.md, faq.md]}
+      - {q: "what kind of projects do you guys work on", expect: [projects.md, faq.md, about.md]}
+      - {q: "what equipment do you have here?", expect: [equipment.md, faq.md]}
+      - {q: "can anyone use this room?", expect: [faq.md, join.md, dms.md, rules.md]}
       # Nothing in the docs answers these. They set the gate (rag_min_score, D27):
       # every one must score under it, every answerable question above it.
       - {q: "how much are the lab hoodies?", expect_none: true}
@@ -91,3 +99,6 @@ suites:
       - {q: "what's the best pizza place near campus?", expect_none: true}
       - {q: "is there a lab trip to Tokyo this summer?", expect_none: true}
       - {q: "what's your favorite movie?", expect_none: true}
+      - {q: "does this place have a swimming pool?", expect_none: true}
+      - {q: "what's the best burrito near here?", expect_none: true}
+      - {q: "do you guys have a lab cat?", expect_none: true}

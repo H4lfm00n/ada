@@ -865,3 +865,39 @@ async def test_prefill_probe_runs_end_to_end(
     assert await probe.run(rag_settings) == 0
     out = capsys.readouterr().out
     assert "SWAP: docs B + question B" in out and "no docs + question B" in out
+
+
+# -- D67: kiosk phrasing ("this lab", "here") names the place for the embedder -----------------
+
+
+@pytest.mark.parametrize(
+    "q",
+    [
+        "what is this lab about?",
+        "what do you guys do here?",
+        "What is this place?",
+        "can anyone use this room?",
+        "how do i join ur club",
+        "do y'all have GPUs",
+    ],
+)
+def test_place_hint_added_when_the_visitor_points_at_the_place(q: str) -> None:
+    from app.rag.retriever import with_place_hint
+
+    assert with_place_hint(q, "the SFSU AI Lab") == f"{q} (the SFSU AI Lab)"
+
+
+@pytest.mark.parametrize(
+    "q",
+    ["what is the AI Lab?", "what's your favorite movie?", "what do you do?", "where is LIB 260"],
+)
+def test_place_hint_left_out_otherwise(q: str) -> None:
+    from app.rag.retriever import with_place_hint
+
+    assert with_place_hint(q, "the SFSU AI Lab") == q
+
+
+def test_place_hint_off_by_default() -> None:
+    from app.rag.retriever import with_place_hint
+
+    assert with_place_hint("what is this lab about?", "") == "what is this lab about?"

@@ -12,6 +12,7 @@ Errors propagate; the pipeline turns them into "no docs" (the model then says "n
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -25,6 +26,23 @@ from app.rag.store import Index, IndexedChunk, RagIndexError, dot, normalize
 log = logging.getLogger(__name__)
 
 EMBED_BATCH = 32
+
+
+# A visitor at the kiosk says "this lab", "here", "you guys"; the docs say "the AI Lab" /
+# "the Student AI Commons". Those words point at the place, so the place is named for the
+# embedder (rag_place_hint, D67). "you" alone means Ada herself and is left alone.
+PLACE_RE = re.compile(
+    r"\b(?:this|that|your|ur|the)\s+(?:lab|place|room|club|space|group|org|commons|studio)\b"
+    r"|\b(?:here|you\s+guys|u\s+guys|y'?all|you\s+all)\b",
+    re.IGNORECASE,
+)
+
+
+def with_place_hint(query: str, hint: str) -> str:
+    """Append the place's name when the question points at it (no-op without a hint)."""
+    if hint and PLACE_RE.search(query):
+        return f"{query} ({hint})"
+    return query
 
 
 def query_text(query: str, instruction: str) -> str:
@@ -111,7 +129,12 @@ class OllamaRetriever:
     async def embed_query(self, query: str) -> list[float]:
         vecs = await self._client.embed(
             self._settings.embed_model,
-            [query_text(query, self._settings.rag_query_instruction)],
+            [
+                query_text(
+                    with_place_hint(query, self._settings.rag_place_hint),
+                    self._settings.rag_query_instruction,
+                )
+            ],
             keep_alive=self._settings.keep_alive,
         )
         if not vecs:

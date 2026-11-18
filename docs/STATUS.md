@@ -77,6 +77,12 @@ _Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). B
     headless Chrome; ~0.4 ms/frame of JS.
   - **PM, after D64: "add substance, like Siri"** -> glass orb with flowing pink/sky/lavender
     light inside and a soft halo (D66). Needs a GB10 look check.
+  - **GB10: "what is this lab about?" -> not sure.** Index fine (recall 100%); kiosk phrasing
+    scores 0.43 < 0.50 gate. Fix candidates A/B + deictic retrieval cases (D67); A/B run pending.
+  - Still open from the same check: the phase-2 prompt promises QR cards that don't exist yet
+    (cards are M5b, all disabled) and forbids saying emails; Ada also said "I do not have any lab
+    facts in my memory" (narration). Next ENG task: card tags stripped + prompt lists only
+    approved cards; designer: narration line.
   - Rename: `bot_name` default Ada, tests, one line of the repo `CLAUDE.md` (D63).
   - `ui/blob.js`: Three.js shaded blob (wireframe until D64), noise + breathing, all 8 spec 3.3 states
     (+ gray "lost"), card pose, DES51 audio envelope, motions for all 17 playable idle acts.

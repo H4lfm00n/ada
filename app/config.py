@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     rag_max_context_chars: int = Field(3000, gt=0)
     rag_timeout_s: float = Field(5.0, gt=0)
     rag_query_instruction: str = ""
+    rag_place_hint: str = ""  # appended when a question says "this lab"/"here" (D67)
 
     # Guardrails (M3). Every message and every reply sentence goes through both guards.
     guard_policy_file: str = "content/guard_policy.yaml"

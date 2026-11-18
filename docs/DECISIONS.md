@@ -868,3 +868,14 @@ amplitude 0.026). Same integrated, slow-easing motion as D64; ~0.4 ms/frame of J
 three hues next to the single accent of ui-spec section 8 (only inside the orb; UI chrome
 stays one accent). Flagged to the designer.
 
+**D67 (2026-11-17, GB10). Kiosk phrasing: "this lab" must find the AI Lab docs.** The PM saw
+"not sure" for "what is this lab about?": retrieval worked (recall 100% on 41 questions) but
+the best chunk scored 0.430 < the 0.50 gate, while "what is the AI Lab?" scored 0.663. Kiosk
+visitors point at the place ("this lab", "here", "you guys"); the docs name it. Two
+candidate fixes, chosen by a GB10 A/B run of `make rag-check` (with 7 new deictic questions
+and 3 new deictic negatives in retrieval.yaml): (A) name the lab in `rag_query_instruction`;
+(B) `rag_place_hint`: when a question points at the place (`PLACE_RE`), the retriever appends
+the place's name to the search text. "you" alone (= Ada) is not a place reference. Both are
+config; B is off ("") until the A/B result. Not changing the 0.50 gate: it keeps the
+negatives out.
+
