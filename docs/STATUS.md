@@ -75,9 +75,30 @@ _Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). B
   ready, Esc goodbye -> idle, no idle acts during a visit or while resting, kill switch -> "Ada
   is resting" and back live, reduced motion, every state and act in the debug panel; no page
   errors. JS cost ~1 ms/frame (fps there is software GL, meaningless). Decisions D57-D63.
-  **Not yet run on the GB10.**
+  - **GB10 run 1 (2026-11-17):** kiosk works end to end (17 idle acts playable, 3 off with
+    reasons; real gemma answers; kill switch on/off live). PM: blob "very twitchy", drop the
+    wireframe. 3 test failures = tests read the real kill switch (D65, fixed).
+  - **After run 1:** smooth shaded solid blob, phases integrated, no per-word pulsing, no strobe
+    (D64). Sandbox: 370 pass with the kill switch on or off; acts and states re-checked in
+    headless Chrome; ~0.4 ms/frame of JS.
+  - **PM, after D64: "add substance, like Siri"** -> glass orb with flowing pink/sky/lavender
+    light inside and a soft halo (D66). Needs a GB10 look check.
+  - **GB10: "what is this lab about?" -> not sure.** Index fine (recall 100%); kiosk phrasing
+    scores 0.43 < 0.50 gate. Fixed with `rag_place_name: "the AI Lab"` (D67, two A/B runs); 3 junk "this place" questions
+    now checked at the reply level (real_docs_qa 21-23).
+  - GB10: kiosk now answers "what is this lab about?" / "what do you guys do here?" from about.md
+    + faq.md. `make rag-diagnose` gave 26/26 canned lines: it only warmed the chat model, so a cold
+    guard timed out on every question (D41 again). Diagnose now warms all models and prints the
+    input-guard reason whenever a canned line replaces an answer.
+  - **GB10 rag-diagnose (warm):** 21/26 OK, 0 retrieval misses, first token 1.32 s median [PASS].
+    Real miss: case 15 holds back ai@sfsu.edu (card/no-email prompt rule). Cases 3/11/19/22: checks
+    too narrow (spoken "LIB two-sixty", phrasing); widened. PM summary: docs/UPDATE-FOR-PM.md.
+  - Still open from the same check: the phase-2 prompt promises QR cards that don't exist yet
+    (cards are M5b, all disabled) and forbids saying emails; Ada also said "I do not have any lab
+    facts in my memory" (narration). Next ENG task: card tags stripped + prompt lists only
+    approved cards; designer: narration line.
   - Rename: `bot_name` default Ada, tests, one line of the repo `CLAUDE.md` (D63).
-  - `ui/blob.js`: Three.js wireframe icosphere, simplex noise + breathing, all 8 spec 3.3 states
+  - `ui/blob.js`: Three.js shaded blob (wireframe until D64), noise + breathing, all 8 spec 3.3 states
     (+ gray "lost"), card pose, DES51 audio envelope, motions for all 17 playable idle acts.
     `ui/kiosk.js` drives it from the existing events (D62). Three.js r169 + Inter bundled (D60).
   - `app/idle.py` + server tick: `idle_act` events while nobody is there (D59). New page ->
@@ -376,8 +397,11 @@ RAG (fill from `make rag-probe`): embed model, search ms median/max, answerable 
 - Mic indicator: off until real audio capture (D61). Tell me if you want different copy meanwhile.
 - The rotating `idle_greetings` captions are gone; idle acts replace them. The lines stay in
   lines.yaml (the server still sends them).
-- Idle acts: all 17 playable ones have a motion; `look_around` is subtle on a light background
-  (a darker patch plus a small bulge). The arm daydream is a bent capsule, not a jointed arm.
+- **The blob is no longer a wireframe (PM, D64, D66):** a violet glass orb with ribbons of pink,
+  sky and lavender light inside and a soft halo; these three hues live only inside the orb.
+  Spec v3 section 3 and the mockup still say wireframe; please update them when you can.
+  `wireframe_wave` and `count_vertices` keep their ids but now show a soft band / a light
+  sweep from the top. The arm daydream is a bent capsule, not a jointed arm.
   Try them at `/ui/?debug=1`. Acts off: fun_fact (needs `ai_fact` approved), event_teaser (M5c).
 - Captions light up word by word at ~300 ms/word until TTS gives real timings.
 
