@@ -772,3 +772,65 @@ Slurs use placeholders per the file's content policy.
 level now drives a smoothed swell plus one slow wave (attack ≈0.25 s, release ≈0.6 s) instead
 of high-frequency noise snapping per word, which read as shaking. ENG: smooth `audio_level`
 the same way; don't map raw RMS straight to displacement.
+
+## 2026-11-17 · M5a rename + new look (`task/m5a-ada-look`)
+
+**D57. M5a is built on top of the unmerged M5 branch.** `task/m5-kiosk` (server, websocket,
+D50-D56) was never merged or run on the GB10, and M5a needs its events. The M5a branch is
+`main` + a merge of `task/m5-kiosk` (clean except DECISIONS.md; designer phase-2 content kept
+everywhere). Merging M5a merges M5. Alternative: merge M5 first (needs a GB10 run of the old
+dark UI that is about to be replaced).
+
+**D58. New UI copy in `content/ui_strings.yaml` v2, copied verbatim from ui-spec v3 section 7.**
+New keys: `talk_idle`, `talk_listening`, `talk_interrupt`, `mic_off`, `mic_on`, `rest_title`,
+`rest_body`; `notice` replaced with the v3 text. "Ada" written as `{{bot_name}}`. The v2 keys
+stay (typing box, connection states). Required keys are checked at startup. Designer to review.
+
+**D59. Idle acts are picked by the server, played by the page.** `app/idle.py` loads
+`idle_acts.yaml` (strict validation, fails at startup) and owns rotation: weighted random,
+never the same act twice in a row (even with one act: then it waits), gap uniform in
+`rotation.min_gap_s..max_gap_s`, `after_idle_s` counted from when the screen went quiet,
+`reduced_motion: skip` acts skipped when the page reports reduced motion. "Quiet" = a screen
+is connected, no session, no turn, kill switch off, Ollama reachable. New events: server ->
+page `idle_act {id, duration_s, caption, reduced_motion}`; page -> server `wake {source}` (a
+tap) and `screen {reduced_motion}`. Any interaction restarts the quiet clock; the page stops a
+running act itself, instantly, on any pointer or key. Why server-side: testable in Python,
+one clock, and the server already knows when a visitor is there. Acts that need unfinished
+content are left out with a logged reason: `fun_fact` (its `ai_fact` card isn't
+`approved: yes`), `event_teaser` (needs a lab_docs event reader, M5c), `quiz_invite`
+(`enabled: false`). `kiosk_idle_enabled: false` turns acts off.
+
+**D60. The blob: Three.js r169 ES module + Inter, both bundled; CPU displacement.** The
+mockup loads Three.js r128 and Inter from CDNs; the kiosk must not touch the network (CSP
+`'self'`), so `ui/vendor/three.module.min.js` (MIT, single file, sha256 f7cee3c7...) and
+`ui/fonts/inter-latin-{400..700}` (OFL) are committed. Atkinson Hyperlegible and `orb.js` are
+removed. Icosphere detail 5 (2,160 vertices), 3D simplex noise (Gustavson, public domain) on
+the CPU: ~1 ms per frame of JS in the sandbox, far under the 16.7 ms budget at 60 fps. Every
+act in `idle_acts.yaml` has a motion; a test fails if the file gains an act `blob.js` lacks.
+The audio envelope follows DES51 (smoothed swell + one slow wave).
+
+**D61. The mic indicator only turns on when audio is really being captured.** The spec's state
+table puts the red "Listening" dot on the Listening state. Before M6 there is no microphone,
+so a tap shows the LISTENING status word and blob motion, but the indicator stays "Mic off".
+It follows a `mic {on}` event the M6 audio pipeline will send. Privacy indicators must never
+claim recording that isn't happening, or miss recording that is. Flagged for designer/PM.
+
+**D62. States are derived on the page from the existing events (no server `state` event).**
+`turn_start` -> thinking; `sentence` -> speaking (captions light word by word at an estimated
+300 ms/word until TTS word timings exist, spec 4); `guard_fallback`/`didnt_catch` lines ->
+confused wobble first; `out_of_order` -> "Ada is resting"; `backend`/socket loss -> gray
+"lost". Tap -> waking (0.5 s) -> listening, and (until M6) opens the staff typing box so the
+screen stays usable; 10 s with nothing typed goes back to idle. The v2 rotating
+`idle_greetings` captions are dropped in favor of idle acts (the server still sends them in
+`hello`). Hooks only, not built: `audio_level`, `wake` and `mic` from the server (M6), and
+`show_card` / `card_mini` / `hide_card` accepted and ignored (M5b; the card pose exists in
+`blob.showing()`). Kiosk hooks `Kiosk.audio_level()` and `Kiosk.wake()` emit the first two.
+`/ui/?debug=1` adds a staff panel to force any state or act (visual only).
+
+**D63. Rename leftovers fixed outside the designer's files.** `Settings.bot_name` default ->
+"Ada"; tests that used the old name as a fixture; one line of the brief in the repo's
+`CLAUDE.md` (PM-owned; the Project-instructions copy of the brief in claude.ai still says
+the old name and needs the same edit by the PM). Kept on purpose: the `old_name` eval set,
+the persona's "never call herself ..." rule, red-team cases, history in DECISIONS/STATUS, and
+the retired dark mockup `ui/mockups/kiosk.html`.
+

@@ -32,7 +32,7 @@ def test_split(text: str, expected: list[str]) -> None:
 @pytest.mark.parametrize("size", [1, 2, 3, 5, 8])
 def test_streaming_in_pieces_matches_whole(size: int) -> None:
     text = (
-        "Totally okay, that's what I'm here for! I'm Dum-E, the lab's robot helper. "
+        "Totally okay, that's what I'm here for! I'm Ada, the lab's robot helper. "
         "You could ask me about e.g. transformers, or what 3.5 means.\nOr just say hi."
     )
     splitter = SentenceSplitter()

@@ -72,7 +72,9 @@ kiosk_host: 127.0.0.1
 kiosk_port: 8080
 kiosk_ui_strings_file: content/ui_strings.yaml   # designer-owned UI copy (DES37)
 kiosk_warn_before_s: 30               # "Still there?" countdown before the idle reset
-kiosk_reduced_motion: false           # true = static orb, whatever the browser says
+kiosk_reduced_motion: false           # true = gentle blob (no spins, skip-marked idle acts), whatever the browser says
+kiosk_idle_acts_file: content/idle_acts.yaml   # designer-owned idle acts (spec 3.1); visual only
+kiosk_idle_enabled: true              # false = the blob just breathes when nobody is there
 
 # --- Transcripts (M3) -------------------------------------------------------------
 # Text only, local only, one JSONL file per visitor, guard decisions included (D37).

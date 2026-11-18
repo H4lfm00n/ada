@@ -1,11 +1,22 @@
-# Kiosk UI copy (M5). Designer-owned; the engineer only wires it up.
-# Wording copied verbatim from docs/ui-spec.md sections 5.7 and 6 (DES37: this file is
-# where ui_strings live). {{bot_name}} is filled from config; {{seconds}} by the screen.
-# **text** in `notice` renders bold. Edit freely; reload the kiosk page to see changes
-# (the server re-reads this file on every page load and websocket connect).
-version: 1
+# Kiosk UI copy. Designer-owned; the engineer only wires it up.
+# v2 (M5a, ENG 2026-11-17): the new keys and `notice` are copied verbatim from
+# docs/ui-spec.md v3 section 7 (light theme, Ada). The v2 keys below them are still used by
+# the staff typing box and the connection states. Please review (D58).
+# {{bot_name}} is filled from config; {{seconds}} by the screen.
+# **text** renders bold in `notice` and the talk_* lines. Edit freely; reload the kiosk page
+# to see changes (the server re-reads this file on every page load and websocket connect).
+version: 2
 strings:
-  notice: "**AI** · {{bot_name}} can make mistakes · Text log only, no audio or video · Don't type personal info"
+  # --- v3 (spec section 7) ---
+  notice: "**AI** · {{bot_name}} is an AI and can make mistakes · Listens only after “Hey {{bot_name}}” or a tap · No audio recorded"
+  talk_idle: "Say **“Hey {{bot_name}}”** or tap to talk"
+  talk_listening: "I'm listening…"
+  talk_interrupt: "Say **“stop”** to interrupt"   # barge-in builds only (M6c)
+  mic_off: Mic off
+  mic_on: Listening
+  rest_title: "{{bot_name}} is resting"
+  rest_body: Back soon. A lab member can help you in the meantime.
+  # --- v2, still used ---
   status_listening: Listening
   status_thinking: Thinking
   status_reconnecting: Reconnecting

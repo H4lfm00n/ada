@@ -16,6 +16,13 @@ Everything the visitor sees comes through the same pipeline as `make chat` (buil
 app.factory): input guard -> RAG -> chat model -> output guard per sentence. The only text
 this module sends on its own is a designer-written canned line (fallback, out of order).
 
+Idle life (M5a, app/idle.py): while nobody is there, the tick sends `idle_act` events from
+content/idle_acts.yaml; any interaction (tap = `wake`, typing, a message) restarts the quiet
+clock. The page stops a running act on its own the moment someone interacts.
+
+Hooks for M6 voice (not built yet): `Kiosk.audio_level(source, level)` and
+`Kiosk.wake(source)` push the events the blob already understands.
+
 Background loops: the idle clock ("Still there?", then goodbye + reset), the kill-switch
 check (live "out of order", no reload), the Ollama reachability check (error screen), model
 warm-up (retried until Ollama is up), and the websocket ping.
@@ -30,6 +37,7 @@ import json
 import logging
 import math
 import os
+import random
 import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
@@ -46,6 +54,7 @@ from fastapi.staticfiles import StaticFiles
 from app.admin import TOKEN_ENV, make_router
 from app.config import LOOPBACK_HOSTS, REPO_ROOT, Settings, load_settings
 from app.factory import Built, build_pipeline, warm_up
+from app.idle import IdleCatalog, IdlePicker, IdleScheduler, load_idle_acts
 from app.lines import GUARD_FALLBACK, IDLE_GREETINGS, OUT_OF_ORDER, SLOT_RE
 from app.ollama_client import OllamaClient
 from app.sentences import split_sentences
@@ -62,7 +71,8 @@ UI_STRING_KEYS = frozenset(
         "notice", "status_listening", "status_thinking", "status_reconnecting",
         "status_out_of_order", "status_connection_lost", "placeholder_idle",
         "placeholder_ready", "placeholder_fallback", "hint_busy", "still_there",
-        "connection_lost_line",
+        "connection_lost_line", "talk_idle", "talk_listening", "talk_interrupt", "mic_off",
+        "mic_on", "rest_title", "rest_body",
     }
 )  # fmt: skip
 
@@ -149,6 +159,8 @@ class Kiosk:
         client: OllamaClient,
         sink: KioskSink,
         clock: Clock = time.monotonic,
+        idle: IdleCatalog | None = None,
+        rng: random.Random | None = None,
     ) -> None:
         self.settings = settings
         self.built = built
@@ -168,6 +180,8 @@ class Kiosk:
         self.status = KioskStatus(kill_on=built.kill_switch.is_on())
         self._tasks: list[asyncio.Task[None]] = []
         self._pending_reset: str | None = None  # session_reset reason to send after turn_end
+        self.idle = IdleScheduler(IdlePicker(idle, rng)) if idle and idle.acts else None
+        self.screen_reduced = settings.kiosk_reduced_motion  # updated by the page's `screen`
 
     # -- events out ----------------------------------------------------------------------
 
@@ -216,6 +230,7 @@ class Kiosk:
             "idle_greetings": greetings,
             "backend_ok": self.status.backend_ok,
             "ping_s": self.settings.kiosk_ping_s,
+            "idle_acts": self.idle is not None,
         }
         if self.status.kill_on:
             event["out_of_order_line"] = self.out_of_order_line()
@@ -231,6 +246,7 @@ class Kiosk:
             log.warning("a second screen connected; closing the older one")
             with contextlib.suppress(Exception):
                 await old.close(code=CLOSE_REPLACED, reason="replaced by a newer screen")
+        self._interrupt_idle()  # a fresh screen starts a fresh quiet period
         await self.emit(self.hello())
         try:
             while True:
@@ -256,8 +272,12 @@ class Kiosk:
             cid = str(cid)[:64] if cid is not None else None
             if isinstance(text, str):
                 await self.on_message(text[:MAX_MESSAGE_CHARS], cid)
-        elif kind == "typing":
+        elif kind in ("typing", "wake"):  # wake = a tap on the blob / talk button
             self.on_typing()
+        elif kind == "screen":  # the page's prefers-reduced-motion, sent on connect/change
+            self.screen_reduced = bool(data.get("reduced_motion")) or (
+                self.settings.kiosk_reduced_motion
+            )
         elif kind == "reset":
             await self.on_reset(bool(data.get("immediate")))
         elif kind == "pong":
@@ -268,6 +288,7 @@ class Kiosk:
     # -- client events -------------------------------------------------------------------
 
     async def on_message(self, text: str, client_msg_id: str | None) -> None:
+        self._interrupt_idle()
         if self.status.kill_on:  # the screen is already showing out of order; say it again
             await self.emit({"type": "out_of_order", "on": True, "line": self.out_of_order_line()})
             return
@@ -280,11 +301,13 @@ class Kiosk:
         self._start_turn(client_msg_id, self._visitor_turn(sid, text))
 
     def on_typing(self) -> None:
+        self._interrupt_idle()
         if self.sid and self.turn is None and self.sessions.session(self.sid):
             self.sessions.touch(self.sid)
             self._warned_at = None
 
     async def on_reset(self, immediate: bool) -> None:
+        self._interrupt_idle()
         if self.turn is not None:
             await self._cancel_turn()
         if self.sid is None or self.sessions.session(self.sid) is None or immediate:
@@ -390,9 +413,45 @@ class Kiosk:
         if had_turns and self.pipeline.transcripts:
             self.pipeline.transcripts.end_visit(sid, "visit_end", why=why)
 
+    # -- idle life + voice hooks -----------------------------------------------------------
+
+    def _interrupt_idle(self) -> None:
+        if self.idle is not None:
+            self.idle.interrupt(self.clock())
+
+    def quiet(self) -> bool:
+        """Nobody is there: the screen may play idle acts."""
+        return (
+            self.ws is not None
+            and self.sid is None
+            and self.turn is None
+            and not self.status.kill_on
+            and self.status.backend_ok
+        )
+
+    async def idle_step(self) -> None:
+        if self.idle is None:
+            return
+        cue = self.idle.step(self.clock(), quiet=self.quiet(), reduced=self.screen_reduced)
+        if cue is not None:
+            await self.emit(cue.event())
+
+    async def wake(self, source: str) -> None:
+        """M6 hook: the wake word fired (source "word"). Same as a tap on the page."""
+        self.on_typing()
+        await self.emit({"type": "wake", "source": source})
+
+    async def audio_level(self, source: str, level: float) -> None:
+        """M6 hook: mic (visitor) or tts (Ada) loudness, 0-1, ~20 Hz. The page smooths it."""
+        if source not in ("mic", "tts"):
+            raise ValueError(f"audio_level source must be mic or tts, not {source!r}")
+        lvl = 0.0 if not math.isfinite(level) else min(1.0, max(0.0, level))
+        await self.emit({"type": "audio_level", "source": source, "level": round(lvl, 3)})
+
     async def tick(self) -> None:
-        """One step of the idle clock and the kill-switch check."""
+        """One step of the idle clock, the idle acts, and the kill-switch check."""
         await self._check_kill_switch()
+        await self.idle_step()
         if self.status.kill_on or self.turn is not None or self.sid is None:
             return
         s = self.sessions.peek(self.sid)
@@ -532,7 +591,15 @@ def create_app(
     built = build_pipeline(settings, client, sink, sink)
     for w in built.warnings:
         log.warning("%s", w)
-    kiosk = Kiosk(settings, built, client, sink)
+    idle = None
+    if settings.kiosk_idle_enabled:
+        idle = load_idle_acts(
+            settings.content_path(settings.kiosk_idle_acts_file), REPO_ROOT, settings.bot_name
+        )  # fail at startup on a broken file, like ui_strings
+        log.info("idle acts: %d playable", len(idle.acts))
+        for act_id, why in idle.unavailable.items():
+            log.info("idle act %s is off: %s", act_id, why)
+    kiosk = Kiosk(settings, built, client, sink, idle=idle)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:

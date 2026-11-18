@@ -1,114 +1,129 @@
-/* Kiosk UI (M5). Tokens from docs/ui-spec.md section 7. The stage is a fixed 1920x1080
-   canvas scaled to the screen (kiosk.js fit()), so 1 px here = 1 px on a 1080p screen,
-   exactly the spec's `--u` unit. */
-
-@font-face {
-  font-family: "Atkinson Hyperlegible";
-  font-style: normal; font-weight: 400; font-display: block;
-  src: url("fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Atkinson Hyperlegible";
-  font-style: normal; font-weight: 700; font-display: block;
-  src: url("fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2");
-}
+/* Kiosk screen, light theme (docs/ui-spec.md v3). Designed on a 1920x1080 stage that
+   kiosk.js scales to the screen, so every size below is in design px. */
+@font-face { font-family: Inter; font-weight: 400; font-display: block; src: url(fonts/inter-latin-400-normal.woff2) format('woff2'); }
+@font-face { font-family: Inter; font-weight: 500; font-display: block; src: url(fonts/inter-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: Inter; font-weight: 600; font-display: block; src: url(fonts/inter-latin-600-normal.woff2) format('woff2'); }
+@font-face { font-family: Inter; font-weight: 700; font-display: block; src: url(fonts/inter-latin-700-normal.woff2) format('woff2'); }
 
 :root {
-  /* color */
-  --bg: #06080C;
-  --text: #F3F6FA;        /* captions, 18:1 */
-  --text-muted: #B4C0CE;  /* previous sentence, notice, status: 10.5:1 */
-  --line: #2A3446;        /* input underline (decorative) */
-
-  /* type */
-  --font: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --fs-caption: 56px;
-  --fs-caption-prev: 40px;
-  --fs-caption-long: 44px;
-  --fs-input: 36px;
-  --fs-small: 28px;
-  --lh-caption: 1.22;
-
-  /* layout (1080p px) */
-  --status-top: 590px;
-  --captions-bottom: 150px;
-  --captions-height: 330px;
-  --captions-max-w: 1400px;
-  --input-w: 1000px;
-  --input-bottom: 44px;
-
-  /* motion */
-  --t-fast: 150ms;
-  --t-med: 400ms;
-  --t-caption: 220ms;
+  /* design tokens, spec section 8 */
+  --bg: #F7F6F2; --surface: #FFFFFF; --ink: #16181D; --ink-2: #4A4F5A; --ink-3: #8A8F99;
+  --line: #E6E3DC; --accent: #7C3AED; --accent-soft: #F1EAFE; --danger: #B42318; --rest: #9AA0A8;
+  --t-caption: 54px; --t-status: 30px; --t-notice: 20px;
+  --shadow: 0 18px 50px rgba(22, 24, 29, .10);
+  --ease: cubic-bezier(.2, .8, .2, 1);
 }
-
 * { box-sizing: border-box; }
-html, body {
-  margin: 0; height: 100%; overflow: hidden; background: #000;
-  color: var(--text); font-family: var(--font); cursor: none;
-}
-#viewport { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
-
+html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+#viewport { position: fixed; inset: 0; background: var(--bg); }
 #stage {
-  width: 1920px; height: 1080px; position: absolute; left: 50%; top: 50%;
-  transform-origin: center; background: var(--bg); overflow: hidden;
-}
-#orb { position: absolute; left: 0; top: 0; width: 1920px; height: 660px; }
-
-.notice {
-  position: absolute; top: 32px; left: 0; right: 0; text-align: center;
-  font-size: var(--fs-small); color: var(--text-muted);
-}
-.notice b { color: var(--text); font-weight: 700; }
-
-.status {
-  position: absolute; top: var(--status-top); left: 0; right: 0; text-align: center;
-  font-size: var(--fs-small); letter-spacing: .14em; text-transform: uppercase;
-  color: var(--text-muted);
+  position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px;
+  transform-origin: 50% 50%; background: var(--bg); overflow: hidden;
+  font-family: Inter, system-ui, sans-serif; color: var(--ink);
 }
 
-.captions {
-  position: absolute; left: 210px; right: 210px; bottom: var(--captions-bottom);
-  height: var(--captions-height); display: flex; flex-direction: column;
-  justify-content: flex-end; align-items: center; gap: 10px; text-align: center;
-  overflow: hidden;
-}
-.cap {
-  font-size: var(--fs-caption); line-height: var(--lh-caption); max-width: var(--captions-max-w);
-  text-wrap: balance; animation: capin var(--t-caption) ease-out;
-}
-.captions.long .cap { font-size: var(--fs-caption-long); }
-.cap.prev { color: var(--text-muted); font-size: var(--fs-caption-prev); }
-.cap.muted { color: var(--text-muted); }
-.cap b { font-weight: 700; color: var(--text); }
-@keyframes capin { from { opacity: 0; transform: translateY(8px); } }
+#blob { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+#tap { position: absolute; left: 640px; top: 100px; width: 640px; height: 560px; border-radius: 50%; }
 
-.inputline {
-  position: absolute; left: calc((1920px - var(--input-w)) / 2); width: var(--input-w);
-  bottom: var(--input-bottom); display: flex; align-items: center;
-  border-bottom: 2px solid var(--line);
-  transition: border-color var(--t-med), opacity var(--t-med);
+/* (1) notice, (2) mic indicator */
+#notice { position: absolute; top: 28px; left: 36px; right: 360px; font-size: var(--t-notice); color: var(--ink-2); line-height: 1.4; }
+#notice b {
+  font-weight: 600; color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 4px 12px; margin-right: 6px;
 }
-.inputline:focus-within { border-color: var(--text-muted); }
-.inputline input {
-  flex: 1; height: 68px; font: inherit; font-size: var(--fs-input); color: var(--text);
-  background: transparent; border: 0; outline: none; text-align: center; caret-color: var(--text);
+#mic {
+  position: absolute; top: 24px; right: 36px; display: flex; align-items: center; gap: 10px;
+  font-size: var(--t-notice); font-weight: 600; color: var(--ink-3); padding: 8px 16px;
+  border-radius: 999px; border: 1px solid var(--line); background: var(--surface); transition: color .25s, border-color .25s;
 }
-.inputline input::placeholder { color: var(--text-muted); opacity: .75; }
-.inputline .hint {
-  position: absolute; right: 0; bottom: -38px; font-size: 22px; color: var(--text-muted);
-  opacity: 0; transition: opacity var(--t-fast);
-}
-.inputline .hint.on { opacity: 1; }
+#mic .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--ink-3); }
+#mic.on { color: var(--danger); border-color: #F3C9C4; }
+#mic.on .dot { background: var(--danger); animation: pulse 1s infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
 
-/* states without input */
-.st-reconnecting .inputline, .st-ooo .inputline, .st-lost .inputline {
-  opacity: 0; pointer-events: none;
+/* (4) status word */
+#statusword {
+  position: absolute; left: 0; right: 0; top: 690px; text-align: center; font-size: 24px;
+  letter-spacing: .18em; font-weight: 600; color: var(--ink-3); text-transform: uppercase;
 }
+
+/* (5) captions: newest at the bottom, max 3 lines, older lines scroll up and fade */
+#captions {
+  position: absolute; left: 200px; right: 200px; top: 712px; height: 200px;
+  display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
+  text-align: center; font-size: var(--t-caption); line-height: 1.22; font-weight: 500;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 34%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 34%);
+}
+#captions .sent { transition: opacity .6s; }
+#captions .sent.old { opacity: .45; }
+#captions .w { opacity: .18; transition: opacity .12s; }
+#captions .w.said { opacity: 1; }
+#captions .muted { color: var(--ink-3); }
+#captions b { font-weight: 700; }
+#captions.long { font-size: 46px; }
+
+/* idle-act caption (visual only, never spoken) */
+#idlecap {
+  position: absolute; left: 200px; right: 200px; top: 790px; text-align: center; font-size: 40px;
+  color: var(--ink-2); opacity: 0; transition: opacity .8s;
+}
+#idlecap.on { opacity: 1; }
+.z {
+  position: absolute; font-family: Inter, system-ui, sans-serif; font-weight: 400; color: var(--accent);
+  font-size: 48px; pointer-events: none; animation: zfloat 3.2s ease-out forwards;
+}
+@keyframes zfloat {
+  from { transform: translate(0, 0) scale(.6); opacity: 0; }
+  20% { opacity: .9; }
+  to { transform: translate(60px, -180px) scale(1.3); opacity: 0; }
+}
+
+/* (6) talk button / typing box */
+#bottom { position: absolute; left: 0; right: 0; bottom: 46px; height: 100px; display: flex; justify-content: center; align-items: center; }
+#talk {
+  font: inherit; font-size: var(--t-status); font-weight: 500; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; min-height: 96px; padding: 16px 44px;
+  display: flex; align-items: center; gap: 16px; cursor: pointer; box-shadow: var(--shadow);
+  transition: opacity .3s, transform .3s var(--ease);
+}
+#talk b { color: var(--accent); font-weight: 700; }
+#talk svg { width: 30px; height: 30px; flex: none; }
+#talk:active { transform: scale(.97); }
+#talk.dim { opacity: .45; }
+#typing { display: none; position: relative; }
+#input {
+  width: 1100px; height: 96px; border-radius: 999px; border: 2px solid var(--accent); background: var(--surface);
+  padding: 0 40px; font: 500 34px Inter, system-ui, sans-serif; color: var(--ink); outline: none; box-shadow: var(--shadow);
+}
+#input::placeholder { color: var(--ink-3); }
+#hint { position: absolute; left: 0; right: 0; top: -44px; text-align: center; font-size: 24px; color: var(--ink-3); opacity: 0; transition: opacity .25s; }
+#hint.on { opacity: 1; }
+#stage.typing #talk { display: none; }
+#stage.typing #typing { display: block; }
+
+/* out of order ("Ada is resting") and connection states */
+#rest { position: absolute; left: 0; right: 0; top: 760px; text-align: center; display: none; }
+#rest h1 { font-size: 60px; margin: 0; font-weight: 600; color: var(--ink-2); }
+#rest p { font-size: 30px; color: var(--ink-3); margin: 14px 0 0; }
+#stage.out #rest { display: block; }
+#stage.out #captions, #stage.out #bottom, #stage.out #statusword, #stage.out #idlecap,
+#stage.lost #bottom, #stage.lost #idlecap { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .cap { animation: none; }
-  .inputline, .inputline .hint { transition: none; }
+  #captions .w, #captions .sent, #idlecap, #talk { transition: none; }
+  #mic.on .dot { animation: none; }
 }
-.reduced .cap { animation: none; }
+#stage.reduced .z { display: none; }
+
+/* staff debug panel (/ui/?debug=1); not part of the kiosk design */
+#debug {
+  position: fixed; left: 8px; bottom: 8px; z-index: 10; max-width: 560px; background: rgba(255, 255, 255, .96);
+  border: 1px solid #ddd; border-radius: 10px; padding: 8px 10px; font: 12px system-ui, sans-serif; color: #222;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, .12);
+}
+#debug .row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 3px 0; }
+#debug .lbl { font-weight: 700; color: #555; margin-right: 4px; min-width: 52px; }
+#debug button { font: inherit; border: 1px solid #ccc; background: #f6f6f6; border-radius: 6px; padding: 3px 7px; cursor: pointer; }
+#debug button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+#debug .note { color: #777; }

@@ -42,8 +42,16 @@ config.yaml) and runs every message through the same guarded pipeline as `make c
 `make kiosk-browser` (in another terminal, on the GB10's desktop) waits for the server and
 opens Chromium in kiosk mode with a throwaway incognito profile. Leave with Alt+F4.
 
-- UI: `ui/index.html`, `kiosk.css`, `orb.js`, `kiosk.js`; spec `docs/ui-spec.md`; copy in
-  `content/ui_strings.yaml` (designer-owned). Reload the page to pick up copy edits.
+- UI (M5a, light theme): `ui/index.html`, `kiosk.css`, `kiosk.js` (events -> states,
+  captions), `blob.js` (Three.js wireframe blob, bundled in `ui/vendor/`); spec
+  `docs/ui-spec.md` v3; copy in `content/ui_strings.yaml` (designer-owned). Reload the page
+  to pick up copy edits.
+- Idle acts: `content/idle_acts.yaml`, picked by `app/idle.py`, visual only, every 45-120 s
+  while nobody is there; any tap or typing stops them.
+- Talking: tap the blob or the button (until M6 voice, a tap opens the typing box). Staff:
+  `` ` `` opens/closes the typing box; Esc says goodbye, Esc twice resets at once.
+- Debug: `http://127.0.0.1:8080/ui/?debug=1` shows a panel that forces every blob state and
+  idle act (visual only) and shows fps.
 - Kill switch: `make kill-on` / `make kill-off` (or `POST /admin/kill-switch` with
   `ADA_ADMIN_TOKEN`) flips the live screen to "out of order" within ~0.5 s.
 - Start on boot (not enabled): `scripts/kiosk-autostart.sh install|uninstall|status`.

@@ -6,6 +6,8 @@ guard rules and the real Llama Guard wrapper; only Ollama's HTTP API is faked.
 
 from __future__ import annotations
 
+import asyncio
+import itertools
 import json
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -125,15 +127,16 @@ def test_page_served_with_boot_copy_and_strict_csp(kiosk: Callable[..., TestClie
     assert '<script type="application/json" id="boot">' in r.text
     assert "<!--BOOT-->" not in r.text
     boot = json.loads(r.text.split('id="boot">')[1].split("</script>")[0])
-    assert boot["bot_name"] == "Dum-E"
-    assert "Dum-E can make mistakes" in boot["ui_strings"]["notice"]
+    assert boot["bot_name"] == "Ada"
+    assert "Ada is an AI and can make mistakes" in boot["ui_strings"]["notice"]
     csp = r.headers["content-security-policy"]
     assert "default-src 'self'" in csp and "connect-src 'self'" in csp
     for asset in (
         "kiosk.js",
-        "orb.js",
+        "blob.js",
         "kiosk.css",
-        "fonts/atkinson-hyperlegible-latin-400-normal.woff2",
+        "vendor/three.module.min.js",
+        "fonts/inter-latin-500-normal.woff2",
     ):
         assert tc.get(f"/ui/{asset}").status_code == 200, asset
     h = tc.get("/healthz").json()
@@ -141,7 +144,7 @@ def test_page_served_with_boot_copy_and_strict_csp(kiosk: Callable[..., TestClie
 
 
 def test_page_has_no_external_urls(repo_root: Path) -> None:
-    for name in ("index.html", "kiosk.js", "orb.js", "kiosk.css"):
+    for name in ("index.html", "kiosk.js", "blob.js", "kiosk.css"):
         text = (repo_root / "ui" / name).read_text()
         assert "http://" not in text and "https://" not in text, name
 
@@ -156,7 +159,7 @@ def test_hello_on_connect(kiosk: Callable[..., TestClient]) -> None:
     tc = kiosk()
     with tc.websocket_connect("/ws") as ws:
         hello = recv(ws, "hello")[0]
-    assert hello["bot_name"] == "Dum-E"
+    assert hello["bot_name"] == "Ada"
     assert hello["out_of_order"] is False and hello["backend_ok"] is True
     assert hello["warn_before_s"] == 10.0 and hello["session_timeout_s"] == 30.0
     assert hello["idle_greetings"] and all("{{" not in g for g in hello["idle_greetings"])
@@ -543,3 +546,168 @@ def test_kiosk_answers_through_the_real_pipeline(tmp_path: Path) -> None:
     sentences = [e for e in events if e["type"] == "sentence"]
     assert sentences, types(events)
     assert events[-1]["source"] == "model", events
+
+
+# -- M5a: idle acts + voice hooks ------------------------------------------------------------
+
+IDLE_YAML = (
+    "rotation: {min_gap_s: 10, max_gap_s: 10, default_act: breathing}\nacts:\n"
+    "  - {id: breathing, duration_s: 0, weight: 0}\n"
+    '  - {id: hello_wave, duration_s: 4, weight: 1, caption: "Hi! I\'m {{bot_name}}."}\n'
+    "  - {id: spin_on_axis, duration_s: 3, weight: 1, reduced_motion: skip}\n"
+)
+
+
+class FakeScreen:
+    """Stands in for the websocket: records what the kiosk sends."""
+
+    def __init__(self) -> None:
+        self.sent: list[Event] = []
+
+    async def send_json(self, event: Event) -> None:
+        self.sent.append(event)
+
+    def acts(self) -> list[Event]:
+        return [e for e in self.sent if e["type"] == "idle_act"]
+
+
+class Clock:
+    def __init__(self) -> None:
+        self.t = 1000.0
+
+    def __call__(self) -> float:
+        return self.t
+
+
+@pytest.fixture
+def idle_kiosk(tmp_path: Path, fake: FakeOllama) -> Callable[..., Any]:
+    def make(**over: Any) -> tuple[Any, FakeScreen, Clock]:
+        path = tmp_path / "idle_acts.yaml"
+        path.write_text(IDLE_YAML, encoding="utf-8")
+        settings = make_settings(tmp_path, kiosk_idle_acts_file=str(path), **over)
+        app = create_app(
+            settings, OllamaClient.from_settings(settings, fake.transport), background=False
+        )
+        k = app.state.kiosk
+        clock = Clock()
+        k.clock = clock
+        screen = FakeScreen()
+        k.ws = screen
+        return k, screen, clock
+
+    return make
+
+
+def advance(k: Any, clock: Clock, seconds: float, step: float = 0.5) -> None:
+    async def go() -> None:
+        end = clock.t + seconds
+        while clock.t < end:
+            clock.t += step
+            await k.idle_step()
+
+    asyncio.run(go())
+
+
+def test_idle_acts_play_only_when_nobody_is_there(idle_kiosk: Callable[..., Any]) -> None:
+    k, screen, clock = idle_kiosk()
+    advance(k, clock, 9)
+    assert screen.acts() == []  # first act waits one full gap
+    advance(k, clock, 2)
+    (first,) = screen.acts()
+    assert first["id"] in {"hello_wave", "spin_on_axis"}
+    if first["id"] == "hello_wave":
+        assert first["caption"] == "Hi! I'm Ada."
+    advance(k, clock, 60)
+    ids = [e["id"] for e in screen.acts()]
+    assert len(ids) >= 3 and all(a != b for a, b in itertools.pairwise(ids))
+
+
+@pytest.mark.parametrize("busy", ["session", "turn", "kill", "backend", "no_screen"])
+def test_no_idle_acts_while_busy_or_blocked(idle_kiosk: Callable[..., Any], busy: str) -> None:
+    k, screen, clock = idle_kiosk()
+    if busy == "session":
+        k.sid = k.sessions.create()
+    elif busy == "turn":
+        k.turn = object()
+    elif busy == "kill":
+        k.status.kill_on = True
+    elif busy == "backend":
+        k.status.backend_ok = False
+    else:
+        k.ws = None
+    advance(k, clock, 60)
+    assert screen.acts() == []
+
+
+def test_any_interaction_restarts_the_quiet_clock(idle_kiosk: Callable[..., Any]) -> None:
+    k, screen, clock = idle_kiosk()
+    advance(k, clock, 9)
+    for event in ({"type": "wake", "source": "tap"}, {"type": "typing"}):
+        asyncio.run(k.on_client(json.dumps(event)))  # each lands just before an act is due
+        advance(k, clock, 9)
+        assert screen.acts() == [], event
+    advance(k, clock, 2)
+    assert len(screen.acts()) == 1
+
+
+def test_reduced_motion_screen_skips_marked_acts(idle_kiosk: Callable[..., Any]) -> None:
+    k, screen, clock = idle_kiosk()
+    asyncio.run(k.on_client(json.dumps({"type": "screen", "reduced_motion": True})))
+    advance(k, clock, 200)
+    assert screen.acts() and {e["id"] for e in screen.acts()} == {"hello_wave"}
+    # hello_wave twice in a row is never allowed, so it alternates with breathing (waits)
+    ids = [e["id"] for e in screen.acts()]
+    assert len(ids) == 1
+
+
+def test_idle_acts_can_be_turned_off(idle_kiosk: Callable[..., Any]) -> None:
+    k, screen, clock = idle_kiosk(kiosk_idle_enabled=False)
+    assert k.idle is None
+    advance(k, clock, 60)
+    assert screen.acts() == []
+    assert k.hello()["idle_acts"] is False
+
+
+def test_real_idle_file_loads_at_startup(kiosk: Callable[..., TestClient]) -> None:
+    tc = kiosk()
+    with tc.websocket_connect("/ws") as ws:
+        hello = recv(ws, "hello")[0]
+    assert hello["idle_acts"] is True
+    assert set(hello["ui_strings"]) >= {"talk_idle", "rest_title", "rest_body", "mic_off"}
+    assert hello["ui_strings"]["rest_title"] == "Ada is resting"
+
+
+def test_voice_hooks_emit_what_the_blob_understands(idle_kiosk: Callable[..., Any]) -> None:
+    k, screen, clock = idle_kiosk()
+
+    async def go() -> None:
+        await k.audio_level("tts", 1.7)
+        await k.audio_level("mic", float("nan"))
+        await k.wake("word")
+        with pytest.raises(ValueError):
+            await k.audio_level("speaker", 0.5)
+
+    asyncio.run(go())
+    assert screen.sent == [
+        {"type": "audio_level", "source": "tts", "level": 1.0},
+        {"type": "audio_level", "source": "mic", "level": 0.0},
+        {"type": "wake", "source": "word"},
+    ]
+    advance(k, clock, 9.5)  # the wake word restarted the quiet clock too
+    assert screen.acts() == []
+
+
+def test_state_events_for_a_full_visit(kiosk: Callable[..., TestClient]) -> None:
+    """The event sequence the screen turns into blob states (no new events needed)."""
+    tc = kiosk()
+    with tc.websocket_connect("/ws") as ws:
+        recv(ws, "hello")
+        ws.send_json({"type": "wake", "source": "tap"})  # page: waking -> listening
+        ws.send_json({"type": "typing"})
+        events = ask(ws, "what is a neural network?")  # thinking -> speaking
+        ws.send_json({"type": "message", "text": "bye", "client_msg_id": "m2"})
+        bye = recv(ws, "session_reset")  # goodbye plays, then idle
+    assert types(events)[0] == "turn_start" and types(events)[-1] == "turn_end"
+    assert "sentence" in types(events)
+    assert types(bye)[0] == "turn_start" and "sentence" in types(bye)
+    assert bye[-1] == {"type": "session_reset", "reason": "farewell"}
