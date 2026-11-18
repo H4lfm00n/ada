@@ -150,7 +150,8 @@ def test_card_list_and_output_style_slots(tmp_path: Path) -> None:
 
     (tmp_path / "prompts").mkdir()
     (tmp_path / "prompts" / "sp.md").write_text(
-        "You are {{bot_name}}.\n{{output_mode_rules}}\nCards:\n{{card_list}}\nNow: {{current_time}}",
+        "You are {{bot_name}}.\n{{output_mode_rules}}\n"
+        "Cards:\n{{card_list}}\nNow: {{current_time}}",
         encoding="utf-8",
     )
     for mode, text in [("screen", "Write LIB 260. {{bot_name}} may show emails."),
