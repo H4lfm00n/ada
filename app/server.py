@@ -345,7 +345,7 @@ class Kiosk:
                 await self.emit(e)
             if e["type"] in ("show_card", "card_state") and self.sid and self.pipeline.transcripts:
                 self.pipeline.transcripts.log_event(
-                    self.sid, "card", id=e["id"], event=e.get("state", "shown")
+                    self.sid, "card", id=e["id"], step=e.get("state", "shown")
                 )
 
     def on_typing(self) -> None:

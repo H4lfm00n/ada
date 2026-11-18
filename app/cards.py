@@ -48,7 +48,7 @@ TEXT_FIELDS = ("say_before", "confirm", "on_yes", "on_no", "on_no_or_timeout", "
 # <card id="qr_discord"/>, <card id=qr_discord>, </card>, and a cut-off "<card id=..." at the end
 TAG_RE = re.compile(r"<\s*/?\s*card\b[^>]*>", re.IGNORECASE)
 OPEN_TAIL_RE = re.compile(r"<\s*/?\s*card\b[^>]*$", re.IGNORECASE)
-ID_RE = re.compile(r"""\bid\s*=\s*["']?([A-Za-z0-9_-]+)""")
+ID_RE = re.compile(r"""\bid\s*=\s*["']?([A-Za-z0-9_-]+)""", re.IGNORECASE)
 
 
 class CardsError(ValueError):
@@ -278,6 +278,8 @@ def load_cards(path: Path, bot_name: str = "Ada") -> CardCatalog:
 
     for i, raw in enumerate(data["cards"]):
         where = f"{path.name} card #{i + 1}"
+        if isinstance(raw, dict) and isinstance(raw.get("id"), bool):
+            raise CardsError(f"{where}: id reads as a YAML true/false (yes/no/on/off); quote it")
         if not isinstance(raw, dict) or not isinstance(raw.get("id"), str) or not raw["id"]:
             raise CardsError(f"{where}: needs an 'id'")
         cid = raw["id"]

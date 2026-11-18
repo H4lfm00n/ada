@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from app.config import Settings
+from app.killswitch import KillSwitch
 from app.ollama_client import OllamaClient
 from app.server import CLOSE_REPLACED, create_app, load_ui_strings, render_index
 
@@ -715,3 +716,171 @@ def test_state_events_for_a_full_visit(kiosk: Callable[..., TestClient]) -> None
     assert "sentence" in types(events)
     assert types(bye)[0] == "turn_start" and "sentence" in types(bye)
     assert bye[-1] == {"type": "session_reset", "reason": "farewell"}
+
+
+# -- M5b: cards through the kiosk (server half) ----------------------------------------------
+
+CARDS_YAML = """
+defaults: {confirm_after_s: 0.3, retry_after_s: 0.3, auto_hide_s: 3,
+           placeholder_url: "https://ai.sfsu.edu/ai-students"}
+cards:
+  - id: qr_discord
+    type: qr
+    enabled: true
+    approved: yes
+    placeholder: true
+    placeholder_note: "Discord invite coming soon"
+    title: "Join the Discord"
+    url: "https://ai.sfsu.edu/ai-students"
+    say_before: "I've put the Discord QR code on the screen."
+    confirm: "Did you scan it?"
+    on_yes: "Nice, see you in there!"
+    on_no: "No rush, take your time."
+    on_no_or_timeout: "No rush, it'll stay up for a bit."
+    triggers: [discord]
+  - id: compute_rules
+    type: checklist
+    enabled: true
+    approved: yes
+    title: "Computer rules"
+    items: ["No remote access"]
+"""
+TAGGED = reply("You can join through our Discord. ", 'I put a QR code up. <card id="qr_discord"/>')
+
+
+@pytest.fixture
+def card_kiosk(
+    kiosk: Callable[..., TestClient], fake: FakeOllama, tmp_path: Path
+) -> Callable[[], TestClient]:
+    path = tmp_path / "cards.yaml"
+    path.write_text(CARDS_YAML, encoding="utf-8")
+    fake.chat_reply = TAGGED
+    return lambda: kiosk(cards_file=str(path))
+
+
+def chat_calls(fake: FakeOllama) -> int:
+    return sum(
+        1 for r in fake.requests if r["path"] == "/api/chat" and r.get("model") == "qwen-test:27b"
+    )
+
+
+def test_tag_shows_the_card_and_never_reaches_the_screen(card_kiosk: Any, fake: FakeOllama) -> None:
+    tc = card_kiosk()
+    with tc.websocket_connect("/ws") as ws:
+        recv(ws, "hello")
+        events = ask(ws, "how do I join the discord?")
+        texts = [e["text"] for e in events if e["type"] == "sentence"]
+        assert texts and not any("<card" in t or "card id" in t for t in texts)
+        show = next(e for e in events if e["type"] == "show_card")
+        assert show["id"] == "qr_discord"
+        assert show["data"]["placeholder_note"] == "Discord invite coming soon"
+        assert show["data"]["url"] == "https://ai.sfsu.edu/ai-students"
+        assert "say_before" not in show["data"] and "triggers" not in show["data"]
+        # shown by the model's tag: the model already pointed at it, no extra intro line
+        assert not any(e["type"] == "sentence" and "Discord QR" in e["text"] for e in events)
+        ask_ev = recv(ws, "say")  # ~0.3 s later Ada asks, outside any turn
+        assert {"type": "card_state", "id": "qr_discord", "state": "asking",
+                "text": "Did you scan it?"} in ask_ev  # fmt: skip
+        assert ask_ev[-1] == {
+            "type": "say",
+            "text": "Did you scan it?",
+            "source": "card:qr_discord",
+        }
+    # the output guard never saw the tag either
+    guard_texts = [str(r["messages"]) for r in fake.requests
+                   if r["path"] == "/api/chat" and r.get("model") == "guard-test:1b"]  # fmt: skip
+    assert guard_texts and not any("<card" in t for t in guard_texts)
+
+
+def test_typed_yes_answers_the_card_without_the_model(card_kiosk: Any, fake: FakeOllama) -> None:
+    tc = card_kiosk()
+    with tc.websocket_connect("/ws") as ws:
+        recv(ws, "hello")
+        ask(ws, "how do I join the discord?")
+        recv(ws, "say")  # "Did you scan it?"
+        before = chat_calls(fake)
+        events = ask(ws, "yep got it", "m2")
+        assert chat_calls(fake) == before  # no model call for a "yes"
+        assert types(events)[0] == "turn_start"
+        assert {"type": "card_state", "id": "qr_discord", "state": "yes",
+                "text": "Nice, see you in there!"} in events  # fmt: skip
+        said = [e for e in events if e["type"] == "sentence"]
+        assert [(e["text"], e["source"]) for e in said] == [
+            ("Nice, see you in there!", "card:qr_discord")
+        ]
+        assert events[-1]["source"] == "card:qr_discord"
+
+
+def test_tap_not_yet_waits_and_asks_once_more(card_kiosk: Any) -> None:
+    tc = card_kiosk()
+    with tc.websocket_connect("/ws") as ws:
+        recv(ws, "hello")
+        ask(ws, "how do I join the discord?")
+        recv(ws, "say")
+        ws.send_json({"type": "card_reply", "id": "qr_discord", "answer": "no"})
+        wait = recv(ws, "say")
+        state = next(e for e in wait if e["type"] == "card_state")
+        assert state["state"] == "waiting" and state["text"] == "No rush, take your time."
+        again = recv(ws, "say")
+        assert any(e.get("state") == "asking" for e in again)
+
+
+def test_a_new_question_makes_the_card_mini_first(card_kiosk: Any) -> None:
+    tc = card_kiosk()
+    with tc.websocket_connect("/ws") as ws:
+        recv(ws, "hello")
+        ask(ws, "how do I join the discord?")
+        ws.send_json(
+            {"type": "message", "text": "what is a neural network?", "client_msg_id": "m2"}
+        )
+        events = recv(ws, "turn_end")
+        assert types(events)[:2] == ["turn_start", "card_mini"]  # mini first thing in the turn
+        assert any(e["type"] == "sentence" for e in events)
+
+
+@pytest.mark.parametrize("how", ["reset", "kill"])
+def test_reset_and_kill_switch_hide_the_card(card_kiosk: Any, tmp_path: Path, how: str) -> None:
+    tc = card_kiosk()
+    with tc.websocket_connect("/ws") as ws:
+        recv(ws, "hello")
+        ask(ws, "how do I join the discord?")
+        if how == "reset":
+            ws.send_json({"type": "reset", "immediate": True})
+            events = recv(ws, "session_reset")
+        else:
+            KillSwitch(tmp_path / "kill_switch.json").set(True, "test")
+            events = recv(ws, "out_of_order")
+        assert {"type": "hide_card", "id": "qr_discord"} in events
+        assert types(events).index("hide_card") < len(events) - 1
+
+
+def test_invented_card_ids_are_dropped(card_kiosk: Any, fake: FakeOllama) -> None:
+    fake.chat_reply = reply('Here is a free GPU link. <card id="qr_free_gpus"/>')
+    tc = card_kiosk()
+    with tc.websocket_connect("/ws") as ws:
+        recv(ws, "hello")
+        events = ask(ws, "show me the free gpu qr code")
+        assert "show_card" not in types(events)
+        assert not any("<card" in e.get("text", "") for e in events)
+
+
+def test_cards_are_logged_in_the_transcript(card_kiosk: Any, tmp_path: Path) -> None:
+    tc = card_kiosk()
+    with tc.websocket_connect("/ws") as ws:
+        recv(ws, "hello")
+        ask(ws, "how do I join the discord?")
+    files = list((tmp_path / "transcripts").rglob("*.jsonl"))
+    recs = [json.loads(line) for f in files for line in f.read_text().splitlines()]
+    turn = next(r for r in recs if r["type"] == "turn")
+    assert turn["card"] == "qr_discord" and turn["card_tags"] == ["qr_discord"]
+    assert all("<card" not in s for s in turn["shown"])
+    assert any(r["type"] == "card" and r["id"] == "qr_discord" for r in recs)
+
+
+def test_unapproved_enabled_card_stops_the_kiosk(kiosk: Any, tmp_path: Path) -> None:
+    from app.cards import CardsError
+
+    path = tmp_path / "cards.yaml"
+    path.write_text(CARDS_YAML.replace("approved: yes", "approved: TODO(PM)", 1), encoding="utf-8")
+    with pytest.raises(CardsError, match="approved"):
+        kiosk(cards_file=str(path))

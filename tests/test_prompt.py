@@ -140,3 +140,55 @@ def test_bot_name_comes_from_config(settings: Settings) -> None:
     s = settings.model_copy(update={"bot_name": "Sprocket"})
     text = PromptBuilder.from_settings(s).build([], "hi")[0].content
     assert "You are Sprocket" in text and "Dum-E" not in text
+
+
+# -- M5b + PM decision 8: card list and screen/spoken style slots ------------------------------
+
+
+def test_card_list_and_output_style_slots(tmp_path: Path) -> None:
+    from app.cards import CardCatalog, load_cards
+
+    (tmp_path / "prompts").mkdir()
+    (tmp_path / "prompts" / "sp.md").write_text(
+        "You are {{bot_name}}.\n{{output_style}}\nCards:\n{{card_list}}\nNow: {{current_time}}",
+        encoding="utf-8",
+    )
+    for mode, text in [("screen", "Write LIB 260. {{bot_name}} may show emails."),
+                       ("spoken", "Say LIB two-sixty.")]:  # fmt: skip
+        (tmp_path / "prompts" / f"output_style_{mode}.md").write_text(text, encoding="utf-8")
+    cards = tmp_path / "cards.yaml"
+    cards.write_text(
+        "cards:\n  - {id: ai_fact, type: fun, enabled: true, approved: yes, title: Fun,"
+        " facts: [x], triggers: [fun fact]}\n"
+        "  - {id: parked, type: fun, enabled: false, facts: [y]}\n",
+        encoding="utf-8",
+    )
+
+    def build(mode: str, catalog: CardCatalog | None = None) -> str:
+        s = Settings(
+            chat_model="x", guard_model="y", embed_model="z", bot_name="Ada",
+            system_prompt_file=str(tmp_path / "prompts" / "sp.md"),
+            output_style_file=str(tmp_path / "prompts" / "output_style_{mode}.md"),
+            output_mode=mode, cards_file=str(cards),
+        )  # fmt: skip
+        return SystemPrompt.from_settings(s, catalog).render("noon")
+
+    screen = build("screen")
+    assert "Write LIB 260. Ada may show emails." in screen
+    assert "- ai_fact: Fun. Use when someone asks about: fun fact." in screen
+    assert "parked" not in screen.split("Cards:")[1]
+    assert "Say LIB two-sixty." in build("spoken")
+    # the factory passes its already-validated catalog; with no cards the slot says so
+    assert "don't add a card tag" in build("screen", CardCatalog({}))
+    _ = load_cards  # imported for symmetry with the factory path
+
+
+def test_missing_style_file_fails_at_startup(tmp_path: Path) -> None:
+    p = tmp_path / "sp.md"
+    p.write_text("Hi {{output_style}}", encoding="utf-8")
+    s = Settings(
+        chat_model="x", guard_model="y", embed_model="z", system_prompt_file=str(p),
+        output_style_file=str(tmp_path / "nope_{mode}.md"),
+    )  # fmt: skip
+    with pytest.raises(PromptError, match="output_mode 'screen'"):
+        SystemPrompt.from_settings(s)
