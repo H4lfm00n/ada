@@ -43,9 +43,9 @@ rag_max_context_chars: 3000           # cap on retrieved text per turn (prefill 
 rag_timeout_s: 5                      # embedding the question; on timeout: no docs ("not sure")
 # Qwen3-Embedding expects an instruction on queries (not on documents). "" disables it.
 rag_query_instruction: "Given a question from a visitor to a university AI lab, retrieve the lab document sections that answer it"
-# When a question points at the place ("this lab", "here", "you guys"), this is appended so it
-# matches docs that say "the AI Lab". "" = off. Chosen from the GB10 A/B run (D67).
-rag_place_hint: ""
+# Kiosk visitors point at the place ("this lab", "here", "you guys"); the docs name it. In the
+# search text only, those words are replaced by this name. "" = off. GB10 A/B decides (D67).
+rag_place_name: ""
 
 # --- Guardrails (M3) -----------------------------------------------------------
 # Patterns, blocklist, and which canned line answers each block: content/guard_policy.yaml.

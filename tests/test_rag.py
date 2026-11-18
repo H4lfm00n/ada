@@ -867,37 +867,43 @@ async def test_prefill_probe_runs_end_to_end(
     assert "SWAP: docs B + question B" in out and "no docs + question B" in out
 
 
-# -- D67: kiosk phrasing ("this lab", "here") names the place for the embedder -----------------
+# -- D67: kiosk phrasing ("this lab", "here") is searched as the place's name --------------
+
+
+@pytest.mark.parametrize(
+    ("q", "want"),
+    [
+        ("what is this lab about?", "what is the AI Lab about?"),
+        ("What is this place?", "What is the AI Lab?"),
+        ("what do you guys do here?", "what do the AI Lab do at the AI Lab?"),
+        ("can anyone use this room?", "can anyone use the AI Lab?"),
+        ("do y'all have GPUs", "do the AI Lab have GPUs"),
+        ("does this place have a swimming pool?", "does the AI Lab have a swimming pool?"),
+    ],
+)
+def test_place_words_are_replaced_by_the_name(q: str, want: str) -> None:
+    from app.rag.retriever import with_place_name
+
+    assert with_place_name(q, "the AI Lab") == want
 
 
 @pytest.mark.parametrize(
     "q",
     [
-        "what is this lab about?",
-        "what do you guys do here?",
-        "What is this place?",
-        "can anyone use this room?",
-        "how do i join ur club",
-        "do y'all have GPUs",
+        "what is the AI Lab?",
+        "what's your favorite movie?",
+        "what do you do?",
+        "who won the lab's chess tournament?",
+        "where is LIB 260",
     ],
 )
-def test_place_hint_added_when_the_visitor_points_at_the_place(q: str) -> None:
-    from app.rag.retriever import with_place_hint
+def test_other_questions_are_left_alone(q: str) -> None:
+    from app.rag.retriever import with_place_name
 
-    assert with_place_hint(q, "the SFSU AI Lab") == f"{q} (the SFSU AI Lab)"
-
-
-@pytest.mark.parametrize(
-    "q",
-    ["what is the AI Lab?", "what's your favorite movie?", "what do you do?", "where is LIB 260"],
-)
-def test_place_hint_left_out_otherwise(q: str) -> None:
-    from app.rag.retriever import with_place_hint
-
-    assert with_place_hint(q, "the SFSU AI Lab") == q
+    assert with_place_name(q, "the AI Lab") == q
 
 
-def test_place_hint_off_by_default() -> None:
-    from app.rag.retriever import with_place_hint
+def test_place_name_off_by_default() -> None:
+    from app.rag.retriever import with_place_name
 
-    assert with_place_hint("what is this lab about?", "") == "what is this lab about?"
+    assert with_place_name("what is this lab about?", "") == "what is this lab about?"

@@ -28,21 +28,25 @@ log = logging.getLogger(__name__)
 EMBED_BATCH = 32
 
 
-# A visitor at the kiosk says "this lab", "here", "you guys"; the docs say "the AI Lab" /
-# "the Student AI Commons". Those words point at the place, so the place is named for the
-# embedder (rag_place_hint, D67). "you" alone means Ada herself and is left alone.
-PLACE_RE = re.compile(
-    r"\b(?:this|that|your|ur|the)\s+(?:lab|place|room|club|space|group|org|commons|studio)\b"
-    r"|\b(?:here|you\s+guys|u\s+guys|y'?all|you\s+all)\b",
+# A visitor at the kiosk says "this lab", "here", "you guys"; the docs say "the AI Lab".
+# The pointing words are REPLACED by the place's name (rag_place_name, D67). Appending the
+# name instead (run 1, options A/B) pulled every question, even "does this place have a
+# pool?", toward about.md. "you" alone means Ada herself and is left alone.
+_PLACE_NOUN = re.compile(
+    r"\b(?:this|that|your|ur)\s+(?:lab|place|room|club|space|group|org|commons|studio)\b",
     re.IGNORECASE,
 )
+_PLACE_PEOPLE = re.compile(r"\b(?:you\s+guys|u\s+guys|y'?all|you\s+all)\b", re.IGNORECASE)
+_PLACE_HERE = re.compile(r"\b(?:in\s+here|around\s+here|here)\b", re.IGNORECASE)
 
 
-def with_place_hint(query: str, hint: str) -> str:
-    """Append the place's name when the question points at it (no-op without a hint)."""
-    if hint and PLACE_RE.search(query):
-        return f"{query} ({hint})"
-    return query
+def with_place_name(query: str, name: str) -> str:
+    """Replace "this lab" / "you guys" / "here" with the place's name (no-op without one)."""
+    if not name:
+        return query
+    out = _PLACE_NOUN.sub(name, query)
+    out = _PLACE_PEOPLE.sub(name, out)
+    return _PLACE_HERE.sub(f"at {name}", out)
 
 
 def query_text(query: str, instruction: str) -> str:
@@ -131,7 +135,7 @@ class OllamaRetriever:
             self._settings.embed_model,
             [
                 query_text(
-                    with_place_hint(query, self._settings.rag_place_hint),
+                    with_place_name(query, self._settings.rag_place_name),
                     self._settings.rag_query_instruction,
                 )
             ],

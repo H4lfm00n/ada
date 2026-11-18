@@ -878,4 +878,10 @@ and 3 new deictic negatives in retrieval.yaml): (A) name the lab in `rag_query_i
 the place's name to the search text. "you" alone (= Ada) is not a place reference. Both are
 config; B is off ("") until the A/B result. Not changing the 0.50 gate: it keeps the
 negatives out.
+GB10 run (2026-11-17): baseline misses only the 3 deictic questions (0.429/0.464/0.479, right
+file ranked 1-2) and rejects 8/8 negatives; A and B both FAIL: naming the lab pulls everything
+toward about.md (negatives 0/8 and 3/8; "swimming pool" 0.73-0.82). Replaced with (C)
+`rag_place_name`: the pointing words are *substituted* by the name ("this place" -> "the AI
+Lab", "here" -> "at the AI Lab"), so deictic questions look like the "the lab ..." questions
+that already behave. "the lab" itself is no longer a trigger. C goes to the next A/B run.
 
