@@ -41,6 +41,11 @@ class InputRules:
         if len(text) > p.max_input_chars:
             return GuardResult(False, "too_long", f"{len(text)} chars > {p.max_input_chars}")
         norm = normalize(text)
+        # P0: a person who may be at risk always gets the crisis line first (988), whatever
+        # else the message contains and whatever the guard model would call it.
+        for rx in p.crisis_patterns:
+            if m := rx.search(norm):
+                return GuardResult(False, "crisis", f"crisis wording: {m.group(0)[:40]!r}")
         if word := _blocklisted(p, norm):
             return GuardResult(False, "blocklist", f"blocklisted term ({len(word)} chars)")
         for rx in p.injection_patterns:
