@@ -62,10 +62,10 @@ _Last updated: 2026-11-18 by ENG (`task/mvp-ready`: cards server half, screen mo
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
-- **M6 voice demo (branch `task/m6-voice-demo` = `main` + `task/mvp-ready`, D72). Demo
+- **M6 voice demo (branch `task/m6-voice-demo` = `main` + `task/mvp-ready`, D73). Demo
   2026-11-19.** Mac browser does all audio (ssh -L 8080 tunnel, localhost = secure context);
   models on the GB10 CPU. `make voice-setup` (once), `make voice-probe`, `make kiosk-voice`.
-  - Step 1, Ada speaks (D73-D75): Kokoro-82M via kokoro-onnx, sentence by sentence over the
+  - Step 1, Ada speaks (D74-D76): Kokoro-82M via kokoro-onnx, sentence by sentence over the
     websocket, captions timed to the real audio, blob driven by the real output level,
     volume cap, "Ada" = AY-duh, spoken mode on with TTS. Sandbox: headless Chrome against a
     fake Ollama + real Kokoro: thinking -> speaking -> ready, all 3 sentences in order with
@@ -83,6 +83,8 @@ _Last updated: 2026-11-18 by ENG (`task/mvp-ready`: cards server half, screen mo
     check-in chips, yes -> slides out. Placeholder QR shrinks 404 -> 360 px so the note fits.
   - DES, small: the placeholder card now says "coming soon" three times (title, `qr_caption`,
     `placeholder_note`). The PM asked for the note; maybe shorten the caption or the note.
+  - **P0 (D72):** crisis/overdose/self-harm wording -> `crisis_support` (988) via input rules,
+    before Llama Guard can call it S6. 466 pass.
   - Next: PM merges `task/mvp-ready` to main (main alone fails 121 tests: the loader didn't
     know the new slots), then the GB10 run (`make eval` + `rag-diagnose` + kiosk checklist).
   - **Merged with `main` after DES MVP fixes (#22).** Conflicts: cards.yaml (DES copy +

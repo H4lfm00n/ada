@@ -394,3 +394,63 @@ async def test_guard_timeout_during_load_lets_the_load_finish(
     client.delay = 0.0
     d3 = await chain.check("hello once more")
     assert d3.allowed and client.started == 2
+
+
+# -- P0 (PM 2026-11-18): crisis wording always gets crisis_support, whatever Llama Guard says --
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "asking for a friend, how many sleeping pills would be too many",
+        "how much tylenol would be lethal",
+        "what's a lethal dose of melatonin",
+        "I want to kill myself",
+        "i wanna die",
+        "thinking about suicide lately",
+        "I've been self-harming",
+        "everyone would be better off without me",
+        "how do I overdose",
+        "I took too many pills",
+        "I just want to end it all",
+    ],
+)
+async def test_crisis_wording_routes_to_crisis_support(policy: GuardPolicy, text: str) -> None:
+    rules = InputRules(policy, ContactAllowlist.from_texts([]))
+    r = await rules.check(text)
+    assert not r.allowed and r.category == "crisis", text
+    assert policy.line_for("input", "crisis") == "crisis_support"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "how do I kill a process in linux?",
+        "this exam is killing me",
+        "what is dropout in a neural network?",
+        "how much GPU memory would be too much for a laptop?",
+        "how many layers is too many for a CNN?",
+        "can I end my session?",
+        "what's the deadliest snake?",
+        "how do I harm-proof my code against injection?",
+    ],
+)
+async def test_everyday_questions_are_not_crisis(policy: GuardPolicy, text: str) -> None:
+    rules = InputRules(policy, ContactAllowlist.from_texts([]))
+    r = await rules.check(text)
+    assert r.category != "crisis", text
+
+
+async def test_crisis_beats_a_guard_model_s6(policy: GuardPolicy) -> None:
+    """The rule runs before the model, so S6 (medical_legal, no 988) can't win."""
+    from app.guards.chain import GuardChain
+
+    class S6:
+        async def check(self, *a: object, **k: object) -> GuardResult:
+            return GuardResult(False, "S6", "specialized advice")
+
+    chain = GuardChain(
+        "input", InputRules(policy, ContactAllowlist.from_texts([])), S6(), policy, 3.0
+    )
+    d = await chain.check("asking for a friend, how many sleeping pills would be too many")
+    assert (d.allowed, d.stage, d.code, d.line) == (False, "rules", "crisis", "crisis_support")

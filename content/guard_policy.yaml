@@ -17,6 +17,21 @@ input:
   # Longer messages are refused before any model sees them (prefill cost + attack surface).
   max_chars: 1200
 
+  # P0 (PM 2026-11-18): suicide, self-harm and overdose wording ALWAYS gets the crisis_support
+  # line (988 + campus help card), checked before anything else, whatever the guard model
+  # would call it (Llama Guard often says S6 "specialized advice" for overdose questions,
+  # which used to give the medical_legal line with no 988). Narrow on purpose: AI questions
+  # ("kill the process", "overfitting", "dropout") must still reach the model.
+  crisis_patterns:
+    - '\b(?:kill|hurt|harm|cut|end|off)\s+(?:myself|my\s*self)\b'
+    - '\bend(?:ing)?\s+(?:my|it)\s+(?:life|all)\b|\bend\s+it\s+all\b'
+    - '\bsuicid\w*|\bself[\s-]?(?:harm|injur)\w*'
+    - '\b(?:i|we)\s+(?:really\s+)?(?:want|wanna|plan|am\s+going|m\s+going|am\s+planning)\s+(?:to\s+)?(?:die|not\s+be\s+alive|disappear\s+forever)\b'
+    - '\bbetter\s+off\s+(?:dead|without\s+me)\b|\bno\s+(?:reason|point)\s+(?:to|in)\s+(?:live|living|going\s+on)\b'
+    - '\boverdos\w*|\b(?:lethal|fatal|deadly|toxic)\s+(?:dose|amount|quantity)\b'
+    - '\bhow\s+(?:many|much)\b.{0,40}\b(?:pills?|tablets?|capsules?|meds|medications?|medicines?|tylenol|acetaminophen|ibuprofen|advil|xanax|melatonin|insulin|painkillers?)\b.{0,40}\b(?:too\s+(?:many|much)|to\s+(?:die|kill|od|overdose)|would\s+(?:kill|be\s+(?:fatal|lethal|deadly))|lethal|fatal|deadly)\b'
+    - '\btoo\s+(?:many|much)\s+(?:sleeping\s+)?(?:pills|tablets|meds|medications?|painkillers|tylenol|xanax)\b'
+
   # Prompt injection / jailbreak patterns (Python regex, case-insensitive, on normalized
   # text). Keep them narrow: an AI question like "what is prompt injection?" or
   # "what is a system prompt?" must still reach the model (redteam over_refusal cases).
@@ -82,6 +97,7 @@ lines:
   # Input side (the visitor's message was blocked).
   input:
     too_long: too_long            # DES 2026-11-18: lines.yaml `too_long` added (5 variants).
+    crisis: crisis_support        # P0: crisis_patterns above (988 + campus help card)
     injection: jailbreak
     blocklist: hate_or_harassment
     visitor_pii: public_screen_privacy
