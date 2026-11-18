@@ -11,8 +11,8 @@
 // Not built yet, hooks only:
 //   M6 voice: `audio_level {source, level}` feeds the blob; `wake {source}` from the server
 //             (wake word) does what a tap does; `mic {on}` drives the mic indicator.
-//   M5b cards: `show_card`, `card_mini`, `hide_card` are accepted and ignored; the blob's
-//             card pose is `blob.showing(true)` (try it in the debug panel).
+//   M5b cards: drawn by cards.js, decided by the server (app/cards.py); card lines Ada says
+//             outside a reply arrive as `say {text, source}` and are captioned.
 import { createBlob, ACT_IDS } from './blob.js';
 import { createCards } from './cards.js';
 
@@ -20,6 +20,10 @@ const $ = id => document.getElementById(id);
 const stage = $('stage'), input = $('input'), hint = $('hint'), caps = $('captions');
 const boot = JSON.parse(($('boot') || {}).textContent || '{}');
 const DEBUG = new URLSearchParams(location.search).has('debug');
+// screen = typed MVP (no mic, no LISTENING word); spoken = voice (M6). DES54, D69.
+let mode = boot.output_mode === 'spoken' ? 'spoken' : 'screen';
+function applyMode() { stage.classList.toggle('mode-screen', mode === 'screen'); }
+applyMode();
 
 // Until M6 there is no microphone: a tap opens the staff typing box so the screen stays
 // usable. M6 replaces this with the mic. Barge-in ("say stop") is M6c.
@@ -36,7 +40,7 @@ const CONFUSED = new Set(['line:guard_fallback', 'line:didnt_catch']);
 
 const blob = createBlob($('blob'));
 // Cards (M5b): drawn here, decided by the server (content/cards.yaml + check-in loop).
-const cards = createCards(stage, { blob, send: o => send(o), strings: () => S });
+const cards = createCards(stage, { blob, send: o => send(o), strings: () => S, mode: () => mode });
 const media = matchMedia('(prefers-reduced-motion: reduce)');
 let forceReduced = false, reduced = false;
 function applyMotion() {
@@ -86,7 +90,8 @@ function setView(v) {
   stage.classList.toggle('out', v === 'out');
   stage.classList.toggle('lost', v === 'lost' || v === 'reconnecting');
   blob.state(BLOB_STATE[v] || 'idle');
-  $('statusword').textContent = STATUS_WORD[v] ? (S[STATUS_WORD[v]] || '') : '';
+  const word = v === 'listening' && mode === 'screen' ? null : STATUS_WORD[v];   // the typing box is the cue
+  $('statusword').textContent = word ? (S[word] || '') : '';
   if (v === 'out' || v === 'lost' || v === 'reconnecting') closeTyping();
   input.placeholder = (sessionActive ? S.placeholder_ready : S.placeholder_idle) || '';
   renderTalk();
@@ -260,7 +265,9 @@ function startListening() {
 // ---------------------------------------------------------------- server events
 const handlers = {
   hello(e) {
-    S = e.ui_strings || S; renderCopy();
+    S = e.ui_strings || S;
+    if (e.output_mode) { mode = e.output_mode === 'spoken' ? 'spoken' : 'screen'; applyMode(); }
+    renderCopy();
     pingS = e.ping_s || 10; warnBeforeS = e.warn_before_s || 30;
     forceReduced = !!e.reduced_motion; applyMotion();
     backendOk = e.backend_ok !== false;
@@ -321,6 +328,9 @@ const handlers = {
   // ---- M5b cards: the server picks the card and runs the check-in loop ----
   show_card(e) { if (!blocked()) { stopIdleAct(); cards.show({ ...(e.data || {}), id: e.id }); } },
   card_state(e) { cards.state(e.id, e.state, e); },
+  // A card line Ada says outside a reply ("Did you scan it?", "Nice, see you in there!"):
+  // captioned like any sentence (TTS speaks it later, M6a). Inside a reply it's a `sentence`.
+  say(e) { if (!blocked() && e.text) { stopIdleAct(); enqueue(e.text, false); } },
   card_mini(e) { cards.mini(e.id); },
   hide_card(e) { cards.hide(e.id); },
 };

@@ -111,6 +111,8 @@ class TranscriptLogger:
                 "total_s": r.total_s,
                 "error": r.error,
                 "added_to_history": r.added_to_history,
+                "card": r.card.card.id if r.card else None,
+                "card_tags": r.card_ids,
             }
             self._write(self._path_for(r.session_id), rec)
 

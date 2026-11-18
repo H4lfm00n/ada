@@ -191,6 +191,8 @@ def observe(r: TurnResult) -> Observation:
         input_blocked=input_blocked,
         output_caught=output_caught,
         infra=infra,
+        card=r.card.card.id if r.card else None,
+        card_tags=list(r.card_ids),
     )
 
 
@@ -351,10 +353,13 @@ async def generate(
             if "INVENTED eval facts" not in w:
                 warnings.append(f"{suite.name}: {w}")
                 log(f"  WARN {w}")
-        total = len(suite.cases) * repeat
+        cases = [c for c in suite.cases if mode_matches(c, settings.output_mode)]
+        if skipped := len(suite.cases) - len(cases):
+            log(f"  {skipped} case(s) skipped: tagged for the other output mode (DES54)")
+        total = len(cases) * repeat
         k = 0
         for attempt in range(1, repeat + 1):
-            for case in suite.cases:
+            for case in cases:
                 k += 1
                 run = await run_case(built, case, shared, attempt)
                 runs.append(run)
@@ -362,6 +367,15 @@ async def generate(
                 lat = run.latency_summary()["first_sentence_max_s"]
                 log(f"  [{k:>3}/{total}] {case.id:<44} {st:<7} {lat if lat is not None else '-'}s")
     return runs, warnings
+
+
+def mode_matches(case: Case, output_mode: str) -> bool:
+    """`screen_only` / `spoken_only` cases run only in that output mode (DES54)."""
+    tags = set(case.tags or [])
+    return not (
+        (output_mode == "screen" and "spoken_only" in tags)
+        or (output_mode == "spoken" and "screen_only" in tags)
+    )
 
 
 async def judge_pending(

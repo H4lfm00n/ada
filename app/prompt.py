@@ -23,6 +23,7 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
+from app.cards import CardCatalog, load_cards
 from app.config import Settings
 from app.interfaces import Chunk, Message
 
@@ -32,7 +33,11 @@ SLOT_RE = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
 FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.DOTALL)
 LAB_DOCS_TAG_RE = re.compile(r"<\s*(/?)\s*lab_docs\s*>", re.IGNORECASE)
 
-SYSTEM_SLOTS = frozenset({"bot_name", "current_time", "retrieved_context"})
+SYSTEM_SLOTS = frozenset(
+    {"bot_name", "current_time", "retrieved_context", "card_list", "output_mode_rules"}
+)
+# Filled once at load (fixed per deployment), like bot_name.
+FIXED_SLOTS = frozenset({"bot_name", "card_list", "output_mode_rules"})
 
 
 class PromptError(ValueError):
@@ -99,21 +104,56 @@ class SystemPrompt:
     source: Path
 
     @classmethod
-    def load(cls, path: Path, bot_name: str) -> SystemPrompt:
+    def load(
+        cls,
+        path: Path,
+        bot_name: str,
+        card_list: str | None = None,
+        output_mode_rules: str | None = None,
+    ) -> SystemPrompt:
         meta, body = split_front_matter(path.read_text(encoding="utf-8"))
         found = {m.group(1) for m in SLOT_RE.finditer(body)}
         unknown = sorted(found - SYSTEM_SLOTS)
         if unknown:
             raise PromptError(f"{path.name}: unknown slot(s): {', '.join(unknown)}")
-        # bot_name is fixed per deployment: fill it once so only per-turn slots remain.
-        body = SLOT_RE.sub(
-            lambda m: bot_name if m.group(1) == "bot_name" else m.group(0), body
-        ).strip()
+        fixed = {
+            "bot_name": bot_name,
+            "card_list": card_list,
+            "output_mode_rules": output_mode_rules,
+        }
+        missing = sorted(k for k in found & FIXED_SLOTS if fixed[k] is None)
+        if missing:
+            raise PromptError(f"{path.name}: no value for slot(s): {', '.join(missing)}")
+
+        # Deployment-wide slots are filled once, so only per-turn slots remain. The
+        # inserted text may itself use {{bot_name}} (the style file, card hints).
+        def sub(m: re.Match[str]) -> str:
+            v = fixed.get(m.group(1))
+            return m.group(0) if v is None else v.replace("{{bot_name}}", bot_name)
+
+        body = SLOT_RE.sub(sub, body).strip()
         return cls(template=body, meta=meta, source=path)
 
     @classmethod
-    def from_settings(cls, settings: Settings) -> SystemPrompt:
-        return cls.load(settings.content_path(settings.system_prompt_file), settings.bot_name)
+    def from_settings(cls, settings: Settings, cards: CardCatalog | None = None) -> SystemPrompt:
+        path = settings.content_path(settings.system_prompt_file)
+        body = path.read_text(encoding="utf-8")
+        card_list = output_mode_rules = None
+        if "{{card_list}}" in body:
+            if cards is None and settings.cards_file:
+                cards = load_cards(settings.content_path(settings.cards_file), settings.bot_name)
+            card_list = cards.prompt_list() if cards else CardCatalog({}).prompt_list()
+        if "{{output_mode_rules}}" in body:
+            style = settings.content_path(
+                settings.output_mode_file.format(mode=settings.output_mode)
+            )
+            try:
+                output_mode_rules = split_front_matter(style.read_text(encoding="utf-8"))[1].strip()
+            except OSError as exc:
+                raise PromptError(
+                    f"output_mode {settings.output_mode!r}: can't read {style}"
+                ) from exc
+        return cls.load(path, settings.bot_name, card_list, output_mode_rules)
 
     def render(self, current_time: str, retrieved_context: str = "") -> str:
         return fill_slots(
@@ -130,8 +170,8 @@ class PromptBuilder:
         self._tz = ZoneInfo(timezone)
 
     @classmethod
-    def from_settings(cls, settings: Settings) -> PromptBuilder:
-        return cls(SystemPrompt.from_settings(settings), settings.timezone)
+    def from_settings(cls, settings: Settings, cards: CardCatalog | None = None) -> PromptBuilder:
+        return cls(SystemPrompt.from_settings(settings, cards), settings.timezone)
 
     def now_text(self, now: datetime | None = None) -> str:
         return format_time(now.astimezone(self._tz) if now else datetime.now(self._tz))

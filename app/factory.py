@@ -10,6 +10,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 
+from app.cards import CardCatalog, load_cards
 from app.config import Settings
 from app.guards import Guards, build_guards
 from app.interfaces import ActionHandler, OutputSink
@@ -32,6 +33,7 @@ class Built:
     kill_switch: KillSwitch
     transcripts: TranscriptLogger | None
     warnings: list[str] = field(default_factory=list)
+    cards: CardCatalog | None = None
 
 
 def build_transcripts(settings: Settings, guards: Guards) -> TranscriptLogger:
@@ -40,6 +42,16 @@ def build_transcripts(settings: Settings, guards: Guards) -> TranscriptLogger:
         settings.transcript_retention_days,
         redact=make_redactor(guards.allowlist, guards.policy.student_id_re),
     )
+
+
+def load_catalog(settings: Settings, guards: Guards) -> CardCatalog | None:
+    """content/cards.yaml, enabled + approved cards only. Fails at startup on anything unsafe:
+    an enabled card that isn't approved, a non-https QR URL, or a URL not in the lab docs."""
+    if not settings.cards_file:
+        return None
+    cards = load_cards(settings.content_path(settings.cards_file), settings.bot_name)
+    cards.check_urls(guards.allowlist)
+    return cards
 
 
 def build_pipeline(
@@ -58,13 +70,16 @@ def build_pipeline(
     guards = build_guards(settings, client, lines)
     warnings = [*warnings, *guards.warnings]
     kill = KillSwitch.from_settings(settings)
+    cards = load_catalog(settings, guards)
+    if cards is not None:
+        warnings += cards.warnings
     logger = None
     if settings.transcripts_enabled if transcripts is None else transcripts:
         logger = build_transcripts(settings, guards)
         logger.prune()
     pipeline = ChatPipeline(
         model=model,
-        prompt=PromptBuilder.from_settings(settings),
+        prompt=PromptBuilder.from_settings(settings, cards),
         lines=lines,
         sessions=sessions,
         sink=sink,
@@ -78,11 +93,12 @@ def build_pipeline(
         retriever=retriever,
         rag_top_k=settings.rag_top_k,
         retrieval_timeout_s=settings.rag_timeout_s,
+        cards=cards,
     )
     if kill.is_on():
         st = kill.state()
         warnings.append(f"KILL SWITCH IS ON ({st.source}): {st.reason or 'no reason given'}")
-    return Built(pipeline, sessions, model, guards, kill, logger, warnings)
+    return Built(pipeline, sessions, model, guards, kill, logger, warnings, cards)
 
 
 async def warm_up(settings: Settings, client: OllamaClient) -> dict[str, float]:

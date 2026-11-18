@@ -979,3 +979,57 @@ video"), "Tap here to ask Ada a question". `ui/mockups/ada.html` is rebuilt on `
 and `../cards.js` (no CDN), with a Screen/Spoken switch, all states, the check-in flows
 on the placeholder cards, and the 19 idle acts. `cards-preview.js` mirrors the new card copy.
 `too_long` line added (5 variants); `guard_policy.yaml` maps to it.
+
+## 2026-11-18 · MVP-ready: cards server half, screen mode (`task/mvp-ready`, ENG)
+
+**D68. Cards, server half (PHASE2-SPEC 2, PMC1).** `app/cards.py`, pure and clock-injected:
+- *Catalog:* enabled cards only. An enabled card that isn't `approved: yes` stops startup, and
+  so does a QR card without an `https://` URL, a URL on a non-QR card, or a QR URL the
+  contact allowlist (built from lab_docs) blocks. The UI gets only display fields
+  (`UI_FIELDS`); say_* lines, triggers, sources and approvals stay on the server.
+- *Tags:* `<card id=".."/>` (any case, cut-off tails, `</card>`) is stripped from every
+  sentence **before** the output guard, captions, history and transcripts; the requested IDs
+  are kept on `TurnResult.card_ids`. Unknown or disabled IDs show nothing.
+- *Pick (in the pipeline, so evals see it):* first valid tag; else a canned line's
+  `show_with_lines` card (campus_help with emergency/crisis); else the backup trigger, which
+  needs a whole-word `triggers` phrase in the question **and** a retrieved chunk in
+  `doc_sections` (both, to keep false positives down). No card for blocked or failed replies.
+- *Check-in (spec 2.2):* show -> intro -> after `confirm_after_s` asking -> yes: `card_state
+  yes` + `on_yes` (the UI slides it out) / no: waiting + `on_no`, ask once more after
+  `retry_after_s`, a second no: `on_no_or_timeout`, stop asking -> timeout at `auto_hide_s`:
+  timeout + hide. A new question makes the card mini and stops asking. A new card replaces
+  the old. `auto_hide_s: 0` (campus help) stays until reset.
+- *Answers:* typed text, keywords only (`classify_reply`: short yes/no phrases; anything
+  with "?" or over 6 words is a new question). No tiny LLM classifier for the MVP. Taps
+  (`card_reply`) take the same path. A typed answer is its own turn with no model call.
+- *Lines:* `say_before` only when the server picked the card (backup trigger / line), never
+  after the model's own tag (DES53 asked for the same). Card lines are PM-approved catalog
+  text, like canned lines: no guard model (D33). Outside a turn they go out as a new `say
+  {text, source}` event, captioned like a sentence (TTS later).
+- *Ending:* every `session_reset` and kill-switch `out_of_order` hides the card first (one
+  hook in `Kiosk.emit`), so no path can leave a card up. Idle acts don't run under a card.
+- *Transcripts:* each turn records `card` and `card_tags`; card steps are `card` events.
+
+**D69. Screen / spoken mode (PM decision 8, DES54).** Config `output_mode: screen | spoken`
+(default screen until TTS lands). Fills `{{output_mode_rules}}` from `prompts/mode_<mode>.md`
+(front matter stripped) and `{{card_list}}` from the catalog (`- <id>: <prompt_hint>`, or
+`none`; DES52), both once at startup; a missing file fails at startup. UI copy: the server
+resolves `<key>_spoken` over `<key>` in spoken mode; the page never sees both. Screen mode on
+the page: mic indicator hidden, chat-bubble icon on the talk pill, no LISTENING word while
+typing, no mic-shaped icon on the card's "did you get it?" row. The eval runner skips cases
+tagged for the other mode (`screen_only` / `spoken_only`) and says how many.
+
+**D70. Tests isolate the machine's state through Settings defaults, not env vars.** D65 set
+`ADA_KILL_SWITCH_FILE` / `ADA_TRANSCRIPTS_DIR` in tests, but env beats keyword arguments in
+`Settings`, so a test's own explicit path was silently replaced. Now an autouse fixture swaps
+the field defaults (kill switch, transcripts, `cards_file: ""`) and restores them. Same
+protection, and explicit test settings win again.
+
+**D71. Placeholder note and card evals.** The QR card shows `placeholder_note` (calm ink, not
+the red sample style) only while the card's `url` still equals `defaults.placeholder_url`, so
+the real link is a one-line swap (the copy around it is the designer's to update, DES53).
+Eval `expect` keys `card_shown: <id>` / `no_card: true` (the designer's proposal), and
+`must_not_include` checks the reply *plus* the stripped tags, so `$invented_card_ids` still
+catches a model that asks for a fake card. `fun_fact` idle act got a half-turn motion; act
+turns are kept when an act ends (no snap back). `daydream_arm` off (PM decision 4).
+

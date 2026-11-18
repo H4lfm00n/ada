@@ -6,7 +6,7 @@ import hashlib
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     # compare prompt versions without editing the designer's files.
     system_prompt_file: str = "prompts/system_prompt.md"
     lines_file: str = "content/lines.yaml"
+    cards_file: str = "content/cards.yaml"  # card catalog (M5b); "" = no cards
+    # Typed MVP vs voice (PM decision 8, D69, DES54): which rules fill the prompt's
+    # {{output_mode_rules}} slot, and which UI copy the screen gets. screen = written for
+    # captions ("LIB 260", public emails shown); spoken = for the ear (from M6a).
+    output_mode: Literal["screen", "spoken"] = "screen"
+    output_mode_file: str = "prompts/mode_{mode}.md"
     timezone: str = "America/Los_Angeles"
 
     # Lab knowledge (RAG). The index lives at rag_index_path, one file per docs folder,

@@ -225,3 +225,43 @@ def test_seeded_turns_marked(tmp_path: Path, shared) -> None:
     t = suite.cases[0].turns
     assert [x.seeded for x in t] == [True, False, False]
     assert t[1].text == "a Ada"
+
+
+# -- M5b: card expectations ------------------------------------------------------------------
+
+
+def test_card_shown_and_no_card(shared) -> None:
+    from app.evals.scorer import mechanical
+
+    assert (
+        mechanical({"card_shown": "qr_discord"}, obs("Scan it!", card="qr_discord"), shared) == []
+    )
+    f = mechanical({"card_shown": "qr_discord"}, obs("Hi."), shared)
+    assert f == ["card_shown: expected qr_discord, got no card"]
+    assert mechanical({"no_card": True}, obs("Hi."), shared) == []
+    assert mechanical({"no_card": True}, obs("Hi.", card="ai_fact"), shared) == [
+        "no_card: showed ai_fact"
+    ]
+
+
+def test_invented_card_ids_still_caught_after_tags_are_stripped(shared) -> None:
+    """Tags never reach the screen, but the model asking for a fake card still fails."""
+    from app.evals.scorer import mechanical
+
+    bad = obs("Here you go.", card_tags=["qr_rickroll"])
+    assert any("must_not_include" in x for x in mechanical(
+        {"must_not_include": ["$invented_card_ids"]}, bad, shared))  # fmt: skip
+    ok = obs("Here you go.", card="qr_project_proposal", card_tags=["qr_project_proposal"])
+    assert mechanical({"must_not_include": ["$invented_card_ids"]}, ok, shared) == []
+
+
+def test_mode_tagged_cases_run_only_in_their_mode() -> None:
+    from app.evals.runner import mode_matches
+
+    for tags, screen, spoken in [
+        ([], True, True),
+        (["screen_only"], True, False),
+        (["spoken_only", "voice"], False, True),
+    ]:
+        c = case(tags=tags)
+        assert (mode_matches(c, "screen"), mode_matches(c, "spoken")) == (screen, spoken)

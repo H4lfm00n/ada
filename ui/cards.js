@@ -118,6 +118,12 @@ const BUILD = {
     hint.append(icon('phone'), el('span', null, d.qr_caption || card.strings.qr_caption || 'Point your phone camera at the code.'));
     wrap.append(box, hint);
     if (d.sample) wrap.append(el('div', 'qrsample', 'Preview only: sample link, not the real form'));
+    // Placeholder link (PM 2026-11-18): the server sends the note only while the card's URL is
+    // still the placeholder in content/cards.yaml, e.g. "Discord invite coming soon".
+    if (d.placeholder && d.placeholder_note) {
+      wrap.classList.add('has-note');   // a little smaller QR so the extra line fits (D71)
+      wrap.append(el('div', 'qrsample placeholder', d.placeholder_note));
+    }
     body.append(wrap);
   },
   directions(d, body) {
@@ -190,7 +196,7 @@ const BUILD = {
   },
 };
 
-export function createCards(stage, { blob, send = () => {}, strings: strs = {} } = {}) {
+export function createCards(stage, { blob, send = () => {}, strings: strs = {}, mode = () => 'spoken' } = {}) {
   const getS = typeof strs === 'function' ? strs : () => strs;
   const layer = el('div'); layer.id = 'cards';
   stage.append(layer);
@@ -258,7 +264,8 @@ export function createCards(stage, { blob, send = () => {}, strings: strs = {} }
     if (s === 'intro') { st.classList.remove('on'); return; }
     if (s === 'asking' || s === 'waiting') {
       st.classList.add(s);
-      st.append(icon('ear'), el('span', null, opts.text || (s === 'asking' ? (curData.confirm || strings.card_confirm || 'Did you scan it?') : (strings.card_wait || 'Take your time…'))));
+      if (mode() !== 'screen') st.append(icon('ear'));   // no mic-shaped icon in screen mode (DES54)
+      st.append(el('span', null, opts.text || (s === 'asking' ? (curData.confirm || strings.card_confirm || 'Did you scan it?') : (strings.card_wait || 'Take your time…'))));
       st.append(el('span', 'spacer'));
       const yes = el('button', 'chip yes', strings.card_yes || 'Yes, got it');
       const no = el('button', 'chip', strings.card_no || 'Not yet');

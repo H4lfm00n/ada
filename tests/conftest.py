@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import httpx
@@ -21,15 +21,37 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 
 @pytest.fixture(autouse=True)
-def _clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory) -> None:
+def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in list(os.environ):
         if key.startswith("ADA_"):
             monkeypatch.delenv(key)
-    # Never read or write the machine's real state: a kill switch left on on the GB10 used to
-    # fail chat/rag tests (M5a GB10 run), and transcripts must not land in data/.
+
+
+@pytest.fixture(autouse=True)
+def _isolated_defaults(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+    """Tests never touch the machine's real state (D65, D70).
+
+    A kill switch left on on the GB10 used to fail chat/rag tests, and transcripts must not
+    land in data/. Cards are off unless a test opts in (the fixture docs don't contain the
+    real QR URLs). These are DEFAULTS, not env vars: env beats keyword arguments in
+    Settings, so an env override would also silently replace a test's own explicit value.
+    """
     state = tmp_path_factory.mktemp("state")
-    monkeypatch.setenv("ADA_KILL_SWITCH_FILE", str(state / "kill_switch.json"))
-    monkeypatch.setenv("ADA_TRANSCRIPTS_DIR", str(state / "transcripts"))
+    patch = {
+        "kill_switch_file": str(state / "kill_switch.json"),
+        "transcripts_dir": str(state / "transcripts"),
+        "cards_file": "",
+    }
+    old = {k: Settings.model_fields[k].default for k in patch}
+    for k, v in patch.items():
+        Settings.model_fields[k].default = v
+    Settings.model_rebuild(force=True)
+    try:
+        yield
+    finally:
+        for k, v in old.items():
+            Settings.model_fields[k].default = v
+        Settings.model_rebuild(force=True)
 
 
 @pytest.fixture

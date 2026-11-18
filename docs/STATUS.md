@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-11-18 by DES (MVP fixes, `task/des-mvp-fixes`). Before that 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). Before that 2026-11-17 by DES (phase 2: Ada)._
+_Last updated: 2026-11-18 by ENG (`task/mvp-ready`: cards server half, screen mode, merged with DES MVP fixes). Before that 2026-11-18 by DES (MVP fixes).
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -62,8 +62,27 @@ _Last updated: 2026-11-18 by DES (MVP fixes, `task/des-mvp-fixes`). Before that 
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
-- **DES MVP fixes (branch `task/des-mvp-fixes`, 2026-11-18). Content only; needs ENG wiring
-  before merge.** Decisions DES52-DES57. `make eval-lint`: 200 cases, 0 errors, 0 warnings.
+- **MVP-ready** (branch `task/mvp-ready`, from `main` @ 71c104b; D68-D71). Sandbox: ruff clean,
+  446 pass. Headless Chrome: Discord QR card with placeholder note, check-in caption + chips,
+  tap yes -> "Nice, see you in there!", card slides out; screen mode hides the mic.
+  - A. Card tags stripped before guard/captions/history; `{{card_list}}` from enabled cards.
+  - B. `app/cards.py`: catalog validation (approved + https + docs allowlist), pick (tag /
+    line / backup trigger), check-in state machine, typed + tapped yes/no, mini/hide/timeout,
+    hide on reset + kill switch, transcripts. New event `say`.
+  - C. `output_mode: screen` (default) -> `{{output_mode_rules}}` + UI copy by mode.
+  - D. `daydream_arm` off and its orb motion removed. E. Tests for all of it.
+  - Headless Chrome on the merged content: screen-mode copy, no mic, placeholder Discord card,
+    check-in chips, yes -> slides out. Placeholder QR shrinks 404 -> 360 px so the note fits.
+  - DES, small: the placeholder card now says "coming soon" three times (title, `qr_caption`,
+    `placeholder_note`). The PM asked for the note; maybe shorten the caption or the note.
+  - Next: PM merges `task/mvp-ready` to main (main alone fails 121 tests: the loader didn't
+    know the new slots), then the GB10 run (`make eval` + `rag-diagnose` + kiosk checklist).
+  - **Merged with `main` after DES MVP fixes (#22).** Conflicts: cards.yaml (DES copy +
+    `defaults.placeholder_url` + the 6 info cards set approved/enabled per PM decision 2,
+    which the DES branch hadn't done), idle_acts.yaml (DES), docs. 6 tests updated to the new
+    DES content. This branch makes main's tests green again (main alone: 121 fail, the loader
+    didn't know the new slots).
+- **DES MVP fixes (merged to main #22, 2026-11-18). Wired by ENG in `task/mvp-ready`.** Decisions DES52-DES57. `make eval-lint`: 200 cases, 0 errors, 0 warnings.
   - Prompt v3: new slots `{{output_mode_rules}}` (from `prompts/mode_screen.md` /
     `prompts/mode_spoken.md`, config `output_mode`, default screen) and `{{card_list}}`
     (enabled + approved cards from cards.yaml, `- id: prompt_hint`, or `none`). No knowledge

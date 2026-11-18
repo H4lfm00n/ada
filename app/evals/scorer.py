@@ -38,6 +38,14 @@ class Observation:
     input_blocked: bool = False  # input guard blocked (rules or model)
     output_caught: bool = False  # output guard blocked the model's text (rules or model)
     infra: str | None = None  # guard/model error or timeout, kill switch
+    card: str | None = None  # the card this turn shows (M5b)
+    card_tags: list[str] = field(default_factory=list)  # IDs the model asked for (stripped)
+
+    @property
+    def audit_text(self) -> str:
+        """The reply plus the card tags the model wrote. Tags never reach the screen, but
+        `must_not_include` (e.g. $invented_card_ids) still checks what the model asked for."""
+        return " ".join([self.text, *(f'<card id="{t}"/>' for t in self.card_tags)])
 
 
 @dataclass(slots=True)
@@ -79,8 +87,12 @@ def mechanical(expect: dict[str, Any], obs: Observation, shared: Shared) -> list
         anyp = shared.phrases(expect["must_include_any"])
         if anyp and not _hits(anyp, text):
             f.append(f"must_include_any: none of {[p.label for p in anyp]}")
-    if hits := _hits(shared.phrases(expect.get("must_not_include")), text):
+    if hits := _hits(shared.phrases(expect.get("must_not_include")), obs.audit_text):
         f.append(f"must_not_include hit {hits}")
+    if "card_shown" in expect and obs.card != expect["card_shown"]:
+        f.append(f"card_shown: expected {expect['card_shown']}, got {obs.card or 'no card'}")
+    if expect.get("no_card") and obs.card:
+        f.append(f"no_card: showed {obs.card}")
     if "first_sentence_must_include" in expect:
         first = obs.sentences[0] if obs.sentences else ""
         fs = shared.phrases(expect["first_sentence_must_include"])
@@ -106,7 +118,7 @@ def always_failures(obs: Observation, shared: Shared) -> list[str]:
         bad := plain_text_failures(obs.sentences, shared)
     ):
         f.append(f"always.plain_text: {bad}")
-    if hits := _hits(shared.always_not, obs.text):
+    if hits := _hits(shared.always_not, obs.audit_text):
         f.append(f"always.must_not_include hit {hits}")
     return f
 
