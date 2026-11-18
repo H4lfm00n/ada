@@ -47,11 +47,11 @@ class Settings(BaseSettings):
     system_prompt_file: str = "prompts/system_prompt.md"
     lines_file: str = "content/lines.yaml"
     cards_file: str = "content/cards.yaml"  # card catalog (M5b); "" = no cards
-    # Typed MVP vs voice (PM decision 8, D69): which writing-style block fills the prompt's
-    # {{output_style}} slot. screen = written for captions ("LIB 260", emails shown);
-    # spoken = written for the ear ("LIB two-sixty", no links or emails out loud).
+    # Typed MVP vs voice (PM decision 8, D69, DES54): which rules fill the prompt's
+    # {{output_mode_rules}} slot, and which UI copy the screen gets. screen = written for
+    # captions ("LIB 260", public emails shown); spoken = for the ear (from M6a).
     output_mode: Literal["screen", "spoken"] = "screen"
-    output_style_file: str = "prompts/output_style_{mode}.md"
+    output_mode_file: str = "prompts/mode_{mode}.md"
     timezone: str = "America/Los_Angeles"
 
     # Lab knowledge (RAG). The index lives at rag_index_path, one file per docs folder,

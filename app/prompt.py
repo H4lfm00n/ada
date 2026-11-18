@@ -34,10 +34,10 @@ FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)",
 LAB_DOCS_TAG_RE = re.compile(r"<\s*(/?)\s*lab_docs\s*>", re.IGNORECASE)
 
 SYSTEM_SLOTS = frozenset(
-    {"bot_name", "current_time", "retrieved_context", "card_list", "output_style"}
+    {"bot_name", "current_time", "retrieved_context", "card_list", "output_mode_rules"}
 )
 # Filled once at load (fixed per deployment), like bot_name.
-FIXED_SLOTS = frozenset({"bot_name", "card_list", "output_style"})
+FIXED_SLOTS = frozenset({"bot_name", "card_list", "output_mode_rules"})
 
 
 class PromptError(ValueError):
@@ -109,14 +109,18 @@ class SystemPrompt:
         path: Path,
         bot_name: str,
         card_list: str | None = None,
-        output_style: str | None = None,
+        output_mode_rules: str | None = None,
     ) -> SystemPrompt:
         meta, body = split_front_matter(path.read_text(encoding="utf-8"))
         found = {m.group(1) for m in SLOT_RE.finditer(body)}
         unknown = sorted(found - SYSTEM_SLOTS)
         if unknown:
             raise PromptError(f"{path.name}: unknown slot(s): {', '.join(unknown)}")
-        fixed = {"bot_name": bot_name, "card_list": card_list, "output_style": output_style}
+        fixed = {
+            "bot_name": bot_name,
+            "card_list": card_list,
+            "output_mode_rules": output_mode_rules,
+        }
         missing = sorted(k for k in found & FIXED_SLOTS if fixed[k] is None)
         if missing:
             raise PromptError(f"{path.name}: no value for slot(s): {', '.join(missing)}")
@@ -134,22 +138,22 @@ class SystemPrompt:
     def from_settings(cls, settings: Settings, cards: CardCatalog | None = None) -> SystemPrompt:
         path = settings.content_path(settings.system_prompt_file)
         body = path.read_text(encoding="utf-8")
-        card_list = output_style = None
+        card_list = output_mode_rules = None
         if "{{card_list}}" in body:
             if cards is None and settings.cards_file:
                 cards = load_cards(settings.content_path(settings.cards_file), settings.bot_name)
             card_list = cards.prompt_list() if cards else CardCatalog({}).prompt_list()
-        if "{{output_style}}" in body:
+        if "{{output_mode_rules}}" in body:
             style = settings.content_path(
-                settings.output_style_file.format(mode=settings.output_mode)
+                settings.output_mode_file.format(mode=settings.output_mode)
             )
             try:
-                output_style = split_front_matter(style.read_text(encoding="utf-8"))[1].strip()
+                output_mode_rules = split_front_matter(style.read_text(encoding="utf-8"))[1].strip()
             except OSError as exc:
                 raise PromptError(
                     f"output_mode {settings.output_mode!r}: can't read {style}"
                 ) from exc
-        return cls.load(path, settings.bot_name, card_list, output_style)
+        return cls.load(path, settings.bot_name, card_list, output_mode_rules)
 
     def render(self, current_time: str, retrieved_context: str = "") -> str:
         return fill_slots(

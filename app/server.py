@@ -101,6 +101,12 @@ def load_ui_strings(settings: Settings) -> dict[str, str]:
         out[str(key)] = SLOT_RE.sub(
             lambda m: settings.bot_name if m.group(1) == "bot_name" else m.group(0), value
         )
+    # DES54: plain keys are screen-mode copy; in spoken mode `<key>_spoken` replaces `<key>`.
+    # The page only ever sees the resolved set.
+    spoken = {k[: -len("_spoken")]: v for k, v in out.items() if k.endswith("_spoken")}
+    out = {k: v for k, v in out.items() if not k.endswith("_spoken")}
+    if settings.output_mode == "spoken":
+        out.update(spoken)
     return out
 
 
@@ -249,6 +255,7 @@ class Kiosk:
             "backend_ok": self.status.backend_ok,
             "ping_s": self.settings.kiosk_ping_s,
             "idle_acts": self.idle is not None,
+            "output_mode": self.settings.output_mode,
         }
         if self.status.kill_on:
             event["out_of_order_line"] = self.out_of_order_line()
@@ -636,7 +643,11 @@ def _same_origin(ws: WebSocket) -> bool:
 
 def render_index(settings: Settings, ui_dir: Path = UI_DIR) -> str:
     html = (ui_dir / "index.html").read_text(encoding="utf-8")
-    boot = {"bot_name": settings.bot_name, "ui_strings": load_ui_strings(settings)}
+    boot = {
+        "bot_name": settings.bot_name,
+        "output_mode": settings.output_mode,
+        "ui_strings": load_ui_strings(settings),
+    }
     blob = json.dumps(boot, ensure_ascii=False).replace("</", "<\\/")
     return html.replace(BOOT_MARKER, f'<script type="application/json" id="boot">{blob}</script>')
 

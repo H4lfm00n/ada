@@ -206,7 +206,7 @@ class CardCatalog:
                        if c.triggers else ".")
                 )  # fmt: skip
             lines.append(f"- {c.id}: {hint}")
-        return "\n".join(lines) if lines else "- (no cards right now: don't add a card tag)"
+        return "\n".join(lines) if lines else "none"  # DES52: the prompt's rules handle it
 
     # ---- safety
     def check_urls(self, allowlist: Allowlist) -> None:

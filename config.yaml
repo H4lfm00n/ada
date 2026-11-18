@@ -32,7 +32,8 @@ system_prompt_file: prompts/system_prompt.md
 lines_file: content/lines.yaml
 cards_file: content/cards.yaml        # card catalog (M5b); PM approves every card and URL
 # screen = typed MVP: write "LIB 260", show emails like ai@sfsu.edu (PM decision 8, D69).
-# Switch to spoken when TTS lands (M6a). Fills {{output_style}} from prompts/output_style_<mode>.md.
+# Switch to spoken when TTS lands (M6a). Fills {{output_mode_rules}} from prompts/mode_<mode>.md
+# and picks the `*_spoken` UI copy (DES54).
 output_mode: screen
 timezone: America/Los_Angeles  # fills {{current_time}} in the system prompt
 

@@ -20,6 +20,10 @@ const $ = id => document.getElementById(id);
 const stage = $('stage'), input = $('input'), hint = $('hint'), caps = $('captions');
 const boot = JSON.parse(($('boot') || {}).textContent || '{}');
 const DEBUG = new URLSearchParams(location.search).has('debug');
+// screen = typed MVP (no mic, no LISTENING word); spoken = voice (M6). DES54, D69.
+let mode = boot.output_mode === 'spoken' ? 'spoken' : 'screen';
+function applyMode() { stage.classList.toggle('mode-screen', mode === 'screen'); }
+applyMode();
 
 // Until M6 there is no microphone: a tap opens the staff typing box so the screen stays
 // usable. M6 replaces this with the mic. Barge-in ("say stop") is M6c.
@@ -36,7 +40,7 @@ const CONFUSED = new Set(['line:guard_fallback', 'line:didnt_catch']);
 
 const blob = createBlob($('blob'));
 // Cards (M5b): drawn here, decided by the server (content/cards.yaml + check-in loop).
-const cards = createCards(stage, { blob, send: o => send(o), strings: () => S });
+const cards = createCards(stage, { blob, send: o => send(o), strings: () => S, mode: () => mode });
 const media = matchMedia('(prefers-reduced-motion: reduce)');
 let forceReduced = false, reduced = false;
 function applyMotion() {
@@ -86,7 +90,8 @@ function setView(v) {
   stage.classList.toggle('out', v === 'out');
   stage.classList.toggle('lost', v === 'lost' || v === 'reconnecting');
   blob.state(BLOB_STATE[v] || 'idle');
-  $('statusword').textContent = STATUS_WORD[v] ? (S[STATUS_WORD[v]] || '') : '';
+  const word = v === 'listening' && mode === 'screen' ? null : STATUS_WORD[v];   // the typing box is the cue
+  $('statusword').textContent = word ? (S[word] || '') : '';
   if (v === 'out' || v === 'lost' || v === 'reconnecting') closeTyping();
   input.placeholder = (sessionActive ? S.placeholder_ready : S.placeholder_idle) || '';
   renderTalk();
@@ -260,7 +265,9 @@ function startListening() {
 // ---------------------------------------------------------------- server events
 const handlers = {
   hello(e) {
-    S = e.ui_strings || S; renderCopy();
+    S = e.ui_strings || S;
+    if (e.output_mode) { mode = e.output_mode === 'spoken' ? 'spoken' : 'screen'; applyMode(); }
+    renderCopy();
     pingS = e.ping_s || 10; warnBeforeS = e.warn_before_s || 30;
     forceReduced = !!e.reduced_motion; applyMotion();
     backendOk = e.backend_ok !== false;

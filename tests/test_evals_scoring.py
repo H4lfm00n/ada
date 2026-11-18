@@ -253,3 +253,15 @@ def test_invented_card_ids_still_caught_after_tags_are_stripped(shared) -> None:
         {"must_not_include": ["$invented_card_ids"]}, bad, shared))  # fmt: skip
     ok = obs("Here you go.", card="qr_project_proposal", card_tags=["qr_project_proposal"])
     assert mechanical({"must_not_include": ["$invented_card_ids"]}, ok, shared) == []
+
+
+def test_mode_tagged_cases_run_only_in_their_mode() -> None:
+    from app.evals.runner import mode_matches
+
+    for tags, screen, spoken in [
+        ([], True, True),
+        (["screen_only"], True, False),
+        (["spoken_only", "voice"], False, True),
+    ]:
+        c = case(tags=tags)
+        assert (mode_matches(c, "screen"), mode_matches(c, "spoken")) == (screen, spoken)

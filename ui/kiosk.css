@@ -127,3 +127,9 @@ html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
 #debug button { font: inherit; border: 1px solid #ccc; background: #f6f6f6; border-radius: 6px; padding: 3px 7px; cursor: pointer; }
 #debug button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
 #debug .note { color: #777; }
+
+/* Output mode (DES54, D69). Screen = the typed MVP: no mic anywhere (there is none). */
+#talk .ico-chat { display: none; }
+#stage.mode-screen #talk .ico-mic { display: none; }
+#stage.mode-screen #talk .ico-chat { display: block; }
+#stage.mode-screen #mic { display: none; }

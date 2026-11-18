@@ -176,11 +176,6 @@ const ease = (dt, tau) => 1 - Math.exp(-dt / tau);
 const ACTS = {
   daydream_cube: (u, t, g) => ({ cube: envelope(u, .3, .6) * .9 * g, p: { amp: .02 } }),
   daydream_star: (u, t, g) => ({ star: envelope(u, .3, .6) * g, p: { amp: .02, spin: 0 } }),
-  daydream_arm: (u, t, g) => {   // stretch into a two-segment arm, wave once, melt back
-    const m = envelope(u, .25, .7) * g;
-    const wave = Math.sin(smooth(.3, .7, u) * Math.PI * 2) * .6;
-    return { p: { spin: 0, amp: .02, y: .615 - .22 * m }, arm: { m, bend: 1.0 + wave } };
-  },
   juggling: (u, t) => {   // the third ball drops on loop 3; the blob squashes and tilts
     const oops = envelope(clamp01((t - 5.3) / 1.6), .3, .6);
     return { balls: { t, drop: true }, p: { tilt: .14 * oops, sy: 1 - .07 * oops } };

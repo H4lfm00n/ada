@@ -203,7 +203,7 @@ def test_prompt_list_names_enabled_cards_only(tmp_path: Path) -> None:
     assert "- qr_discord: Join the Discord (QR code)." in text
     assert "campus_help: emergency" in text
     assert "parked" not in text
-    assert "don't add a card tag" in CardCatalog({}).prompt_list()
+    assert CardCatalog({}).prompt_list() == "none"
 
 
 # -- pick --------------------------------------------------------------------------------

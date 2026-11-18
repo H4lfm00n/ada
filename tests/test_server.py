@@ -15,6 +15,7 @@ from typing import Any
 
 import httpx
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
@@ -884,3 +885,29 @@ def test_unapproved_enabled_card_stops_the_kiosk(kiosk: Any, tmp_path: Path) -> 
     path.write_text(CARDS_YAML.replace("approved: yes", "approved: TODO(PM)", 1), encoding="utf-8")
     with pytest.raises(CardsError, match="approved"):
         kiosk(cards_file=str(path))
+
+
+# -- PM decision 8 / DES54: screen vs spoken mode ----------------------------------------------
+
+
+def test_ui_copy_follows_the_output_mode(tmp_path: Path) -> None:
+    strings = tmp_path / "ui.yaml"
+    base = yaml.safe_load((Path(__file__).parents[1] / "content" / "ui_strings.yaml").read_text())
+    base["strings"]["talk_idle"] = "Tap here to ask {{bot_name}}"
+    base["strings"]["talk_idle_spoken"] = "Say Hey {{bot_name}}"
+    strings.write_text(yaml.safe_dump(base), encoding="utf-8")
+    screen = load_ui_strings(make_settings(tmp_path, kiosk_ui_strings_file=str(strings)))
+    spoken = load_ui_strings(
+        make_settings(tmp_path, kiosk_ui_strings_file=str(strings), output_mode="spoken")
+    )
+    assert screen["talk_idle"] == "Tap here to ask Ada"
+    assert spoken["talk_idle"] == "Say Hey Ada"
+    assert not any(k.endswith("_spoken") for k in [*screen, *spoken])
+
+
+def test_hello_says_which_mode(kiosk: Callable[..., TestClient]) -> None:
+    tc = kiosk()
+    with tc.websocket_connect("/ws") as ws:
+        assert recv(ws, "hello")[0]["output_mode"] == "screen"
+    page = tc.get("/ui/").text
+    assert '"output_mode": "screen"' in page
