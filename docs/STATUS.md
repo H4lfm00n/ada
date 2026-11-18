@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). Before that 2026-11-17 by DES (phase 2: Ada)._
+_Last updated: 2026-11-18 by ENG (`task/mvp-ready`: cards server half, screen mode). Before that 2026-11-18 by PM (pm-sync-main merge)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -62,6 +62,19 @@ _Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). B
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
+- **MVP-ready** (branch `task/mvp-ready`, from `main` @ 71c104b; D68-D71). Sandbox: ruff clean,
+  446 pass. Headless Chrome: Discord QR card with placeholder note, check-in caption + chips,
+  tap yes -> "Nice, see you in there!", card slides out; screen mode hides the mic.
+  - A. Card tags stripped before guard/captions/history; `{{card_list}}` from enabled cards.
+  - B. `app/cards.py`: catalog validation (approved + https + docs allowlist), pick (tag /
+    line / backup trigger), check-in state machine, typed + tapped yes/no, mini/hide/timeout,
+    hide on reset + kill switch, transcripts. New event `say`.
+  - C. `output_mode: screen` (default) -> `{{output_mode_rules}}` + UI copy by mode.
+  - D. `daydream_arm` off and its orb motion removed. E. Tests for all of it.
+  - **Waiting on `task/des-mvp-fixes` to reach main.** Trial merge done locally: 2 conflicts
+    (cards.yaml, idle_acts.yaml: take DES + `defaults.placeholder_url` + flip the 6 info cards
+    to approved/enabled per PM decision 2, which the DES branch hadn't), 6 tests updated to
+    the new DES content; then 446 pass, eval-lint 200 cases OK, both modes render.
 - **M5b cards UI (PM-built, branch `task/m5b-cards-ui`, 2026-11-18):** `ui/cards.js` +
   `ui/cards.css` render all 7 card types, the check-in states, the mini tile and the tap
   replies; wired into `kiosk.js` (`show_card`, `card_state`, `card_mini`, `hide_card`).
