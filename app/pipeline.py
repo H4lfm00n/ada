@@ -35,6 +35,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from app.cards import CardCatalog, Pick, strip_card_tags
 from app.guards.chain import GuardDecision
 from app.guards.normalize import normalize
 from app.interfaces import (
@@ -121,6 +122,10 @@ class TurnResult:
     kill_switch: bool = False
     added_to_history: bool = False
     retracted: bool = False  # model sentences were shown, then taken back (M5, D50)
+    # Cards (M5b): IDs the model asked for with <card id=".."/> (stripped from the text), and
+    # the card to show for this turn (tag, canned-line pairing, or backup trigger).
+    card_ids: list[str] = field(default_factory=list)
+    card: Pick | None = None
 
     @property
     def text(self) -> str:
@@ -145,6 +150,7 @@ class ChatPipeline:
         retriever: Retriever | None = None,
         rag_top_k: int = 4,
         retrieval_timeout_s: float | None = 5.0,
+        cards: CardCatalog | None = None,
         clock: Callable[[], float] = time.perf_counter,
     ) -> None:
         self.model = model
@@ -162,6 +168,7 @@ class ChatPipeline:
         self.retriever = retriever
         self.rag_top_k = rag_top_k
         self.retrieval_timeout_s = retrieval_timeout_s
+        self.cards = cards
         self._clock = clock
 
     async def handle(self, session_id: str, user_text: str) -> TurnResult:
@@ -194,10 +201,19 @@ class ChatPipeline:
             else:
                 await self._model_reply(session, text, chunks, result, t0)
             session.turns += 1
+        result.card = self._pick_card(text, result)
         result.total_s = self._clock() - t0
         if self.transcripts:
             self.transcripts.log_turn(result)
         return result
+
+    def _pick_card(self, text: str, result: TurnResult) -> Pick | None:
+        if self.cards is None or result.kill_switch:
+            return None
+        clean = result.source == "model" and result.output_block is None and not result.error
+        return self.cards.pick(
+            result.card_ids if clean else [], text, result.retrieved, result.source
+        )
 
     async def _model_reply(
         self, session: Session, text: str, chunks: list[Chunk], result: TurnResult, t0: float
@@ -372,6 +388,11 @@ class ChatPipeline:
             while (sentence := await queue.get()) is not None:
                 if self.kill_switch.is_on():
                     raise KillSwitchTripped
+                # Card tags are never shown, spoken, guarded as text, or kept in history.
+                sentence, ids = strip_card_tags(sentence)
+                result.card_ids += ids
+                if not sentence:
+                    continue
                 # The guard model sees the whole reply so far, so a harmful statement
                 # can't hide by being split across two harmless-looking sentences.
                 decision = await self.output_guard.check(" ".join([*shown, sentence]), context)

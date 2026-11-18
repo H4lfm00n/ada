@@ -44,7 +44,8 @@ def test_real_file_loads_with_reasons_for_the_acts_that_are_off(repo_root: Path)
     assert cat.rotation.min_gap_s == 45 and cat.rotation.max_gap_s == 120
     assert "enabled: false" in cat.unavailable["quiz_invite"]
     assert "M5c" in cat.unavailable["event_teaser"]  # needs the lab_docs event reader
-    assert "not approved" in cat.unavailable["fun_fact"]  # ai_fact card still TODO(PM)
+    assert "fun_fact" in cat.acts  # the ai_fact card is approved (PM, 2026-11-18)
+    assert cat.acts["fun_fact"].captions  # its facts become the captions
     for act in cat.acts.values():  # visual only: nothing here is spoken
         assert act.duration_s > 0 and act.weight > 0
         assert act.caption is None or "{{" not in act.caption

@@ -30,6 +30,10 @@ max_history_messages: 20      # oldest turns dropped beyond this (user + assista
 # --- Content (designer-owned files, relative to repo root) ---------------------
 system_prompt_file: prompts/system_prompt.md
 lines_file: content/lines.yaml
+cards_file: content/cards.yaml        # card catalog (M5b); PM approves every card and URL
+# screen = typed MVP: write "LIB 260", show emails like ai@sfsu.edu (PM decision 8, D69).
+# Switch to spoken when TTS lands (M6a). Fills {{output_style}} from prompts/output_style_<mode>.md.
+output_mode: screen
 timezone: America/Los_Angeles  # fills {{current_time}} in the system prompt
 
 # --- Lab knowledge (RAG, M2) ----------------------------------------------------

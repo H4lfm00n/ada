@@ -27,6 +27,10 @@ defaults:
   retry_after_s: 10           # after "no / one sec", ask once more after this
   auto_hide_s: 60
   mini_when_new_question: true  # keep card small in the corner while answering something else
+  # PM 2026-11-18: until the real links arrive, both QR cards point to the official SFSU page
+  # that links our Discord. While a card's `url` equals this, its `placeholder_note` shows on
+  # screen. Swapping in the real link is ONE line (the card's `url:`); the note goes away.
+  placeholder_url: "https://ai.sfsu.edu/ai-students"
 
 cards:
 
@@ -34,8 +38,10 @@ cards:
 
   - id: qr_project_proposal
     type: qr
-    enabled: false
-    approved: TODO(PM)
+    enabled: true
+    approved: yes        # PM 2026-11-18 (placeholder URL for the MVP)
+    placeholder: true
+    placeholder_note: "Proposal form link coming soon"
     title: "Submit a project proposal"
     subtitle: "Scan with your phone camera"
     # TODO(PM): no project-proposal / "student request form" URL exists in lab_docs yet.
@@ -43,7 +49,7 @@ cards:
     # Is the join form the same as the student request form? If yes, use it here and add
     # a sentence to join.md saying so; if no, give me the real form URL and I'll add it to
     # join.md so the docs and the card agree.
-    url: "TODO(PM): official student request / project proposal form URL"
+    url: "https://ai.sfsu.edu/ai-students"   # TODO(PM): real proposal form URL (one-line swap)
     say_before: "I've put a QR code on the screen. Point your phone camera at it to open the proposal form."
     confirm: "Did you get it?"
     on_yes: "Awesome! The team will follow up with you. Anything else?"
@@ -56,14 +62,16 @@ cards:
 
   - id: qr_discord
     type: qr
-    enabled: false
-    approved: TODO(PM)
+    enabled: true
+    approved: yes        # PM 2026-11-18 (placeholder URL for the MVP)
+    placeholder: true
+    placeholder_note: "Discord invite coming soon"
     title: "Join the Student AI Commons Discord"
     subtitle: "Scan with your phone camera"
     # TODO(PM): permanent, non-expiring invite URL (spec 8.1). join.md says the old invite
     # changed and must not be re-added. Update lab_docs/join.md (faq.md "How do I join")
     # in the same PR as this URL.
-    url: "TODO(PM): permanent Discord invite URL"
+    url: "https://ai.sfsu.edu/ai-students"   # TODO(PM): permanent Discord invite (one-line swap)
     say_before: "I've put the Discord QR code on the screen. Scan it with your phone camera to join."
     confirm: "Did you scan it?"
     on_yes: "Nice, see you in there! Anything else?"
@@ -78,8 +86,8 @@ cards:
 
   - id: map_where_we_are
     type: directions
-    enabled: false
-    approved: TODO(PM)
+    enabled: true
+    approved: yes        # PM 2026-11-18 (MVP)
     title: "Where we are"
     lines:
       - "AI Studio · LIB 260"
@@ -97,8 +105,8 @@ cards:
 
   - id: events_this_month
     type: list
-    enabled: false
-    approved: TODO(PM)
+    enabled: true
+    approved: yes        # PM 2026-11-18 (MVP)
     title: "What's happening"
     # Built at runtime by the engineer from lab_docs/meetings-events.md: only sections whose
     # heading doesn't say "(past)", and only dated items on or after today. Never generated
@@ -117,8 +125,8 @@ cards:
 
   - id: equipment_spotlight
     type: spotlight
-    enabled: false
-    approved: TODO(PM)
+    enabled: true
+    approved: yes        # PM 2026-11-18 (MVP)
     title: "Equipment for student projects"
     items:
       - "Robotic dogs"
@@ -136,8 +144,8 @@ cards:
 
   - id: compute_rules
     type: checklist
-    enabled: false
-    approved: TODO(PM)
+    enabled: true
+    approved: yes        # PM 2026-11-18 (MVP)
     title: "Computer rules"
     items:
       - "No remote access to AI Lab computers"
@@ -151,8 +159,8 @@ cards:
 
   - id: campus_help
     type: contact
-    enabled: false
-    approved: TODO(PM)
+    enabled: true
+    approved: yes        # PM 2026-11-18 (MVP)
     title: "Get help now"
     # Pairs with the emergency / crisis_support lines. No jokes, no idle acts, no auto-hide
     # while the visitor is still there. Shown big, high contrast.
@@ -171,8 +179,8 @@ cards:
 
   - id: ai_fact
     type: fun
-    enabled: false
-    approved: TODO(PM)
+    enabled: true
+    approved: yes        # PM 2026-11-18 (MVP)
     title: "Did you know?"
     # Facts are pre-written and reviewed, never generated live. General AI/CS knowledge,
     # no lab facts, no numbers that go stale.

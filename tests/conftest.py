@@ -30,6 +30,8 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPat
     state = tmp_path_factory.mktemp("state")
     monkeypatch.setenv("ADA_KILL_SWITCH_FILE", str(state / "kill_switch.json"))
     monkeypatch.setenv("ADA_TRANSCRIPTS_DIR", str(state / "transcripts"))
+    # No cards unless a test opts in: the fixture docs don't contain the real QR URLs.
+    monkeypatch.setenv("ADA_CARDS_FILE", "")
 
 
 @pytest.fixture

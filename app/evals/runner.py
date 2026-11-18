@@ -191,6 +191,8 @@ def observe(r: TurnResult) -> Observation:
         input_blocked=input_blocked,
         output_caught=output_caught,
         infra=infra,
+        card=r.card.card.id if r.card else None,
+        card_tags=list(r.card_ids),
     )
 
 

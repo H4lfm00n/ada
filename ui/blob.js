@@ -191,6 +191,7 @@ const ACTS = {
     breathPeriod: 8 }),
   hello_wave: (u, t, g) => ({ ripple: { c: smooth(0, 1, u) * 3.2, a: .07 * g * (1 - u) },
     p: { tilt: .05 * Math.sin(u * Math.PI) * g } }),
+  fun_fact: (u) => ({ extraSpin: Math.PI * smooth(0, .6, u), p: { spin: 0 } }),   // slow half-turn
   try_asking_proposal: () => ({}),
   try_asking_ai: () => ({}),
   try_asking_where: () => ({}),
@@ -262,7 +263,7 @@ export function createBlob(canvas) {
   let level = 0, levelTarget = 0, swell = 0, levelAt = 0;
   let act = null;   // { id, fn, t0, dur }
   let t = 0, last = performance.now(), frames = 0, fpsVal = 0, fpsAt = performance.now(), cpuMs = 0;
-  let rotY = 0, noiseT = 0, breathPh = 0, swellT = 0, sweepT = 0, flowT = 0, wobbleT0 = -1;
+  let lastExtra = 0, rotY = 0, noiseT = 0, breathPh = 0, swellT = 0, sweepT = 0, flowT = 0, wobbleT0 = -1;
   const AV = {};   // smoothed act values, so acts fade in and out instead of popping
   const qInv = new THREE.Quaternion();
 
@@ -307,6 +308,7 @@ export function createBlob(canvas) {
     }
 
     const extra = A && A.extraSpin ? A.extraSpin * (reducedOn ? 0 : 1) : 0;
+    lastExtra = extra;
     group.rotation.set(.2, rotY + extra, P.tilt + wob);
     group.position.set(P.x, P.y, 0);
     group.scale.set(P.scale * P.sx, P.scale * P.sy, P.scale);
@@ -377,7 +379,8 @@ export function createBlob(canvas) {
   resize(1920, 1080, 1);
   requestAnimationFrame(frame);
 
-  function stopAct() { act = null; retarget(); }
+  // An act's extra turn is kept when it ends (a half-turn must not snap back).
+  function stopAct() { act = null; rotY += lastExtra; lastExtra = 0; retarget(); }
 
   return {
     state(name) {

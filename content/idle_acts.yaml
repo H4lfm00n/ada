@@ -52,7 +52,8 @@ acts:
     weight: 2
     blob: "stretches into a simple two-segment arm outline, 'waves' once, melts back"
     caption: "Practicing for when my arms arrive."
-    # TODO(PM): depends on the robot-arm tease (persona J1). Disable if J1 is dropped.
+    # Off: PM 2026-11-18 dropped the robot-arm tease (decision 4).
+    enabled: false
     reduced_motion: skip
 
   - id: juggling

@@ -52,6 +52,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 
 from app.admin import TOKEN_ENV, make_router
+from app.cards import CardStage, classify_reply
 from app.config import LOOPBACK_HOSTS, REPO_ROOT, Settings, load_settings
 from app.factory import Built, build_pipeline, warm_up
 from app.idle import IdleCatalog, IdlePicker, IdleScheduler, load_idle_acts
@@ -182,10 +183,27 @@ class Kiosk:
         self._pending_reset: str | None = None  # session_reset reason to send after turn_end
         self.idle = IdleScheduler(IdlePicker(idle, rng)) if idle and idle.acts else None
         self.screen_reduced = settings.kiosk_reduced_motion  # updated by the page's `screen`
+        # Cards (M5b): the card on screen and its check-in loop (app/cards.py, spec 2.2).
+        self.cards = CardStage(rng) if built.cards and built.cards.cards else None
 
     # -- events out ----------------------------------------------------------------------
 
     async def emit(self, event: dict[str, Any]) -> None:
+        # Every path that ends a visit or stops Ada announces it with one of these two
+        # events, so a card can never outlive its visitor or survive the kill switch.
+        if (
+            self.cards
+            and self.cards.current
+            and (
+                event["type"] == "session_reset"
+                or (event["type"] == "out_of_order" and event.get("on"))
+            )
+        ):
+            for e in self.cards.clear():
+                await self._send(e)
+        await self._send(event)
+
+    async def _send(self, event: dict[str, Any]) -> None:
         ws = self.ws
         if ws is None:
             return
@@ -274,6 +292,10 @@ class Kiosk:
                 await self.on_message(text[:MAX_MESSAGE_CHARS], cid)
         elif kind in ("typing", "wake"):  # wake = a tap on the blob / talk button
             self.on_typing()
+        elif kind == "card_reply":  # "Yes, got it" / "Not yet" chips on a QR card (PMC3)
+            answer = data.get("answer")
+            if answer in ("yes", "no"):
+                await self.on_card_reply(str(data.get("id") or ""), answer)
         elif kind == "screen":  # the page's prefers-reduced-motion, sent on connect/change
             self.screen_reduced = bool(data.get("reduced_motion")) or (
                 self.settings.kiosk_reduced_motion
@@ -298,7 +320,33 @@ class Kiosk:
         if not text.strip():
             return
         sid = self._live_session()
+        # "yes" / "not yet" while Ada is asking "did you scan it?" answers the card, not the
+        # model (keywords only; anything else is a new question and the card goes mini).
+        if self.cards and self.cards.listening and (answer := classify_reply(text)):
+            self._start_turn(client_msg_id, self._card_answer_turn(sid, answer))
+            return
         self._start_turn(client_msg_id, self._visitor_turn(sid, text))
+
+    async def on_card_reply(self, card_id: str, answer: str) -> None:
+        self._interrupt_idle()
+        if self.cards is None or self.status.kill_on:
+            return
+        if self.sid and self.sessions.session(self.sid):
+            self.sessions.touch(self.sid)
+            self._warned_at = None
+        await self.emit_cards(self.cards.reply(card_id, answer, self.clock()))
+
+    async def emit_cards(self, events: list[dict[str, Any]], *, in_turn: bool = False) -> None:
+        """Send card events. A card line is a caption in the current turn, or a `say`."""
+        for e in events:
+            if e["type"] == "say" and in_turn and self.turn is not None:
+                await self.sentence(e["text"], e["source"])
+            else:
+                await self.emit(e)
+            if e["type"] in ("show_card", "card_state") and self.sid and self.pipeline.transcripts:
+                self.pipeline.transcripts.log_event(
+                    self.sid, "card", id=e["id"], event=e.get("state", "shown")
+                )
 
     def on_typing(self) -> None:
         self._interrupt_idle()
@@ -346,8 +394,23 @@ class Kiosk:
         await self.emit({"type": "turn_end", "turn_id": turn.id, "source": source})
         await self._after_turn()
 
+    async def _card_answer_turn(self, sid: str, answer: str) -> str:
+        self.sessions.touch(sid)
+        card = self.cards.current if self.cards else None
+        await self.emit_cards(self.cards.reply(None, answer, self.clock()) if self.cards else [],
+                              in_turn=True)  # fmt: skip
+        return f"card:{card}"
+
     async def _visitor_turn(self, sid: str, text: str) -> str:
+        if self.cards and self.cards.current:  # asking something else: card goes mini
+            await self.emit_cards(self.cards.new_question())
         result = await self.pipeline.handle(sid, text)
+        if self.cards and result.card and not result.session_reset and not result.kill_switch:
+            via = result.card.via
+            await self.emit_cards(
+                self.cards.show(result.card.card, self.clock(), say_intro=via != "tag"),
+                in_turn=True,
+            )
         if result.session_reset:  # "bye": the pipeline said goodbye and wiped the context
             self.sessions.end(sid)
             if self.sid == sid:
@@ -427,6 +490,7 @@ class Kiosk:
             and self.turn is None
             and not self.status.kill_on
             and self.status.backend_ok
+            and not (self.cards and self.cards.current)
         )
 
     async def idle_step(self) -> None:
@@ -452,6 +516,8 @@ class Kiosk:
         """One step of the idle clock, the idle acts, and the kill-switch check."""
         await self._check_kill_switch()
         await self.idle_step()
+        if self.cards and self.turn is None and not self.status.kill_on:
+            await self.emit_cards(self.cards.step(self.clock()))
         if self.status.kill_on or self.turn is not None or self.sid is None:
             return
         s = self.sessions.peek(self.sid)

@@ -49,6 +49,8 @@ EXPECT_KEYS = frozenset(
         "expect_line",
         "allowed_lines",
         "judge",
+        "card_shown",  # M5b: the card this turn puts on screen (its id)
+        "no_card",  # M5b: true = no card at all
     }
 )
 SUITE_KEYS = frozenset(

@@ -73,6 +73,7 @@
 .qrhint { display: flex; align-items: center; gap: 12px; margin-top: 22px; font-size: 26px; color: var(--ink-2); }
 .qrhint svg { width: 34px; height: 34px; color: var(--accent); flex: none; }
 .qrsample { margin-top: 10px; font-size: 18px; font-weight: 600; color: var(--danger); }
+.qrsample.placeholder { color: var(--ink-2); font-weight: 500; }   /* "Discord invite coming soon": not an error */
 .qrpending {
   position: absolute; inset: 12px; display: flex; align-items: center; justify-content: center; text-align: center;
   background: rgba(255, 255, 255, .86); font-size: 24px; font-weight: 600; color: var(--danger); padding: 30px; border-radius: 14px;

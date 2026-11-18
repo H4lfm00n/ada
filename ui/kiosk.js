@@ -11,8 +11,8 @@
 // Not built yet, hooks only:
 //   M6 voice: `audio_level {source, level}` feeds the blob; `wake {source}` from the server
 //             (wake word) does what a tap does; `mic {on}` drives the mic indicator.
-//   M5b cards: `show_card`, `card_mini`, `hide_card` are accepted and ignored; the blob's
-//             card pose is `blob.showing(true)` (try it in the debug panel).
+//   M5b cards: drawn by cards.js, decided by the server (app/cards.py); card lines Ada says
+//             outside a reply arrive as `say {text, source}` and are captioned.
 import { createBlob, ACT_IDS } from './blob.js';
 import { createCards } from './cards.js';
 
@@ -321,6 +321,9 @@ const handlers = {
   // ---- M5b cards: the server picks the card and runs the check-in loop ----
   show_card(e) { if (!blocked()) { stopIdleAct(); cards.show({ ...(e.data || {}), id: e.id }); } },
   card_state(e) { cards.state(e.id, e.state, e); },
+  // A card line Ada says outside a reply ("Did you scan it?", "Nice, see you in there!"):
+  // captioned like any sentence (TTS speaks it later, M6a). Inside a reply it's a `sentence`.
+  say(e) { if (!blocked() && e.text) { stopIdleAct(); enqueue(e.text, false); } },
   card_mini(e) { cards.mini(e.id); },
   hide_card(e) { cards.hide(e.id); },
 };
