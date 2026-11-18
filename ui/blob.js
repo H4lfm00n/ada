@@ -1,76 +1,130 @@
-// Ada's wireframe blob (docs/ui-spec.md v3 section 3; PHASE2-SPEC 3.3).
+// Ada's blob (docs/ui-spec.md v3 section 3; PHASE2-SPEC 3.3), v2: a smooth, softly shaded
+// solid (PM, 2026-11-17: "very smooth and easy looking, not a wireframe", D64).
 //
-// A Three.js wireframe icosphere (detail 5) plus a faint inner core. Each frame every vertex
-// is pushed along its normal by 3D simplex noise plus a breathing term, and by the audio
-// swell. All look parameters ease toward per-state targets (no hard cuts). Idle acts add a
-// shape morph, a displacement band, or a highlight on top, then hand back to the state.
-// Original design, no assets. Positions are updated on the CPU (~2.2k vertices).
+// A finely subdivided sphere deformed in the vertex shader by slow, low-frequency 3D simplex
+// noise plus a breathing term and the audio swell; normals are re-derived in the shader so
+// the shading stays smooth. Lit with a soft wrap light, a gentle rim and a small highlight,
+// so it reads as a calm, matte-glossy purple blob on the light background.
+//
+// Smoothness rules (the v1 wireframe twitched):
+//   - Every phase is integrated (phase += rate * dt), never `time * rate`, so changing a rate
+//     (idle -> thinking) can't make the surface jump.
+//   - All look parameters ease toward their state targets with a ~0.45 s time constant.
+//   - Audio drives one soft swell (attack ~0.25 s, release ~0.6 s, DES51), never per word.
+//   - No flicker, no strobing opacity, no high-frequency noise.
 //
 // API (createBlob(canvas) returns):
 //   state(name)        idle | waking | listening | thinking | speaking | confused | out | lost
 //   showing(bool)      card pose: shrink, move upper-left, lean toward the card (M5b hook)
-//   level(v, source)   audio loudness 0-1 (mic while listening, tts while speaking). Smoothed
-//                      by a soft envelope (~0.25 s attack, ~0.6 s release, DES51); never maps
-//                      raw RMS straight to displacement.
+//   level(v, source)   audio loudness 0-1 (mic while listening, tts while speaking)
+//   talking(bool)      stand-in while Ada "speaks" without TTS: a slow, steady gentle swell
 //   act(id, seconds)   play an idle act (ids in ACTS); returns false if unknown
 //   stopAct()          stop the act now (any interaction); the blob eases back
-//   reduced(bool)      prefers-reduced-motion: noise and breathing at 35 %, no spins
+//   reduced(bool)      prefers-reduced-motion: motion at 35 %, no spins
 //   fps(), cpuMs()     frames per second; JS + draw-submit ms per frame (debug panel)
 import * as THREE from './vendor/three.module.min.js';
 
-// ---------------------------------------------------------------- simplex noise (3D)
-// Stefan Gustavson's public-domain simplex noise, compacted. Output roughly -1..1.
-const GRAD = new Float32Array([1,1,0,-1,1,0,1,-1,0,-1,-1,0,1,0,1,-1,0,1,1,0,-1,-1,0,-1,0,1,1,0,-1,1,0,1,-1,0,-1,-1]);
-const PERM = new Uint8Array(512);
-(() => {
-  const p = new Uint8Array(256);
-  for (let i = 0; i < 256; i++) p[i] = i;
-  let s = 1337;   // fixed seed: the blob looks the same on every reload
-  for (let i = 255; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [p[i], p[j]] = [p[j], p[i]]; }
-  for (let i = 0; i < 512; i++) PERM[i] = p[i & 255];
-})();
-const F3 = 1 / 3, G3 = 1 / 6;
-function simplex3(x, y, z) {
-  const s = (x + y + z) * F3, i = Math.floor(x + s), j = Math.floor(y + s), k = Math.floor(z + s);
-  const t = (i + j + k) * G3, x0 = x - i + t, y0 = y - j + t, z0 = z - k + t;
-  let i1, j1, k1, i2, j2, k2;
-  if (x0 >= y0) {
-    if (y0 >= z0) { i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 1; k2 = 0; }
-    else if (x0 >= z0) { i1 = 1; j1 = 0; k1 = 0; i2 = 1; j2 = 0; k2 = 1; }
-    else { i1 = 0; j1 = 0; k1 = 1; i2 = 1; j2 = 0; k2 = 1; }
-  } else if (y0 < z0) { i1 = 0; j1 = 0; k1 = 1; i2 = 0; j2 = 1; k2 = 1; }
-  else if (x0 < z0) { i1 = 0; j1 = 1; k1 = 0; i2 = 0; j2 = 1; k2 = 1; }
-  else { i1 = 0; j1 = 1; k1 = 0; i2 = 1; j2 = 1; k2 = 0; }
-  const ii = i & 255, jj = j & 255, kk = k & 255;
-  let n = 0;
-  const corner = (dx, dy, dz, g) => {
-    let tt = 0.6 - dx * dx - dy * dy - dz * dz;
-    if (tt < 0) return 0;
-    g = (g % 12) * 3; tt *= tt;
-    return tt * tt * (GRAD[g] * dx + GRAD[g + 1] * dy + GRAD[g + 2] * dz);
-  };
-  n += corner(x0, y0, z0, PERM[ii + PERM[jj + PERM[kk]]]);
-  n += corner(x0 - i1 + G3, y0 - j1 + G3, z0 - k1 + G3, PERM[ii + i1 + PERM[jj + j1 + PERM[kk + k1]]]);
-  n += corner(x0 - i2 + 2 * G3, y0 - j2 + 2 * G3, z0 - k2 + 2 * G3, PERM[ii + i2 + PERM[jj + j2 + PERM[kk + k2]]]);
-  n += corner(x0 - 1 + 3 * G3, y0 - 1 + 3 * G3, z0 - 1 + 3 * G3, PERM[ii + 1 + PERM[jj + 1 + PERM[kk + 1]]]);
-  return 32 * n;
+// ---------------------------------------------------------------- shaders
+// 3D simplex noise: Ian McEwan, Ashima Arts (MIT License; github.com/ashima/webgl-noise).
+const NOISE = /* glsl */`
+vec3 mod289(vec3 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 mod289(vec4 x){return x-floor(x*(1.0/289.0))*289.0;}
+vec4 permute(vec4 x){return mod289(((x*34.0)+10.0)*x);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159-0.85373472095314*r;}
+float snoise(vec3 v){
+  const vec2 C=vec2(1.0/6.0,1.0/3.0); const vec4 D=vec4(0.0,0.5,1.0,2.0);
+  vec3 i=floor(v+dot(v,C.yyy)); vec3 x0=v-i+dot(i,C.xxx);
+  vec3 g=step(x0.yzx,x0.xyz); vec3 l=1.0-g; vec3 i1=min(g.xyz,l.zxy); vec3 i2=max(g.xyz,l.zxy);
+  vec3 x1=x0-i1+C.xxx; vec3 x2=x0-i2+C.yyy; vec3 x3=x0-D.yyy;
+  i=mod289(i);
+  vec4 p=permute(permute(permute(i.z+vec4(0.0,i1.z,i2.z,1.0))+i.y+vec4(0.0,i1.y,i2.y,1.0))+i.x+vec4(0.0,i1.x,i2.x,1.0));
+  float n_=0.142857142857; vec3 ns=n_*D.wyz-D.xzx;
+  vec4 j=p-49.0*floor(p*ns.z*ns.z); vec4 x_=floor(j*ns.z); vec4 y_=floor(j-7.0*x_);
+  vec4 x=x_*ns.x+ns.yyyy; vec4 y=y_*ns.x+ns.yyyy; vec4 h=1.0-abs(x)-abs(y);
+  vec4 b0=vec4(x.xy,y.xy); vec4 b1=vec4(x.zw,y.zw);
+  vec4 s0=floor(b0)*2.0+1.0; vec4 s1=floor(b1)*2.0+1.0; vec4 sh=-step(h,vec4(0.0));
+  vec4 a0=b0.xzyw+s0.xzyw*sh.xxyy; vec4 a1=b1.xzyw+s1.xzyw*sh.zzww;
+  vec3 p0=vec3(a0.xy,h.x); vec3 p1=vec3(a0.zw,h.y); vec3 p2=vec3(a1.xy,h.z); vec3 p3=vec3(a1.zw,h.w);
+  vec4 norm=taylorInvSqrt(vec4(dot(p0,p0),dot(p1,p1),dot(p2,p2),dot(p3,p3)));
+  p0*=norm.x; p1*=norm.y; p2*=norm.z; p3*=norm.w;
+  vec4 m=max(0.5-vec4(dot(x0,x0),dot(x1,x1),dot(x2,x2),dot(x3,x3)),0.0); m=m*m;
+  return 105.0*dot(m*m,vec4(dot(p0,x0),dot(p1,x1),dot(p2,x2),dot(p3,x3)));
+}`;
+
+const VERT = /* glsl */`
+uniform float uNoiseT, uAmp, uFreq, uBreath, uSwell, uSwellT, uG;
+uniform float uCube, uStar, uArmM, uArmBend, uRippleC, uRippleA, uWaveC, uWaveA;
+uniform float uGazeAmt, uCountC, uCountFade, uSweep, uSweepT;
+uniform vec3 uRight, uUp, uFront, uGaze;
+varying vec3 vN; varying vec3 vV; varying float vGlow;
+${NOISE}
+vec3 shapeAt(vec3 d, out float h){
+  float U=dot(d,uUp), F=dot(d,uFront), X=dot(d,uRight);
+  float r=1.0+uBreath+uAmp*uG*snoise(d*uFreq+vec3(0.0,0.0,uNoiseT))
+         +uSwell*uG*(0.055+0.035*sin(U*2.0-uSwellT));
+  if(uCube>0.001){ float c=0.82/max(max(abs(d.x),abs(d.y)),abs(d.z)); r=mix(r,r*c,uCube); }
+  if(uStar>0.001){ float a=atan(U,X); float sr=0.74+0.58*pow(abs(cos(2.5*a)),4.0);
+                   float core=smoothstep(0.08,0.5,length(vec2(X,U)));   // no pinch at the centre
+                   r=mix(r,r*(1.0+(sr-1.0)*(1.0-abs(F)*0.7)*core),uStar); }
+  if(uRippleA>0.0){ float ang=acos(clamp(F,-1.0,1.0)); float x=(ang-uRippleC)/0.45; r+=uRippleA*exp(-x*x); }
+  if(uWaveA>0.0){ float x=(U-uWaveC)/0.28; r+=uWaveA*exp(-x*x); }
+  h=0.0;
+  if(uGazeAmt>0.0){ h=uGazeAmt*smoothstep(0.45,0.92,dot(d,uGaze)); r+=0.06*uG*h; }
+  if(uCountFade>0.0){ h=max(h,uCountFade*smoothstep(uCountC-0.3,uCountC+0.3,U)); }
+  if(uSweep>0.0){ float ang=atan(F,X); h=max(h,uSweep*0.45*pow(0.5+0.5*cos(ang-uSweepT),5.0)); }
+  vec3 p=d*r;
+  if(uArmM>0.001){ float e=U-0.15; float bend=uArmM*0.5*(e+sqrt(e*e+0.03))*uArmBend;   // soft elbow
+    p.x*=1.0-0.5*uArmM; p.z*=1.0-0.5*uArmM; p.y*=1.0+0.38*uArmM; p+=uRight*bend; }
+  return p;
 }
+void main(){
+  vec3 d=normalize(position);
+  float h, hh;
+  vec3 p=shapeAt(d,h);
+  vec3 t1=normalize(cross(d,abs(d.y)<0.99?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0)));
+  vec3 t2=cross(d,t1);
+  vec3 p1=shapeAt(normalize(d+t1*0.012),hh), p2=shapeAt(normalize(d+t2*0.012),hh);
+  vec3 n=normalize(cross(p1-p,p2-p)); if(dot(n,d)<0.0) n=-n;
+  vN=normalize(normalMatrix*n);
+  vec4 mv=modelViewMatrix*vec4(p,1.0);
+  vV=-mv.xyz; vGlow=h;
+  gl_Position=projectionMatrix*mv;
+}`;
+
+const FRAG = /* glsl */`
+uniform vec3 uDeep, uLight, uRim; uniform float uGray, uBright, uOpacity;
+varying vec3 vN; varying vec3 vV; varying float vGlow;
+void main(){
+  vec3 n=normalize(vN), v=normalize(vV);
+  vec3 L=normalize(vec3(-0.45,0.75,0.55));
+  float diff=smoothstep(0.0,1.0,dot(n,L)*0.5+0.5);       // soft wrap light
+  vec3 col=mix(uDeep,uLight,diff);
+  float rim=pow(1.0-max(dot(n,v),0.0),2.4);
+  col=mix(col,uRim,rim*0.5);                                // gentle edge glow
+  col+=pow(max(dot(reflect(-L,n),v),0.0),30.0)*0.22;      // small soft highlight
+  col=mix(col,uRim,vGlow*0.55);                             // act highlights
+  col=mix(col,uLight,uBright*0.35);
+  vec3 gray=mix(vec3(0.50,0.52,0.56),vec3(0.84,0.85,0.87),diff); gray=mix(gray,vec3(0.93),rim*0.4);
+  col=mix(col,gray,uGray);
+  gl_FragColor=vec4(col,uOpacity);
+}`;
+
+const rgb = hex => new THREE.Vector3(((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255);
+const DEEP = 0x4C1D95, LIGHT = 0xA78BFA, RIM = 0xEDE9FE;   // around --accent #7C3AED
 
 // ---------------------------------------------------------------- look parameters
-// BRIGHT = the waking flash; DEEP = act highlights (on a light screen, emphasis is darker)
-const ACCENT = 0x7C3AED, BRIGHT = 0xB794F6, DEEP = 0x4C1D95, REST = 0x9AA0A8;
 // Units: 1 world unit = 260 design px (spec: r ~ 260 px); y = 0.615 puts the centre at 380 px.
-const BASE = { amp: .06, freq: 1, speed: .6, spin: .08, scale: 1, sx: 1, sy: 1, x: 0, y: .615, tilt: 0,
-  op: .62, bright: 0, gray: 0, shimmer: 0, breath: 1 };
+const BASE = { amp: .036, freq: .85, speed: .14, spin: .05, scale: 1, sx: 1, sy: 1, x: 0, y: .615, tilt: 0,
+  op: 1, bright: 0, gray: 0, sweep: 0, breath: 1 };
 const STATES = {
   idle:      {},
-  waking:    { amp: .09, speed: 1.4, spin: .4, scale: 1.08, y: .76, op: .95, bright: .35 },
-  listening: { amp: .05, speed: .9, spin: .12, scale: 1.04, y: .66, op: .78, bright: .1 },
-  thinking:  { amp: .025, freq: 2.4, speed: 2.2, spin: 1.4, scale: .94, op: .72, shimmer: 1 },
-  speaking:  { amp: .04, speed: .7, spin: .12, op: .75 },
-  confused:  { amp: .08, speed: 1.2, spin: .05, scale: .98, op: .62 },
-  out:       { amp: 0, speed: 0, spin: 0, scale: .82, sy: .55, y: .32, op: .45, gray: 1, breath: 0 },
-  lost:      { amp: .01, speed: .2, spin: 0, scale: .85, sy: .8, y: .45, op: .4, gray: .85, breath: .3 },
+  waking:    { amp: .055, speed: .3, scale: 1.05, y: .7, bright: .5 },
+  listening: { amp: .05, speed: .25, scale: 1.03, y: .65, bright: .15 },
+  thinking:  { amp: .035, freq: 1.15, speed: .4, scale: .95, sweep: 1 },
+  speaking:  { amp: .038, speed: .2 },
+  confused:  { amp: .06, speed: .25, scale: .98 },
+  out:       { amp: .012, speed: .05, spin: 0, scale: .82, sy: .6, y: .32, gray: 1, breath: .2, op: .92 },
+  lost:      { amp: .02, speed: .08, spin: 0, scale: .86, sy: .82, y: .45, gray: .85, breath: .4, op: .88 },
 };
 const SHOWING = { scale: .62, x: -1.87, y: .69, tilt: -.12 };   // card pose (spec 3.3)
 
@@ -78,78 +132,53 @@ const clamp01 = v => Math.max(0, Math.min(1, v));
 const smooth = (a, b, v) => { const t = clamp01((v - a) / (b - a)); return t * t * (3 - 2 * t); };
 // in (0..a) -> hold -> out (b..1): a 0..1..0 envelope over an act's progress u
 const envelope = (u, a, b) => (u < a ? smooth(0, a, u) : u > b ? 1 - smooth(b, 1, u) : 1);
+const ease = (dt, tau) => 1 - Math.exp(-dt / tau);
 
 // ---------------------------------------------------------------- idle acts
-// Each act may return per-frame: { p: {param overrides}, shape(dir,local)->radius multiplier
-// blend {m, r}, band(dir, local)->extra radius, glow(dir, local)->0..1, warp(pos) }.
-// `u` = progress 0..1, `t` = seconds since the act started, `g` = 1 or 0.35 (reduced, gentle).
+// Each act returns per-frame overrides: { p: {look params}, cube, star, arm: {m, bend},
+// ripple: {c, a}, wave: {c, a}, gaze: {x,y,z}, glowAmt, count: {c, fade}, balls, extraSpin,
+// breathPeriod }. `u` = progress 0..1, `t` = seconds since start, `g` = 1 or 0.35 (reduced).
 const ACTS = {
-  daydream_cube: (u, t, g) => {
-    const m = envelope(u, .25, .6) * .95 * g;
-    return { p: { amp: .12 - .1 * m, spin: .08 + .25 * m }, shape: d => {
-      const c = .82 / Math.max(Math.abs(d.x), Math.abs(d.y), Math.abs(d.z));
-      return { m, r: c };
-    } };
-  },
-  daydream_star: (u, t, g) => {
-    const m = envelope(u, .25, .6) * g;
-    return { p: { amp: .03, spin: .02 }, shape: (d, L) => {
-      const a = Math.atan2(L.y, L.x);
-      const sr = .72 + .62 * Math.pow(Math.abs(Math.cos(2.5 * a)), 5);
-      return { m, r: 1 + (sr - 1) * (1 - Math.abs(L.z) * .7) };
-    } };
-  },
+  daydream_cube: (u, t, g) => ({ cube: envelope(u, .3, .6) * .9 * g, p: { amp: .02 } }),
+  daydream_star: (u, t, g) => ({ star: envelope(u, .3, .6) * g, p: { amp: .02, spin: 0 } }),
   daydream_arm: (u, t, g) => {   // stretch into a two-segment arm, wave once, melt back
-    const m = envelope(u, .2, .7) * g;
-    const wave = Math.sin(clamp01((u - .3) / .4) * Math.PI * 2) * .7;   // one wave
-    return { p: { spin: 0, amp: .03, y: .615 - .22 * m }, arm: { m, bend: 1.0 + wave } };
+    const m = envelope(u, .25, .7) * g;
+    const wave = Math.sin(smooth(.3, .7, u) * Math.PI * 2) * .6;
+    return { p: { spin: 0, amp: .02, y: .615 - .22 * m }, arm: { m, bend: 1.0 + wave } };
   },
   juggling: (u, t) => {   // the third ball drops on loop 3; the blob squashes and tilts
-    const oops = t > 5.4 && t < 6.6;
-    return { balls: { t, drop: true }, p: oops ? { tilt: .18, sy: .92 } : {} };
+    const oops = envelope(clamp01((t - 5.3) / 1.6), .3, .6);
+    return { balls: { t, drop: true }, p: { tilt: .14 * oops, sy: 1 - .07 * oops } };
   },
-  juggling_success: (u, t) => ({ balls: { t, drop: false }, p: u > .85 ? { y: .615 + .12 * Math.sin((u - .85) / .15 * Math.PI) } : {} }),
-  dozing: (u, t, g) => ({ p: { sy: 1 - .1 * g, y: .52, speed: .25, amp: .035, op: .42, breath: .9 }, zzz: true, breathPeriod: 8 }),
-  hello_wave: (u, t, g) => {
-    const c = u * 3.2;   // ripple travels from the front centre outward
-    return { p: { tilt: .06 * Math.sin(u * Math.PI) * g }, band: (d, L, F) => {
-      const ang = Math.acos(Math.max(-1, Math.min(1, F)));
-      const x = (ang - c) / .35;
-      return .1 * g * Math.exp(-x * x) * (1 - u);
-    } };
-  },
+  juggling_success: (u, t) => ({ balls: { t, drop: false },
+    p: { y: .615 + .1 * Math.sin(smooth(.82, 1, u) * Math.PI) } }),
+  dozing: (u, t, g) => ({ p: { sy: 1 - .08 * g, y: .53, speed: .08, amp: .03, bright: 0, breath: .9 },
+    breathPeriod: 8 }),
+  hello_wave: (u, t, g) => ({ ripple: { c: smooth(0, 1, u) * 3.2, a: .07 * g * (1 - u) },
+    p: { tilt: .05 * Math.sin(u * Math.PI) * g } }),
   try_asking_proposal: () => ({}),
   try_asking_ai: () => ({}),
   try_asking_where: () => ({}),
   stretch: (u, t, g) => {
-    const a = envelope(u, .2, .45) * (u < .5 ? 1 : 0), b = u >= .5 ? envelope((u - .5) * 2, .3, .6) : 0;
-    return { p: { sy: 1 + (.25 * a - .18 * b) * g, sx: 1 + (-.13 * a + .18 * b) * g } };
+    const a = u < .5 ? envelope(u * 2, .35, .65) : 0, b = u >= .5 ? envelope((u - .5) * 2, .35, .65) : 0;
+    return { p: { sy: 1 + (.18 * a - .12 * b) * g, sx: 1 + (-.09 * a + .12 * b) * g } };
   },
   look_around: (u, t, g) => {
     const az = u < .33 ? -smooth(0, .33, u) : u < .66 ? -1 + 2 * smooth(.33, .66, u) : 1 - smooth(.66, 1, u);
-    return { gaze: { x: Math.sin(az * .9), y: .1, z: Math.cos(az * .9) }, glowAmt: envelope(u, .1, .9) };
+    return { gaze: { x: Math.sin(az * .8), y: .12, z: Math.cos(az * .8) }, glowAmt: envelope(u, .15, .85),
+      p: { tilt: -.06 * az * g } };
   },
   shy_shrink: (u, t, g) => {
-    const m = envelope(u, .25, .55) * g;
-    return { p: { scale: 1 - .14 * m, y: .615 - .18 * m } };
-  },
-  wireframe_wave: (u, t, g) => {
-    const c = 1.3 - 2.6 * u;
-    return { band: (d, L, F, U) => { const x = (U - c) / .2; return .13 * g * Math.exp(-x * x); } };
-  },
-  spin_on_axis: (u) => {   // one quick full turn with a little overshoot
-    const s = 1.70158, v = u - 1;
-    return { extraSpin: 2 * Math.PI * (1 + (s + 1) * v * v * v + s * v * v), p: { spin: 0 } };
-  },
-  fans_spinning: (u, t, g) => {
     const m = envelope(u, .3, .6) * g;
-    return { p: { amp: .06 + .08 * m, freq: 1 + 1.6 * m, speed: .6 + 2.6 * m } };
+    return { p: { scale: 1 - .1 * m, y: .615 - .14 * m } };
   },
-  count_vertices: (u) => {
-    const c = 1.1 - 2.4 * clamp01(u / .8);
-    const fade = u > .8 ? 1 - smooth(.8, 1, u) : 1;
-    return { glow: (d, L, F, U) => (U > c ? fade : 0) * (U > c - .12 ? 1 : 0) };
+  wireframe_wave: (u, t, g) => ({ wave: { c: 1.3 - 2.6 * smooth(0, 1, u), a: .06 * g } }),
+  spin_on_axis: (u) => ({ extraSpin: 2 * Math.PI * smooth(0, 1, u), p: { spin: 0 } }),
+  fans_spinning: (u, t, g) => {
+    const m = envelope(u, .35, .6) * g;
+    return { p: { amp: .045 + .035 * m, freq: .9 + .4 * m, speed: .16 + .35 * m } };
   },
+  count_vertices: (u) => ({ count: { c: 1.15 - 2.4 * smooth(0, .8, u), fade: u > .8 ? 1 - smooth(.8, 1, u) : 1 } }),
 };
 export const ACT_IDS = Object.keys(ACTS);
 
@@ -161,138 +190,131 @@ export function createBlob(canvas) {
   const camera = new THREE.PerspectiveCamera(35, 16 / 9, .1, 100);
   camera.position.set(0, 0, 6.59);
 
-  const geo = new THREE.IcosahedronGeometry(1, 5);
-  const base = geo.attributes.position.array.slice();
-  const nV = base.length / 3;
-  const colors = new Float32Array(nV * 3);
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, wireframe: true, transparent: true, opacity: .62, depthWrite: false });
-  const mesh = new THREE.Mesh(geo, mat);
-  const coreMat = new THREE.MeshBasicMaterial({ color: ACCENT, wireframe: true, transparent: true, opacity: .12, depthWrite: false });
-  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(.62, 2), coreMat);
+  const uniforms = {
+    uNoiseT: { value: 0 }, uAmp: { value: BASE.amp }, uFreq: { value: BASE.freq }, uBreath: { value: 0 },
+    uSwell: { value: 0 }, uSwellT: { value: 0 }, uG: { value: 1 },
+    uCube: { value: 0 }, uStar: { value: 0 }, uArmM: { value: 0 }, uArmBend: { value: 1 },
+    uRippleC: { value: 0 }, uRippleA: { value: 0 }, uWaveC: { value: 0 }, uWaveA: { value: 0 },
+    uGazeAmt: { value: 0 }, uCountC: { value: 0 }, uCountFade: { value: 0 }, uSweep: { value: 0 }, uSweepT: { value: 0 },
+    uRight: { value: new THREE.Vector3(1, 0, 0) }, uUp: { value: new THREE.Vector3(0, 1, 0) },
+    uFront: { value: new THREE.Vector3(0, 0, 1) }, uGaze: { value: new THREE.Vector3(0, 0, 1) },
+    uDeep: { value: rgb(DEEP) }, uLight: { value: rgb(LIGHT) }, uRim: { value: rgb(RIM) },
+    uGray: { value: 0 }, uBright: { value: 0 }, uOpacity: { value: 1 },
+  };
+  const mat = new THREE.ShaderMaterial({ uniforms, vertexShader: VERT, fragmentShader: FRAG, transparent: true });
+  const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 40), mat);
   const group = new THREE.Group();
-  group.add(mesh, core);
+  group.add(mesh);
   scene.add(group);
-  const ballMat = () => new THREE.MeshBasicMaterial({ color: ACCENT, wireframe: true, transparent: true, opacity: 0, depthWrite: false });
-  const balls = [0, 1, 2].map(() => { const b = new THREE.Mesh(new THREE.IcosahedronGeometry(.17, 1), ballMat()); scene.add(b); return b; });
+  // juggling balls: the same look, no deformation
+  const balls = [0, 1, 2].map(() => {
+    const m = mat.clone();
+    m.uniforms.uAmp.value = 0; m.uniforms.uOpacity.value = 0;
+    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 8), m);   // the shader normalizes,
+    b.scale.setScalar(.17);                                              // so size comes from scale
+    b.visible = false; scene.add(b); return b;
+  });
 
   const P = { ...BASE }, T = { ...BASE };
-  let stateName = 'idle', showingOn = false, reducedOn = false;
+  let stateName = 'idle', showingOn = false, reducedOn = false, talkingOn = false;
   let level = 0, levelTarget = 0, swell = 0, levelAt = 0;
   let act = null;   // { id, fn, t0, dur }
-  let t = 0, last = performance.now(), rotY = 0, frames = 0, fpsVal = 0, fpsAt = performance.now(), cpuMs = 0;
-  const cBase = new THREE.Color(), cBright = new THREE.Color(BRIGHT), cDeep = new THREE.Color(DEEP), cTmp = new THREE.Color();
-  const qInv = new THREE.Quaternion(), vUp = new THREE.Vector3(), vFront = new THREE.Vector3();
-  const vRight = new THREE.Vector3(), vGaze = new THREE.Vector3();
-  const D = { x: 0, y: 0, z: 0 }, L = { x: 0, y: 0, z: 0 };
+  let t = 0, last = performance.now(), frames = 0, fpsVal = 0, fpsAt = performance.now(), cpuMs = 0;
+  let rotY = 0, noiseT = 0, breathPh = 0, swellT = 0, sweepT = 0, wobbleT0 = -1;
+  const AV = {};   // smoothed act values, so acts fade in and out instead of popping
+  const qInv = new THREE.Quaternion();
 
   function retarget() {
     Object.assign(T, BASE, STATES[stateName] || {});
     if (showingOn && stateName !== 'out' && stateName !== 'lost') Object.assign(T, SHOWING);
   }
 
-  // confused: a quick wobble-tilt, ±0.15 rad over 0.8 s
-  let wobbleT0 = -1;
-
   function frame(now) {
     const c0 = performance.now();
-    const dt = Math.min(.05, (now - last) / 1000); last = now; t += dt;
+    const dt = Math.min(.05, Math.max(0, (now - last) / 1000)); last = now; t += dt;
     frames++; if (now - fpsAt >= 1000) { fpsVal = frames * 1000 / (now - fpsAt); frames = 0; fpsAt = now; }
     const g = reducedOn ? .35 : 1;
 
-    // act overlay (computed first: it can override targets for this frame)
     let A = null;
     if (act) {
       const at = t - act.t0, u = clamp01(at / act.dur);
       if (u >= 1) stopAct(); else A = act.fn(u, at, g) || {};
     }
     const target = A && A.p ? { ...T, ...A.p } : T;
-    const k = 1 - Math.pow(.02, dt);
+    const k = ease(dt, .45);
     for (const key in P) P[key] += (target[key] - P[key]) * k;
 
-    // audio envelope: soft attack/release, then a slower swell (DES51)
-    if (now - levelAt > 400) levelTarget = 0;   // no fresh level for 0.4 s: let it fall
-    const atk = levelTarget > level ? .02 : .2;
-    level += (levelTarget - level) * (1 - Math.pow(atk, dt));
-    swell += (level - swell) * (1 - Math.pow(.15, dt));
+    // audio: soft attack/release, then a slower swell (DES51). Without TTS, a steady gentle swell.
+    if (now - levelAt > 400) levelTarget = talkingOn ? .32 + .06 * Math.sin(swellT * .9) : 0;
+    level += (levelTarget - level) * ease(dt, levelTarget > level ? .25 : .6);
+    swell += (level - swell) * ease(dt, .35);
 
-    // wobble (confused)
+    // integrated phases: changing a rate never makes the surface jump
+    noiseT += P.speed * dt * (reducedOn ? .5 : 1);
+    breathPh += dt * 2 * Math.PI / (A && A.breathPeriod ? A.breathPeriod : 5);
+    swellT += dt * 1.4;
+    sweepT += dt * 1.1;
+    rotY += P.spin * dt * (reducedOn ? 0 : 1);
+
+    // confused: one gentle wobble-tilt (±0.09 rad over 1.2 s)
     let wob = 0;
     if (wobbleT0 >= 0) {
       const w = t - wobbleT0;
-      if (w > .8) wobbleT0 = -1; else wob = .15 * Math.sin(w / .8 * Math.PI * 3) * (1 - w / .8) * g;
+      if (w > 1.2) wobbleT0 = -1; else wob = .09 * Math.sin(w / 1.2 * Math.PI * 2) * Math.sin(w / 1.2 * Math.PI) * g;
     }
 
-    // group transform first: acts that work in screen space need the inverse rotation
-    rotY += P.spin * dt * (reducedOn ? 0 : 1);
     const extra = A && A.extraSpin ? A.extraSpin * (reducedOn ? 0 : 1) : 0;
-    group.rotation.set(.25 + Math.sin(t * .4) * .05 * g, rotY + extra, P.tilt + wob);
+    group.rotation.set(.2, rotY + extra, P.tilt + wob);
     group.position.set(P.x, P.y, 0);
     group.scale.set(P.scale * P.sx, P.scale * P.sy, P.scale);
     group.updateMatrixWorld();
     qInv.copy(group.quaternion).invert();
-    vUp.set(0, 1, 0).applyQuaternion(qInv);
-    vFront.set(0, 0, 1).applyQuaternion(qInv);
-    vRight.set(1, 0, 0).applyQuaternion(qInv);
-    if (A && A.gaze) vGaze.set(A.gaze.x, A.gaze.y, A.gaze.z).normalize().applyQuaternion(qInv);
 
-    const period = A && A.breathPeriod ? A.breathPeriod : 5;
-    const breath = Math.sin(t * 2 * Math.PI / period) * .03 * g * P.breath;
-    const amp = P.amp * g, fq = P.freq * 1.6, ts = t * P.speed;
-    const shimmer = P.shimmer * g;
-    const pos = geo.attributes.position.array;
-    cBase.set(ACCENT).lerp(cTmp.set(REST), P.gray).lerp(cBright, P.bright * (1 - P.gray));
-    for (let v = 0, i = 0; v < nV; v++, i += 3) {
-      const bx = base[i], by = base[i + 1], bz = base[i + 2];
-      D.x = bx; D.y = by; D.z = bz;
-      const F = bx * vFront.x + by * vFront.y + bz * vFront.z;   // facing the room
-      const U = bx * vUp.x + by * vUp.y + bz * vUp.z;            // screen-up
-      // the direction in screen space (right, up, toward the room), for silhouettes
-      L.x = bx * vRight.x + by * vRight.y + bz * vRight.z; L.y = U; L.z = F;
-      let r = 1 + breath + amp * simplex3(bx * fq, by * fq, bz * fq + ts)
-        + swell * .06 * g + swell * .05 * g * Math.sin(U * 2.2 - t * 3.2)     // swell + one slow wave
-        + (shimmer ? shimmer * .012 * simplex3(bx * 6, by * 6, bz * 6 + t * 9) : 0);
-      // highlight (look around, counting): blend toward the deep color
-      let h = 0;
-      if (A) {
-        if (A.shape) { const s = A.shape(D, L); r = r * (1 - s.m) + s.r * r * s.m; }
-        if (A.band) r += A.band(D, L, F, U);
-        if (A.glow) h = A.glow(D, L, F, U);
-        else if (A.gaze) {   // the "gaze" region bulges a little too, so it reads as looking
-          h = A.glowAmt * smooth(.5, .9, bx * vGaze.x + by * vGaze.y + bz * vGaze.z);
-          r += .09 * g * h;
-        }
-      }
-      let px = bx * r, py = by * r, pz = bz * r;
-      if (A && A.arm) {   // object y is ~screen up (the blob only spins around y)
-        // upper arm stays vertical; above the "elbow" (U > .15) the forearm leans sideways
-        const m = A.arm.m, bend = m * Math.max(0, U - .15) * A.arm.bend;
-        px = px * (1 - .5 * m) + vRight.x * bend;
-        py = py * (1 + .38 * m) + vRight.y * bend;
-        pz = pz * (1 - .5 * m) + vRight.z * bend;
-      }
-      pos[i] = px; pos[i + 1] = py; pos[i + 2] = pz;
-      const c = h > 0 ? cTmp.copy(cBase).lerp(cDeep, h * .85) : cBase;
-      colors[i] = c.r; colors[i + 1] = c.g; colors[i + 2] = c.b;
-    }
-    geo.attributes.position.needsUpdate = true;
-    geo.attributes.color.needsUpdate = true;
-    coreMat.color.copy(cBase);
-    mat.opacity = P.op + (shimmer ? Math.sin(t * 9) * .05 * shimmer : 0);
-    coreMat.opacity = P.op * .2;
+    // act values, smoothed
+    const want = {
+      cube: A && A.cube || 0, star: A && A.star || 0, armM: A && A.arm ? A.arm.m : 0,
+      rippleA: A && A.ripple ? A.ripple.a : 0, waveA: A && A.wave ? A.wave.a : 0,
+      gazeAmt: A && A.gaze ? A.glowAmt : 0, countFade: A && A.count ? A.count.fade : 0,
+    };
+    const ka = ease(dt, .2);
+    for (const key in want) AV[key] = (AV[key] || 0) + (want[key] - (AV[key] || 0)) * ka;
+
+    const U = uniforms;
+    U.uNoiseT.value = noiseT; U.uAmp.value = P.amp; U.uFreq.value = P.freq;
+    U.uBreath.value = Math.sin(breathPh) * .025 * g * P.breath;
+    U.uSwell.value = swell; U.uSwellT.value = swellT; U.uG.value = g;
+    U.uCube.value = AV.cube; U.uStar.value = AV.star; U.uArmM.value = AV.armM;
+    if (A && A.arm) U.uArmBend.value = A.arm.bend;
+    if (A && A.ripple) U.uRippleC.value = A.ripple.c;
+    U.uRippleA.value = AV.rippleA;
+    if (A && A.wave) U.uWaveC.value = A.wave.c;
+    U.uWaveA.value = AV.waveA;
+    if (A && A.gaze) U.uGaze.value.set(A.gaze.x, A.gaze.y, A.gaze.z).normalize().applyQuaternion(qInv);
+    U.uGazeAmt.value = AV.gazeAmt;
+    if (A && A.count) U.uCountC.value = A.count.c;
+    U.uCountFade.value = AV.countFade;
+    U.uSweep.value = P.sweep * g; U.uSweepT.value = sweepT;
+    U.uRight.value.set(1, 0, 0).applyQuaternion(qInv);
+    U.uUp.value.set(0, 1, 0).applyQuaternion(qInv);
+    U.uFront.value.set(0, 0, 1).applyQuaternion(qInv);
+    U.uGray.value = P.gray; U.uBright.value = P.bright * (1 - P.gray); U.uOpacity.value = P.op;
 
     // juggling balls
     const B = A && A.balls;
     balls.forEach((b, i) => {
-      if (!B) { b.material.opacity = 0; return; }
-      const jt = B.t, a = jt * 2.4 + i * 2.094, R = 1.55 * P.scale;
-      let x = P.x + Math.cos(a) * R, y = P.y + Math.sin(a) * R * .55 + .2, op = .75;
-      if (B.drop && i === 2 && jt > 5.2) {   // third loop: one ball drops, rolls back in at the end
-        const ft = jt - 5.2, a0 = 5.2 * 2.4 + i * 2.094;
-        x = P.x + Math.cos(a0) * R + ft * .4; y = P.y + Math.sin(a0) * R * .55 - ft * ft * 4.5; op = Math.max(0, .75 - ft * .5);
-        if (jt > 7.6) { const back = clamp01((jt - 7.6) / 1); x = P.x + 2.4 - back * 1.2; y = P.y - 1.15; op = .75 * back; }
+      const bu = b.material.uniforms;
+      if (!B) { bu.uOpacity.value += (0 - bu.uOpacity.value) * ease(dt, .15); b.visible = bu.uOpacity.value > .01; return; }
+      const jt = B.t, a = jt * 2.0 + i * 2.094, R = 1.55 * P.scale;
+      let x = P.x + Math.cos(a) * R, y = P.y + Math.sin(a) * R * .5 + .15, op = 1;
+      if (B.drop && i === 2 && jt > 6.3) {   // loop 3: one ball drops, then rolls back in
+        const ft = jt - 6.3, a0 = 6.3 * 2.0 + i * 2.094;
+        x = P.x + Math.cos(a0) * R + ft * .35; y = P.y + Math.sin(a0) * R * .5 + .15 - ft * ft * 3.2;
+        op = clamp01(1 - ft * .7);
+        if (jt > 7.8) { const back = smooth(7.8, 8.8, jt); x = P.x + 2.2 - back * 1.0; y = P.y - 1.1; op = back; }
       }
-      b.position.set(x, y, .6); b.material.opacity = op; b.rotation.y += dt * 2; b.material.color.copy(cBase);
+      if (jt < .6) op *= smooth(0, .6, jt);
+      b.position.set(x, y, .6); b.visible = true; b.rotation.y += dt;
+      bu.uOpacity.value = op; bu.uGray.value = P.gray;
     });
 
     renderer.render(scene, camera);
@@ -313,13 +335,14 @@ export function createBlob(canvas) {
   return {
     state(name) {
       if (!STATES[name]) name = 'idle';
+      if (name === 'confused' && stateName !== 'confused') wobbleT0 = t;
       stateName = name;
-      if (name === 'confused') wobbleT0 = t;
       retarget();
     },
     get current() { return stateName; },
     showing(on) { showingOn = !!on; retarget(); },
     level(v, _source) { levelTarget = clamp01(+v || 0); levelAt = performance.now(); },
+    talking(on) { talkingOn = !!on; },
     act(id, seconds) {
       const fn = ACTS[id];
       if (!fn || stateName === 'out' || stateName === 'lost') return false;

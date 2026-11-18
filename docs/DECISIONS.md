@@ -834,3 +834,25 @@ the old name and needs the same edit by the PM). Kept on purpose: the `old_name`
 the persona's "never call herself ..." rule, red-team cases, history in DECISIONS/STATUS, and
 the retired dark mockup `ui/mockups/kiosk.html`.
 
+**D64 (2026-11-17, PM feedback after GB10 run 1). The blob is a smooth shaded solid, not a
+wireframe; all motion slowed and made continuous.** The PM found the wireframe "very
+twitchy". Causes found: (1) the noise phase was `time * speed`, so every state change that
+eased `speed` made the surface leap (the main twitch); (2) the no-TTS stand-in set a random
+loudness per caption word, the per-word jitter DES51 forbids; (3) thinking strobed the
+opacity at ~1.4 Hz; (4) ~6k thin moving lines alias and crawl. Now: a detail-40 icosphere
+deformed in a vertex shader (Ashima simplex noise, MIT), normals re-derived in the shader,
+soft wrap light + rim + small highlight in the accent purples; gray when resting/lost. Every
+phase is integrated (`phase += rate * dt`); look parameters ease with a 0.45 s time constant;
+idle noise is lower and slower (amp 0.036, 0.14/s); act effects fade in/out over 0.2 s;
+speaking without TTS is one steady swell (`blob.talking()`); confused is one gentle 1.2 s
+wobble; thinking shows a slow light sweep instead of a shimmer. Same API, same acts, same
+states. JS cost dropped to ~0.4 ms/frame (the GPU does the deformation). This overrides the
+"wireframe" wording in PHASE2-SPEC 3.3 and ui-spec v3 section 3 (PM decision); the act names
+`wireframe_wave` / `count_vertices` stay as ids so idle_acts.yaml is unchanged.
+
+**D65. Tests no longer read the machine's kill switch or write real transcripts.** GB10 run 1
+had 3 failures (`test_chat` x2, `test_rag_diagnose_end_to_end`): the kill switch was on in
+`data/kill_switch.json` when pytest ran, and those tests build Settings with the default
+path. Reproduced in the sandbox. An autouse fixture now points `ADA_KILL_SWITCH_FILE` and
+`ADA_TRANSCRIPTS_DIR` at a temp folder. Not an M5a regression.
+

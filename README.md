@@ -43,7 +43,7 @@ config.yaml) and runs every message through the same guarded pipeline as `make c
 opens Chromium in kiosk mode with a throwaway incognito profile. Leave with Alt+F4.
 
 - UI (M5a, light theme): `ui/index.html`, `kiosk.css`, `kiosk.js` (events -> states,
-  captions), `blob.js` (Three.js wireframe blob, bundled in `ui/vendor/`); spec
+  captions), `blob.js` (Three.js smooth shaded blob, bundled in `ui/vendor/`); spec
   `docs/ui-spec.md` v3; copy in `content/ui_strings.yaml` (designer-owned). Reload the page
   to pick up copy edits.
 - Idle acts: `content/idle_acts.yaml`, picked by `app/idle.py`, visual only, every 45-120 s

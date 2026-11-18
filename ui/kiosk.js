@@ -135,7 +135,7 @@ function showStatic(text, opts = {}) {   // shown at once, fully lit (status-lik
   pushCaption(n);
 }
 function clearCaptions() {
-  queue = []; clearTimeout(speakingTimer); speakingTimer = null;
+  queue = []; clearTimeout(speakingTimer); speakingTimer = null; blob.talking(false);
   caps.replaceChildren(); caps.classList.remove('long');
 }
 function enqueue(text, bold) {
@@ -144,17 +144,17 @@ function enqueue(text, bold) {
 }
 function speakNext() {
   const item = queue.shift();
-  if (!item) { speakingTimer = null; onSpeechDone(); return; }
+  if (!item) { speakingTimer = null; blob.talking(false); onSpeechDone(); return; }
   const node = sentenceNode(item.text, { bold: item.bold });
   pushCaption(node);
   const words = [...node.querySelectorAll('.w')];
   if (view !== 'confused') setView('speaking');
+  blob.talking(performance.now() - ttsAt > 1000);   // steady stand-in swell until TTS (M6)
   let i = 0;
   const step = () => {
     if (i < words.length) {
       words[i].classList.add('said');
       if (reduced) { words.forEach(w => w.classList.add('said')); }
-      if (performance.now() - ttsAt > 1000) blob.level(.45 + Math.random() * .3, 'tts');   // stand-in until TTS
       i++;
       speakingTimer = setTimeout(step, WORD_MS + Math.min(120, words[i - 1].textContent.length * 8));
     } else speakingTimer = setTimeout(speakNext, 250);
@@ -279,7 +279,7 @@ const handlers = {
     enqueue(e.text, turnSafety);
   },
   reply_retracted(e) { if (e.turn_id === turnId) clearCaptions(); },
-  action(e) { if (e.name === 'wave') blob.level(.6, 'tts'); },   // robot arm later (M7)
+  action() {},   // `wave` on a visitor's first message: robot arm later (M7)
   turn_end(e) {
     if (e.turn_id !== turnId) return;
     turnOpen = false;
@@ -309,7 +309,7 @@ const handlers = {
   idle_act(e) { playIdleAct(e); },
   // ---- M6 hooks (the server doesn't send these yet) ----
   audio_level(e) {
-    if (e.source === 'tts') ttsAt = performance.now();
+    if (e.source === 'tts') { ttsAt = performance.now(); blob.talking(false); }
     if (e.source === 'mic' && view !== 'listening') return;
     blob.level(e.level, e.source);
   },
@@ -397,7 +397,7 @@ input.addEventListener('input', () => {
   if (!turnOpen && !speaking() && ['idle', 'ready', 'confused', 'waking'].includes(view)) {
     clearTimeout(idleLater); idleLater = null; clearCaptions(); startListening();
   }
-  if (view === 'listening') { blob.level(.55, 'mic'); startListening(); }   // M6: real mic level
+  if (view === 'listening') { blob.level(.3, 'mic'); startListening(); }   // M6: real mic level
 });
 input.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
@@ -466,7 +466,7 @@ if (DEBUG) {
   row('Audio', [
     ['Sim mic level', () => {
       if (simMic) { clearInterval(simMic); simMic = null; }
-      else simMic = setInterval(() => blob.level(Math.random() < .2 ? .1 : .35 + Math.random() * .45, 'mic'), 120);
+      else simMic = setInterval(() => blob.level(.3 + .3 * Math.abs(Math.sin(Date.now() / 380)), 'mic'), 100);
     }, 'simmic'],
     ['Mic indicator', () => { micOpen = !micOpen; renderMic(); }, 'mic'],
     ['Reduced motion', () => { forceReduced = !forceReduced; applyMotion(); }, 'reduced'],
