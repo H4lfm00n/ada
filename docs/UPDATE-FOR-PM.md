@@ -51,7 +51,7 @@ nothing appears, or that **holds back an email**. Both come from blocker 1.
 - **Latency when warm:** first token about 1.2–1.3 s, first caption sentence about 2.2 s (target
   is under 1.5 s for the first token). OK for MVP.
 - **Junk questions that point at the room** ("does this place have a pool?") now pull in a lab doc.
-  Ada should still say "not sure"; this is checked at the answer level (see the pending result).
+  Ada still says "not sure" (checked on the GB10: pool and lab cat OK; burrito gets a polite redirect).
 - Missing `too_long` line for messages over 1,200 characters. It uses the generic fallback line
   for now. (DES)
 - Idle act "star" has faint creases near its centre; "look around" is subtle. Cosmetic.
@@ -72,6 +72,7 @@ nothing appears, or that **holds back an email**. Both come from blocker 1.
 6. The Project instructions copy of the brief in claude.ai still names the old character; please
    edit it (the repo copy is fixed).
 7. Turn on start-on-boot for the kiosk?
+8. Typed MVP: written style ("LIB 260", emails shown) until voice ships, then spoken style? (blocker 5)
 
 ## Updates the designer owes
 
