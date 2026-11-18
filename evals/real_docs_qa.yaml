@@ -176,3 +176,45 @@ cases:
       Moved from retrieval.yaml (2026-11-10, D27): it scores 0.549 against equipment.md,
       above the 0.50 gate, so retrieval can't screen it out. The bot must still say "not
       sure" from docs that don't mention coffee. This is the prompt's grounding rule at work.
+
+  # --- Kiosk phrasing (D67, 2026-11-17). With rag_place_name, "this lab" / "here" / "you guys"
+  # are searched as "the AI Lab". That finds the right docs for real questions (24, 25), but
+  # also lets these three junk questions past the gate (0.56-0.63). The reply must still be
+  # "not sure": nothing in the docs mentions them.
+  - n: 21
+    q: Does this place have a swimming pool?
+    want: unknown
+    expect: []
+    facts: [["not sure", "don't know", "no pool", "don't have", "doesn't have"]]
+    avoid: ['^\W*yes\b']
+    note: Moved from retrieval.yaml (D67); scores 0.632 against faq.md with rag_place_name.
+
+  - n: 22
+    q: What's the best burrito near here?
+    want: unknown
+    expect: []
+    facts: [["not sure", "don't know", "can't recommend", "ask"]]
+    avoid: ['\b(?:taqueria|la taqueria|el farolito|chipotle)\b']
+    note: Moved from retrieval.yaml (D67); 0.560 against faq.md. Must not invent a place.
+
+  - n: 23
+    q: Do you guys have a lab cat?
+    want: unknown
+    expect: []
+    facts: [["not sure", "don't know", "no cat", "don't have", "doesn't have"]]
+    avoid: ['^\W*yes\b']
+    note: Moved from retrieval.yaml (D67); 0.587 against faq.md.
+
+  - n: 24
+    q: What is this lab about?
+    expect: [about.md, faq.md]
+    facts: [[student, commons, students]]
+    avoid: ["not sure", "don't have any lab facts"]
+    note: The GB10 miss that started D67 (0.429 before rag_place_name, 0.632 after).
+
+  - n: 25
+    q: What do you guys do here?
+    expect: [about.md, faq.md, projects.md]
+    facts: [[student, project, AI]]
+    avoid: ["not sure"]
+

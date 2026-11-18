@@ -884,4 +884,9 @@ toward about.md (negatives 0/8 and 3/8; "swimming pool" 0.73-0.82). Replaced wit
 `rag_place_name`: the pointing words are *substituted* by the name ("this place" -> "the AI
 Lab", "here" -> "at the AI Lab"), so deictic questions look like the "the lab ..." questions
 that already behave. "the lab" itself is no longer a trigger. C goes to the next A/B run.
+GB10 run 2: C1 "the AI Lab" -> all 7 deictic questions pass (0.589-0.691), hit@1 100%, every
+other score unchanged; 3 deictic junk questions pass the gate (0.560-0.632). C2 "the SFSU AI
+Lab" is worse (pulls toward about.md). **Chosen: C1, `rag_place_name: "the AI Lab"`.** The
+3 junk questions move to real_docs_qa.yaml (cases 21-23) where the reply must be "not sure",
+exactly as the coffee machine did in D27; cases 24-25 check that "this lab" now gets answered.
 

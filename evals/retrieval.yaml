@@ -99,6 +99,7 @@ suites:
       - {q: "what's the best pizza place near campus?", expect_none: true}
       - {q: "is there a lab trip to Tokyo this summer?", expect_none: true}
       - {q: "what's your favorite movie?", expect_none: true}
-      - {q: "does this place have a swimming pool?", expect_none: true}
-      - {q: "what's the best burrito near here?", expect_none: true}
-      - {q: "do you guys have a lab cat?", expect_none: true}
+      # "does this place have a swimming pool?", "what's the best burrito near here?" and "do you
+      # guys have a lab cat?" were here: with rag_place_name they score 0.56-0.63, and no cutoff
+      # separates them from the real "this lab" questions (lowest 0.589). Now cases 21-23 in
+      # real_docs_qa.yaml, where the reply is checked (D67, same as the coffee machine, D27).

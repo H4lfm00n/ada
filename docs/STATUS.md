@@ -78,7 +78,8 @@ _Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). B
   - **PM, after D64: "add substance, like Siri"** -> glass orb with flowing pink/sky/lavender
     light inside and a soft halo (D66). Needs a GB10 look check.
   - **GB10: "what is this lab about?" -> not sure.** Index fine (recall 100%); kiosk phrasing
-    scores 0.43 < 0.50 gate. A/B run 1: appending the name fails (negatives leak); option C (substitute the name) pending (D67).
+    scores 0.43 < 0.50 gate. Fixed with `rag_place_name: "the AI Lab"` (D67, two A/B runs); 3 junk "this place" questions
+    now checked at the reply level (real_docs_qa 21-23).
   - Still open from the same check: the phase-2 prompt promises QR cards that don't exist yet
     (cards are M5b, all disabled) and forbids saying emails; Ada also said "I do not have any lab
     facts in my memory" (narration). Next ENG task: card tags stripped + prompt lists only
