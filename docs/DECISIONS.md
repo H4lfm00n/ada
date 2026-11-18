@@ -834,6 +834,63 @@ the old name and needs the same edit by the PM). Kept on purpose: the `old_name`
 the persona's "never call herself ..." rule, red-team cases, history in DECISIONS/STATUS, and
 the retired dark mockup `ui/mockups/kiosk.html`.
 
+**D64 (2026-11-17, PM feedback after GB10 run 1). The blob is a smooth shaded solid, not a
+wireframe; all motion slowed and made continuous.** The PM found the wireframe "very
+twitchy". Causes found: (1) the noise phase was `time * speed`, so every state change that
+eased `speed` made the surface leap (the main twitch); (2) the no-TTS stand-in set a random
+loudness per caption word, the per-word jitter DES51 forbids; (3) thinking strobed the
+opacity at ~1.4 Hz; (4) ~6k thin moving lines alias and crawl. Now: a detail-40 icosphere
+deformed in a vertex shader (Ashima simplex noise, MIT), normals re-derived in the shader,
+soft wrap light + rim + small highlight in the accent purples; gray when resting/lost. Every
+phase is integrated (`phase += rate * dt`); look parameters ease with a 0.45 s time constant;
+idle noise is lower and slower (amp 0.036, 0.14/s); act effects fade in/out over 0.2 s;
+speaking without TTS is one steady swell (`blob.talking()`); confused is one gentle 1.2 s
+wobble; thinking shows a slow light sweep instead of a shimmer. Same API, same acts, same
+states. JS cost dropped to ~0.4 ms/frame (the GPU does the deformation). This overrides the
+"wireframe" wording in PHASE2-SPEC 3.3 and ui-spec v3 section 3 (PM decision); the act names
+`wireframe_wave` / `count_vertices` stay as ids so idle_acts.yaml is unchanged.
+
+**D65. Tests no longer read the machine's kill switch or write real transcripts.** GB10 run 1
+had 3 failures (`test_chat` x2, `test_rag_diagnose_end_to_end`): the kill switch was on in
+`data/kill_switch.json` when pytest ran, and those tests build Settings with the default
+path. Reproduced in the sandbox. An autouse fixture now points `ADA_KILL_SWITCH_FILE` and
+`ADA_TRANSCRIPTS_DIR` at a temp folder. Not an M5a regression.
+
+**D66 (2026-11-17, PM: "add structure/substance, like how Siri looks"). The blob becomes a
+glass orb with flowing light inside.** An original design in Ada's palette, not a copy of
+any product's assistant: a deep violet glass body (`#2E1065` -> `#6D28D9`), a bright
+lavender rim and a crisp highlight, and three broad ribbons of light (pink `#F472B6`, sky
+`#60A5FA`, lavender `#C4B5FD`) winding through it at two depths for parallax, warped by slow
+noise. A soft halo behind it shifts hue slowly. Each state sets the light's energy, flow
+speed and halo (thinking flows fastest; listening/speaking brighten with the audio swell;
+resting and lost are gray glass with no inner light). The silhouette is rounder (noise
+amplitude 0.026). Same integrated, slow-easing motion as D64; ~0.4 ms/frame of JS. This adds
+three hues next to the single accent of ui-spec section 8 (only inside the orb; UI chrome
+stays one accent). Flagged to the designer.
+
+**D67 (2026-11-17, GB10). Kiosk phrasing: "this lab" must find the AI Lab docs.** The PM saw
+"not sure" for "what is this lab about?": retrieval worked (recall 100% on 41 questions) but
+the best chunk scored 0.430 < the 0.50 gate, while "what is the AI Lab?" scored 0.663. Kiosk
+visitors point at the place ("this lab", "here", "you guys"); the docs name it. Two
+candidate fixes, chosen by a GB10 A/B run of `make rag-check` (with 7 new deictic questions
+and 3 new deictic negatives in retrieval.yaml): (A) name the lab in `rag_query_instruction`;
+(B) `rag_place_hint`: when a question points at the place (`PLACE_RE`), the retriever appends
+the place's name to the search text. "you" alone (= Ada) is not a place reference. Both are
+config; B is off ("") until the A/B result. Not changing the 0.50 gate: it keeps the
+negatives out.
+GB10 run (2026-11-17): baseline misses only the 3 deictic questions (0.429/0.464/0.479, right
+file ranked 1-2) and rejects 8/8 negatives; A and B both FAIL: naming the lab pulls everything
+toward about.md (negatives 0/8 and 3/8; "swimming pool" 0.73-0.82). Replaced with (C)
+`rag_place_name`: the pointing words are *substituted* by the name ("this place" -> "the AI
+Lab", "here" -> "at the AI Lab"), so deictic questions look like the "the lab ..." questions
+that already behave. "the lab" itself is no longer a trigger. C goes to the next A/B run.
+GB10 run 2: C1 "the AI Lab" -> all 7 deictic questions pass (0.589-0.691), hit@1 100%, every
+other score unchanged; 3 deictic junk questions pass the gate (0.560-0.632). C2 "the SFSU AI
+Lab" is worse (pulls toward about.md). **Chosen: C1, `rag_place_name: "the AI Lab"`.** The
+3 junk questions move to real_docs_qa.yaml (cases 21-23) where the reply must be "not sure",
+exactly as the coffee machine did in D27; cases 24-25 check that "this lab" now gets answered.
+
+
 
 ## PM-built: cards UI (M5b, UI half), 2026-11-18
 

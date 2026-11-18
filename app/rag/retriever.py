@@ -12,6 +12,7 @@ Errors propagate; the pipeline turns them into "no docs" (the model then says "n
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -25,6 +26,27 @@ from app.rag.store import Index, IndexedChunk, RagIndexError, dot, normalize
 log = logging.getLogger(__name__)
 
 EMBED_BATCH = 32
+
+
+# A visitor at the kiosk says "this lab", "here", "you guys"; the docs say "the AI Lab".
+# The pointing words are REPLACED by the place's name (rag_place_name, D67). Appending the
+# name instead (run 1, options A/B) pulled every question, even "does this place have a
+# pool?", toward about.md. "you" alone means Ada herself and is left alone.
+_PLACE_NOUN = re.compile(
+    r"\b(?:this|that|your|ur)\s+(?:lab|place|room|club|space|group|org|commons|studio)\b",
+    re.IGNORECASE,
+)
+_PLACE_PEOPLE = re.compile(r"\b(?:you\s+guys|u\s+guys|y'?all|you\s+all)\b", re.IGNORECASE)
+_PLACE_HERE = re.compile(r"\b(?:in\s+here|around\s+here|here)\b", re.IGNORECASE)
+
+
+def with_place_name(query: str, name: str) -> str:
+    """Replace "this lab" / "you guys" / "here" with the place's name (no-op without one)."""
+    if not name:
+        return query
+    out = _PLACE_NOUN.sub(name, query)
+    out = _PLACE_PEOPLE.sub(name, out)
+    return _PLACE_HERE.sub(f"at {name}", out)
 
 
 def query_text(query: str, instruction: str) -> str:
@@ -111,7 +133,12 @@ class OllamaRetriever:
     async def embed_query(self, query: str) -> list[float]:
         vecs = await self._client.embed(
             self._settings.embed_model,
-            [query_text(query, self._settings.rag_query_instruction)],
+            [
+                query_text(
+                    with_place_name(query, self._settings.rag_place_name),
+                    self._settings.rag_query_instruction,
+                )
+            ],
             keep_alive=self._settings.keep_alive,
         )
         if not vecs:

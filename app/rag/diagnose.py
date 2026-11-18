@@ -203,6 +203,9 @@ def print_answer(r: TurnResult, v: Verdict, run: int, repeat: int) -> None:
     ttft = f"{r.ttft_s:.2f}s" if r.ttft_s is not None else "-"
     src = "" if r.source == "model" else f" [{r.source}]"
     err = f" ERROR {r.error}" if r.error else ""
+    g = r.input_guard
+    if g is not None and not g.allowed:  # why a canned line replaced the answer
+        err += f" [input guard: {g.stage} {g.code or ''} {g.reason or ''}]".replace("  ", " ")
     print(f"     {tag} ({ttft}){src}{err}: {r.text}")
     print(
         f"       -> {v.stage.upper()}" + ("" if not v.problems else ": " + " / ".join(v.problems))
@@ -273,6 +276,11 @@ async def run_diagnose(
             f" k={settings.rag_top_k} temp={settings.temperature} repeat={repeat}"
             f" prompt={settings.system_prompt_file}" + (f" label={label}" if label else "")
         )
+        # Load guard + embed + chat first, like the kiosk does. A cold Llama Guard takes longer
+        # than guard_timeout_s, so without this every question hit the guard fail-safe and got
+        # a canned line (GB10, 2026-11-17; same cause as D41).
+        warm = await factory.warm_up(settings, client)
+        print("models warm: " + ", ".join(f"{k} {v:.1f}s" for k, v in warm.items()))
         t0 = time.perf_counter()
         async for _ in model.stream(pipeline.prompt.build([], "Hi!")):
             pass  # warm up: model load + prompt cache, so case 1 isn't skewed

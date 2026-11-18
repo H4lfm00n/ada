@@ -21,10 +21,15 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 
 @pytest.fixture(autouse=True)
-def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def _clean_env(monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory) -> None:
     for key in list(os.environ):
         if key.startswith("ADA_"):
             monkeypatch.delenv(key)
+    # Never read or write the machine's real state: a kill switch left on on the GB10 used to
+    # fail chat/rag tests (M5a GB10 run), and transcripts must not land in data/.
+    state = tmp_path_factory.mktemp("state")
+    monkeypatch.setenv("ADA_KILL_SWITCH_FILE", str(state / "kill_switch.json"))
+    monkeypatch.setenv("ADA_TRANSCRIPTS_DIR", str(state / "transcripts"))
 
 
 @pytest.fixture
