@@ -133,7 +133,7 @@ def test_repo_system_prompt_loads_and_renders(settings: Settings) -> None:
     assert text.startswith(f"You are {settings.bot_name}, the robot helper")
     assert "{{" not in text and "}}" not in text
     assert "owner: designer" not in text  # front matter never reaches the model
-    assert text.rstrip().endswith("you have no lab facts for this message.")
+    assert text.rstrip().endswith("suggest a lab member, without mentioning why.")  # DES55
 
 
 def test_bot_name_comes_from_config(settings: Settings) -> None:

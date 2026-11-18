@@ -120,7 +120,10 @@ const BUILD = {
     if (d.sample) wrap.append(el('div', 'qrsample', 'Preview only: sample link, not the real form'));
     // Placeholder link (PM 2026-11-18): the server sends the note only while the card's URL is
     // still the placeholder in content/cards.yaml, e.g. "Discord invite coming soon".
-    if (d.placeholder && d.placeholder_note) wrap.append(el('div', 'qrsample placeholder', d.placeholder_note));
+    if (d.placeholder && d.placeholder_note) {
+      wrap.classList.add('has-note');   // a little smaller QR so the extra line fits (D71)
+      wrap.append(el('div', 'qrsample placeholder', d.placeholder_note));
+    }
     body.append(wrap);
   },
   directions(d, body) {
