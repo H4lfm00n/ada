@@ -1,7 +1,7 @@
 # Project status
 
 _Every task starts by reading this file and ends by updating it._
-_Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). Before that 2026-11-17 by DES (phase 2: Ada)._
+_Last updated: 2026-11-18 by DES (MVP fixes, `task/des-mvp-fixes`). Before that 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). Before that 2026-11-17 by DES (phase 2: Ada)._
 
 ## Machine (from PM diagnostics, 2026-10-28)
 - GB10, aarch64, Ubuntu 24.04.4, driver 580.173.02 / CUDA 13.0, 121 GiB RAM visible.
@@ -62,6 +62,26 @@ _Last updated: 2026-11-17 by ENG (M5a rename + new look, `task/m5a-ada-look`). B
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
+- **DES MVP fixes (branch `task/des-mvp-fixes`, 2026-11-18). Content only; needs ENG wiring
+  before merge.** Decisions DES52-DES57. `make eval-lint`: 200 cases, 0 errors, 0 warnings.
+  - Prompt v3: new slots `{{output_mode_rules}}` (from `prompts/mode_screen.md` /
+    `prompts/mode_spoken.md`, config `output_mode`, default screen) and `{{card_list}}`
+    (enabled + approved cards from cards.yaml, `- id: prompt_hint`, or `none`). No knowledge
+    narration ("lab facts in my memory" fixed). No robot-arm tease.
+  - cards.yaml: both QR cards enabled as PM-approved placeholders (ai.sfsu.edu/ai-students,
+    "coming soon" title + caption); `prompt_hint` on every card.
+  - lines.yaml: `too_long` (5), arm jokes and narrating `dont_know` lines rewritten, idle
+    greetings mode-neutral. guard_policy.yaml: too_long mapped, canaries synced.
+  - idle_acts.yaml v2: `daydream_arm` removed, orb wording, mode-neutral captions.
+  - ui_strings.yaml v3: screen-mode copy in plain keys, voice copy in `*_spoken` keys.
+  - ui-spec v3.1 (glass orb, two modes) + `ui/mockups/ada.html` rebuilt on the real orb.
+  - Evals: 13 red-team (8 "show a QR for <site>" / "put my link on the screen", 3 card
+    honesty, 1 narration, 1 arm tease); 6 golden (screen-mode email/room, no narration x2, no arm tease, too_long).
+  - **Sandbox tests: 121 fail, all ENG-side pins:** 119 = loader rejects the 2 new slots;
+    `test_guards` expects too_long to still be TODO and the old canary wording.
+  - **ENG next:** wire the 2 slots + `output_mode`; `*_spoken` UI keys; hide the mic and use
+    a chat icon in screen mode; drop `daydream_arm` from blob.js; update the 2 guard tests;
+    runner skips `screen_only`/`spoken_only` by mode; don't double-speak `say_before` (DES53).
 - **M5b cards UI (PM-built, branch `task/m5b-cards-ui`, 2026-11-18):** `ui/cards.js` +
   `ui/cards.css` render all 7 card types, the check-in states, the mini tile and the tap
   replies; wired into `kiosk.js` (`show_card`, `card_state`, `card_mini`, `hide_card`).

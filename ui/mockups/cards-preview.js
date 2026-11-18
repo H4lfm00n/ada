@@ -37,15 +37,18 @@ function visitor(text) {
   caps.replaceChildren(n);
 }
 
-const SAMPLE = 'https://ai.sfsu.edu/ai-students';   // public page, preview only
+const SAMPLE = 'https://ai.sfsu.edu/ai-students';   // the PM-approved MVP placeholder URL (DES53)
 const CARDS = {
-  qr_project_proposal: { type: 'qr', title: 'Submit a project proposal', url: SAMPLE, sample: true,
-    say_before: "I've put a QR code on the screen. Point your phone camera at it to open the proposal form.",
-    confirm: 'Did you get it?', on_yes: 'Awesome! The team will follow up with you. Anything else?',
+  // MVP placeholders (content/cards.yaml, DES53): both open SFSU's AI for Students page.
+  qr_project_proposal: { type: 'qr', title: 'Proposal form: coming soon', url: SAMPLE,
+    qr_caption: "For now, scan for SFSU's AI for Students page.",
+    say_before: "The proposal form link is coming soon. For now, I've put a QR code on the screen for SFSU's AI for Students page.",
+    confirm: 'Did you get it?', on_yes: 'Great! A lab member can tell you more about proposals, too. Anything else?',
     on_no: 'No rush, take your time.', auto_hide_s: 60 },
-  qr_discord: { type: 'qr', title: 'Join the Student AI Commons Discord', url: SAMPLE, sample: true,
-    say_before: "I've put the Discord QR code on the screen. Scan it with your phone camera to join.",
-    confirm: 'Did you scan it?', on_yes: 'Nice, see you in there! Anything else?', on_no: 'No rush, take your time.', auto_hide_s: 60 },
+  qr_discord: { type: 'qr', title: 'Discord invite: coming soon', url: SAMPLE,
+    qr_caption: "For now, scan for SFSU's AI for Students page.",
+    say_before: "Our Discord invite is coming soon. For now, I've put a QR code on the screen for SFSU's AI for Students page.",
+    confirm: 'Did you scan it?', on_yes: 'Nice! Check back soon for the Discord invite. Anything else?', on_no: 'No rush, take your time.', auto_hide_s: 60 },
   map_where_we_are: { type: 'directions', title: 'Where we are',
     lines: ['AI Studio · LIB 260', '2nd floor, J. Paul Leonard Library', 'Inside the Digital Media Studio and MakerSpace'],
     hours: 'Mon–Thu 10 AM–7 PM · Fri 10 AM–5 PM', say_before: "Here's where to find us.", auto_hide_s: 30 },
