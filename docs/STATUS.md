@@ -70,6 +70,17 @@ _Last updated: 2026-11-18 by ENG (`task/mvp-ready`: cards server half, screen mo
     volume cap, "Ada" = AY-duh, spoken mode on with TTS. Sandbox: headless Chrome against a
     fake Ollama + real Kokoro: thinking -> speaking -> ready, all 3 sentences in order with
     audio, no page errors. **Not yet run on the GB10.**
+  - Step 2, Ada hears (D76-D78): tap or space -> mic (browser AEC/NS/AGC) -> 16 kHz frames over
+    the websocket -> Silero end-of-speech (700 ms) -> Parakeet TDT 0.6B v3 (onnx-asr, int8) ->
+    the same guarded pipeline as typing. Half-duplex, indicator on only while capturing, audio
+    never on disk. Sandbox: headless Chrome with a fake mic file (Kokoro saying a question):
+    waking -> listening (mic on) -> VAD end -> thinking -> spoken reply -> ready.
+  - Step 3, cards: a spoken "yeah, got it" / "not yet" while Ada asks "did you scan it?" goes
+    to the card's yes/no path (the model never sees it); "Did you scan it?" is spoken too.
+  - Sandbox: ruff clean, 462 pass, 8 gb10 skipped. Parakeet itself can't be fetched here
+    (Hugging Face blocked), so the first real transcription is on the GB10 (`make voice-probe`).
+  - Open: wake word "Hey Ada" (next week, hook in place), barge-in (M6c), voice shortlist
+    (designer: `tts_voice`, default af_heart), designer copy for `talk_idle_tap_spoken`.
 - **MVP-ready** (branch `task/mvp-ready`, from `main` @ 71c104b; D68-D71). Sandbox: ruff clean,
   446 pass. Headless Chrome: Discord QR card with placeholder note, check-in caption + chips,
   tap yes -> "Nice, see you in there!", card slides out; screen mode hides the mic.

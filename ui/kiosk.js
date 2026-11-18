@@ -99,8 +99,9 @@ function setView(v) {
 }
 function renderTalk() {
   const busy = view === 'thinking' || view === 'speaking';
+  const idleKey = !voice.wake_word && S.talk_idle_tap ? 'talk_idle_tap' : 'talk_idle';   // no wake word yet
   const key = view === 'listening' || view === 'waking' ? 'talk_listening'
-    : busy && BARGE_IN ? 'talk_interrupt' : 'talk_idle';
+    : busy && BARGE_IN ? 'talk_interrupt' : idleKey;
   renderMarked($('talktext'), S[key]);
   $('talk').classList.toggle('dim', busy && !BARGE_IN);
   $('talk').setAttribute('aria-label', (S[key] || '').replace(/\*\*/g, ''));
@@ -299,6 +300,62 @@ function checkAudioDone() {
   blob.talking(false); blob.level(0, 'tts');
   onSpeechDone();
 }
+// ---------------------------------------------------------------- Ada's ears (M6b, tap-to-talk)
+// A tap (or space) opens the mic; the page streams 16 kHz int16 frames to the server, whose
+// VAD decides when the visitor is done and sends `mic {on:false, reason}`. Half-duplex: the
+// mic never opens while Ada thinks or talks. The indicator is on only while capturing, and
+// the tracks are stopped after every question (no always-open mic). Nothing is recorded.
+let mic = null, micWanted = false, lastHeard = '';
+const useMic = () => mode === 'spoken' && !!voice.stt && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+async function startMic() {
+  if (mic) return true;
+  micWanted = true;
+  let stream = null, ctx = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { ...(voice.constraints || {}), channelCount: 1 } });
+    if (!micWanted) { stream.getTracks().forEach(t => t.stop()); return false; }
+    let src;
+    try {   // a 16 kHz context: the browser resamples the mic properly
+      ctx = new AudioContext({ sampleRate: 16000 });
+      await ctx.audioWorklet.addModule('mic-worklet.js');
+      src = ctx.createMediaStreamSource(stream);
+    } catch (_) {   // some browsers refuse a rate mismatch: the worklet resamples instead
+      if (ctx) ctx.close().catch(() => {});
+      ctx = new AudioContext();
+      await ctx.audioWorklet.addModule('mic-worklet.js');
+      src = ctx.createMediaStreamSource(stream);
+    }
+    if (!micWanted) throw new Error('cancelled');
+    const node = new AudioWorkletNode(ctx, 'ada-mic');
+    const sink = ctx.createGain(); sink.gain.value = 0;   // keeps the graph pulled; no monitoring
+    send({ type: 'mic_start' });
+    node.port.onmessage = ev => {
+      if (!mic || mic.node !== node) return;
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(ev.data.pcm);
+      if (view === 'listening') blob.level(Math.min(1, ev.data.rms * 8), 'mic');
+    };
+    src.connect(node); node.connect(sink); sink.connect(ctx.destination);
+    mic = { stream, ctx, node };
+    micOpen = true; renderMic();
+    return true;
+  } catch (err) {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (ctx) ctx.close().catch(() => {});
+    if (micWanted) console.warn('mic unavailable:', err && err.name);
+    return false;
+  }
+}
+function stopMic(tellServer) {
+  micWanted = false;
+  if (!mic) return;
+  const m = mic; mic = null;
+  try { m.node.port.onmessage = null; m.node.disconnect(); } catch (_) { /* gone */ }
+  m.stream.getTracks().forEach(t => t.stop());
+  m.ctx.close().catch(() => {});
+  micOpen = false; renderMic();
+  if (tellServer) send({ type: 'mic_stop' });
+}
+
 function captionLine(e, bold) {   // a sentence or card line: spoken (tts) or paced captions
   if (e.tts && voice.tts && e.ref) { audioOut(); holdCaption(e.ref, e.text, bold); }
   else enqueue(e.text, bold);
@@ -376,17 +433,33 @@ function unblock() { if (!blocked()) toIdle(); else renderBlocked(); }
 function wake(source, { tell = true } = {}) {
   stopIdleAct();
   if (blocked()) return;
+  if (mic || micWanted) {   // tapped again while listening: "I'm done"
+    const open = !!mic;
+    stopMic(open);
+    if (open && (view === 'listening' || view === 'waking')) setView('thinking');   // the server decides
+    else if (!open) toRest();
+    return;
+  }
   if (tell) send({ type: 'wake', source });
-  if (turnOpen || speaking()) return;   // no barge-in yet (M6c)
+  if (turnOpen || speaking()) return;   // half-duplex: no mic while Ada talks (barge-in = M6c)
   clearTimeout(idleLater); idleLater = null; stopStill();
   clearCaptions(); setView('waking');
   clearTimeout(wakeTimer);
+  if (useMic()) {
+    audioOut();   // this tap also unlocks Ada's voice
+    startMic().then(ok => {
+      if (ok) { if (view === 'waking') startListening(); else stopMic(true); return; }
+      if (micWanted || view === 'waking') { micWanted = false; voice.stt = false; renderTalk(); openTyping(); startListening(); }
+    });
+    return;
+  }
   wakeTimer = setTimeout(() => { if (view === 'waking') startListening(); }, 500);
   if (TAP_OPENS_TYPING) openTyping();
 }
 function startListening() {
   setView('listening');
   clearTimeout(listenTimer);
+  if (mic) return;   // the server's VAD ends a spoken question (no speech -> mic closes)
   listenTimer = setTimeout(() => { if (view === 'listening' && !input.value) { closeTyping(); toRest(); } }, LISTEN_GIVE_UP_MS);
 }
 
@@ -405,6 +478,7 @@ const handlers = {
     toIdle();
   },
   turn_start(e) {
+    if (mic) stopMic(true);
     clearTimeout(idleLater); idleLater = null; afterSpeech = null;
     stopIdleAct(); stopStill(); clearCaptions(); clearTimeout(listenTimer);
     turnOpen = true; turnId = e.turn_id; turnSafety = false; sessionActive = true;
@@ -441,7 +515,7 @@ const handlers = {
     else toIdle();
   },
   out_of_order(e) {
-    if (e.on) { cards.hide(); ooo = true; turnOpen = false; micOpen = false; renderMic(); renderBlocked(); }
+    if (e.on) { cards.hide(); stopMic(false); ooo = true; turnOpen = false; micOpen = false; renderMic(); renderBlocked(); }
     else { ooo = false; unblock(); }
   },
   backend(e) { backendOk = !!e.ok; if (backendOk) unblock(); else renderBlocked(); },
@@ -454,7 +528,15 @@ const handlers = {
     blob.level(e.level, e.source);
   },
   wake(e) { wake(e.source || 'word', { tell: false }); },
-  mic(e) { micOpen = !!e.on; renderMic(); },
+  mic(e) {   // the server ends a capture: done talking, nothing said, busy, or no STT
+    if (e.on) return;
+    stopMic(false);
+    if (e.reason === 'end') { if (view === 'listening' || view === 'waking') setView('thinking'); return; }
+    if (e.reason === 'unavailable') { voice.stt = false; renderTalk(); openTyping(); return; }
+    if (e.reason === 'busy') showHint();
+    if (view === 'listening' || view === 'waking' || view === 'thinking') toRest();
+  },
+  heard(e) { lastHeard = e.text || ''; },   // staff debug panel only, never on the big screen
   // ---- M5b cards: the server picks the card and runs the check-in loop ----
   show_card(e) { if (!blocked()) { stopIdleAct(); cards.show({ ...(e.data || {}), id: e.id }); } },
   card_state(e) { cards.state(e.id, e.state, e); },
@@ -489,7 +571,7 @@ function connect() {
   };
   sock.onclose = ev => {
     if (ws !== sock) return;
-    ws = null; turnOpen = false;
+    ws = null; turnOpen = false; stopMic(false);
     if (ev.code === 4001) { conn = 'replaced'; renderBlocked(); return; }   // a newer screen took over
     if (conn === 'ok') conn = 'connecting';   // reconnecting after 3 s, lost after 30 s
     if (!downSince) {
@@ -632,7 +714,8 @@ if (DEBUG) {
   };
   setInterval(() => {
     info.textContent = `${blob.fps()} fps · ${blob.cpuMs()} ms/frame · view ${view} · blob ${blob.current}`
-      + (blob.acting ? ` · act ${blob.acting}` : '') + ' · forced states are visual only';
+      + (blob.acting ? ` · act ${blob.acting}` : '') + ' · forced states are visual only'
+      + (lastHeard ? ` · heard: “${lastHeard}”` : '');
     debugSync();
   }, 500);
   window.__ada = { blob, handlers, get view() { return view; } };

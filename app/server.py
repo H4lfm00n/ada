@@ -199,6 +199,12 @@ class Kiosk:
             else None
         )
         self._says = itertools.count(1)
+        # Ears (M6b, tap-to-talk): one open capture at a time, half-duplex (the page never
+        # opens the mic while Ada talks; the server refuses a capture during a turn).
+        self.stt: Any = None
+        self.vad: Any = None
+        self.stt_failed: str | None = None
+        self.capture: Any = None
         self._marks: dict[str, dict[str, float]] = {}
 
     # -- events out ----------------------------------------------------------------------
@@ -361,6 +367,65 @@ class Kiosk:
 
     async def on_audio(self, data: bytes) -> None:
         """Mic audio from the page (16 kHz int16 mono). Dropped unless a capture is open."""
+        cap = self.capture
+        if cap is None:
+            return
+        end = cap.feed(data)
+        if end is not None and self.capture is cap:
+            await self._end_capture(end)
+
+    async def on_mic_start(self) -> None:
+        self._interrupt_idle()
+        why = None
+        if not self.settings.stt_enabled or self.stt is None or self.vad is None:
+            why = "unavailable"
+        elif self.status.kill_on or self.turn is not None:
+            why = "busy"
+        if why:
+            await self.emit({"type": "mic", "on": False, "reason": why})
+            return
+        from app.voice.stt import Capture
+
+        self.on_typing()  # keeps the visit alive, no "Still there?" while talking
+        self.capture = Capture(self.vad, self.settings)
+        await self.emit({"type": "mic", "on": True})
+
+    async def _end_capture(self, reason: str) -> None:
+        cap, self.capture = self.capture, None
+        if cap is None:
+            return
+        if reason == "end" and (self.turn is not None or self.status.kill_on):
+            reason = "busy"
+        await self.emit({"type": "mic", "on": False, "reason": reason})
+        if reason != "end":
+            return
+        audio = cap.audio()  # in memory only; dropped when the turn has transcribed it
+        log.info("VOICE heard %.1fs of speech (%.1fs captured)", cap.voiced / 16000,
+                 cap.total / 16000)  # fmt: skip
+        self._start_turn(None, self._voice_turn(audio, cap.t_last_voice))
+
+    async def _voice_turn(self, audio: Any, t_eos: float) -> str:
+        sid = self._live_session()
+        t0 = time.monotonic()
+        try:
+            text = await asyncio.to_thread(self.stt.transcribe, audio)
+        finally:
+            del audio
+        if self.turn is not None:
+            self._marks[self.turn.id] = {"eos": t_eos, "stt": time.monotonic() - t0}
+            while len(self._marks) > 20:
+                self._marks.pop(next(iter(self._marks)))
+        await self.emit({"type": "heard", "text": text})  # staff debug panel only
+        if not text.strip():
+            source = "line:didnt_catch"
+            for sent in split_sentences(self.lines.pick("didnt_catch", self._recent)):
+                await self.sentence(sent, source)
+            return source
+        self.sessions.touch(sid)
+        # The same routes as typed text: a card's yes/no, else the guarded pipeline.
+        if self.cards and self.cards.listening and (answer := classify_reply(text)):
+            return await self._card_answer_turn(sid, answer)
+        return await self._visitor_turn(sid, text)
 
     async def on_client(self, raw: str) -> None:
         try:
@@ -388,6 +453,11 @@ class Kiosk:
             await self.on_reset(bool(data.get("immediate")))
         elif kind == "pong":
             pass
+        elif kind == "mic_start":  # tap-to-talk: the page opened the mic
+            await self.on_mic_start()
+        elif kind == "mic_stop":  # tapped again: done talking (or never started)
+            if self.capture is not None:
+                await self._end_capture("end" if self.capture.has_speech else "cancel")
         elif kind == "tts_playing":  # the page started playing a reply's first audio
             ref = str(data.get("ref") or "")
             self._mark(ref.split(":", 1)[0], "playing")
@@ -585,6 +655,7 @@ class Kiosk:
             and not self.status.kill_on
             and self.status.backend_ok
             and not (self.cards and self.cards.current)
+            and self.capture is None
         )
 
     async def idle_step(self) -> None:
@@ -638,6 +709,9 @@ class Kiosk:
         if on:
             if self.speaker:  # the kill switch also mutes Ada (spec 5)
                 self.speaker.flush()
+            if self.capture is not None:  # ...and stops listening
+                self.capture = None
+                await self.emit({"type": "mic", "on": False, "reason": "cancel"})
             await self.emit({"type": "out_of_order", "on": True, "line": self.out_of_order_line()})
             if self.turn is None:
                 self._drop_session("kill_switch")
@@ -673,6 +747,20 @@ class Kiosk:
 
             self.speaker.start()
             self._tasks.append(asyncio.create_task(self.speaker.load(make_tts)))
+        if self.settings.stt_enabled:
+            self._tasks.append(asyncio.create_task(self._load_stt()))
+
+    async def _load_stt(self) -> None:
+        from app.voice import stt
+
+        s = self.settings
+        try:
+            self.vad = await asyncio.to_thread(stt.SileroVad, s.content_path(s.stt_vad_file))
+            self.stt = await asyncio.to_thread(stt.make_stt, s)
+        except Exception as exc:  # the talk button falls back to the typing box
+            self.stt_failed = str(exc)
+            self.stt = None
+            log.error("STT unavailable, typing only: %s", exc)
 
     async def stop(self) -> None:
         if self.turn is not None:

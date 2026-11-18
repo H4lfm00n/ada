@@ -1065,3 +1065,32 @@ the speaker. Volume cap `tts_volume` is the page's gain ceiling.
 false in config so `make eval` and `make kiosk` stay in screen mode. `tts_enabled` forces
 `output_mode: spoken` (prompt + UI copy, DES54). If the TTS models fail to load, the kiosk
 logs it and runs captions-only.
+
+**D76. STT = Parakeet TDT 0.6B v3 through `onnx-asr` (onnxruntime, CPU, int8), VAD = Silero
+v5 ONNX.** NeMo would pull torch + a CUDA aarch64 build; `onnx-asr` loads NVIDIA's model
+exported to ONNX with numpy + onnxruntime only (aarch64 wheels). `make voice-setup` downloads
+it once into `data/voice/`; an existing folder keeps `onnx-asr` offline at runtime. int8
+(`stt_quantization`) for CPU speed; "" = fp32 if accuracy suffers. faster-whisper is wired as
+`stt_engine: whisper` (`uv sync --group whisper`).
+
+**D77. Tap-to-talk, half-duplex, server-side endpointing.** Tap or space opens the mic
+(`getUserMedia`, echoCancellation/noiseSuppression/autoGainControl from config). An
+AudioWorklet in a 16 kHz AudioContext streams 512-sample int16 frames as binary websocket
+messages. The server runs Silero on each frame: done after `stt_end_silence_ms` (700) of
+silence following ≥ `stt_min_speech_ms` of speech; no speech in `stt_no_speech_s` (6) closes
+the mic; `stt_max_utterance_s` (15) caps it; a second tap means "done". The server refuses a
+capture while a turn runs (`mic {on:false, reason:"busy"}`), and the page never opens the mic
+while Ada thinks or talks. The mic tracks are stopped after every question, so the browser's
+own mic dot and our indicator are on only while capturing. Audio is kept in memory for one
+capture and dropped after transcription. The transcript takes the same route as typed text:
+a card's yes/no while Ada is asking "did you scan it?" (keyword `classify_reply`), else the
+guarded pipeline. Empty transcript -> `didnt_catch` line. `heard {text}` goes to the staff
+debug panel only (raw visitor words are never put on the big screen unguarded).
+Latency: one `VOICE` log line per spoken turn, end of speech (last voiced frame, so it
+includes the 700 ms wait) -> transcript, first sentence, first audio sent, first audio
+playing (the page reports `tts_playing`).
+
+**D78. Wake word: hook only.** `wake_word_enabled: false`; `Kiosk.wake("word")` is the entry
+point M6b will call. While it's off, the talk button uses a tap-only line
+(`talk_idle_tap_spoken`, ENG stand-in, TODO(designer)) because `talk_idle_spoken` promises
+"Hey Ada".
