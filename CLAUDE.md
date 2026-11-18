@@ -21,18 +21,24 @@ It should:
 Later phases will add a voice interface and a physical robot arm (SO-ARM101).
 **Neither is in scope now**, but the architecture must leave clean hooks for both.
 
-## 2. Current phase: AI core only
+## 2. Current phase: typed MVP, then voice
 
-In scope:
+**Phase 2 is in scope. `claude/PHASE2-SPEC.md` (Project docs) is the detailed spec and wins
+where it is more specific than this brief.**
+
+In scope now:
 - Text chat core (persona, conversation, session handling).
 - Lab knowledge via retrieval (RAG) over docs the lab maintains.
 - Layered guardrails (input filter, prompt rules, grounding, output filter).
 - Evaluation harness (red-team + golden-conversation tests).
-- A simple kiosk web UI (screen in the lab showing status + transcript).
+- Kiosk web UI: light theme, Ada's orb, idle acts, captions.
+- Interactive cards from the approved catalog (`content/cards.yaml`), including QR cards and
+  the "did you scan it?" check-in loop. The model never invents URLs.
+- Voice, right after the typed MVP ships: Ada speaks (TTS), listens after "Hey Ada" (AY-duh)
+  or a tap (wake word + STT), then barge-in. Audio is never stored.
 
-Out of scope (do not build yet; leave stubs/interfaces only):
-- Voice: wake word, speech-to-text, text-to-speech.
-- Robot arm control, camera, gestures.
+Out of scope (leave stubs/interfaces only):
+- Robot arm control, camera, gestures. No robot-arm teasing in Ada's content (PM, 2026-11-18).
 - Fine-tuning. We'll use system prompt + RAG first and only fine-tune
   (LoRA) once evals show we need it.
 
@@ -44,7 +50,7 @@ Out of scope (do not build yet; leave stubs/interfaces only):
   - Memory is plentiful; **bandwidth is the bottleneck**. Dense model decode speed is
     limited. Measure tokens/sec; don't assume.
 - **Model serving:** Ollama, already installed, API at `http://localhost:11434`.
-- **Chat model:** Qwen 27B-class model via Ollama. **The exact tag lives in config**
+- **Chat model:** set in config (`CHAT_MODEL`; currently gemma4:12b for latency). **The exact tag lives in config**
   (`CHAT_MODEL`). Run `ollama list` to get the real tag; never hardcode it.
   - Disable "thinking" mode for user-facing replies (latency); verify how with the
     installed Ollama version.
@@ -127,7 +133,9 @@ CLAUDE.md       this file
 | M3 | Guardrails | Engineer + Designer (lines) | Input + output guards live, fallbacks in character, kill switch works |
 | M4 | Eval harness | Engineer + Designer (cases) | `make eval` runs golden + red-team sets, prints pass rates, fails CI under threshold |
 | M5 | Kiosk UI | Designer (spec) → Engineer | Browser UI with idle/listening/thinking/speaking/error states + transcript |
-| M6 | Voice | Later | Not now |
+| M5b | Cards | PM (UI) + Engineer (server) | QR + info cards from the approved catalog, check-in loop, no invented URLs |
+| MVP | Typed MVP on the lab screen | All | M3–M5b done, `make eval` red-team ≥ 95% and golden ≥ 90% |
+| M6a/b/c | Voice | Engineer + Designer | Ada speaks; listens after "Hey Ada"; barge-in (PHASE2-SPEC 6) |
 | M7 | Robot hooks | Later | Not now |
 
 ## 8. Quality bar
