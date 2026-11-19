@@ -43,8 +43,15 @@ def test_real_file_loads_with_reasons_for_the_acts_that_are_off(repo_root: Path)
     assert len(cat.acts) >= 15
     # PM 2026-11-18: an act every 1-2 minutes, plus the "bored" acts
     assert cat.rotation.min_gap_s == 60 and cat.rotation.max_gap_s == 120
-    bored = ("neural_doodle", "loading_bar", "sneeze", "chase_glow", "peekaboo", "what_am_i",
-             "sigh")
+    bored = (
+        "neural_doodle",
+        "loading_bar",
+        "sneeze",
+        "chase_glow",
+        "peekaboo",
+        "what_am_i",
+        "sigh",
+    )
     for new in bored:
         assert new in cat.acts, new
     assert "enabled: false" in cat.unavailable["quiz_invite"]
