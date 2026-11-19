@@ -62,6 +62,10 @@ _Last updated: 2026-11-18 by ENG (`task/mvp-ready`: cards server half, screen mo
     Sandbox: ruff clean, 151 pass, 4 gb10 skipped.
 
 ## In progress
+- **Idle life v2 + goodbye (PM-built, branch `task/pm-idle-v2`, 2026-11-18):** acts every
+  1-2 min, 7 new acts (neural doodle, fake loading bar, sneeze, chase the glow, peekaboo,
+  "What am I?" with tap-to-reveal, bored sigh), and a goodbye wave when a conversation ends.
+  DECISIONS PMI1-PMI5. Preview: `ui/mockups/idle-acts.html`. Designer: review the captions.
 - **M6 voice demo (branch `task/m6-voice-demo` = `main` + `task/mvp-ready`, D73). Demo
   2026-11-19.** Mac browser does all audio (ssh -L 8080 tunnel, localhost = secure context);
   models on the GB10 CPU. `make voice-setup` (once), `make voice-probe`, `make kiosk-voice`.

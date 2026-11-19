@@ -42,3 +42,11 @@ strings:
   hint_busy: One sec, still answering
   still_there: "Still there? I'll reset for the next visitor in {{seconds}} seconds."
   connection_lost_line: I'm having trouble connecting. Please ask a lab member.
+  # --- idle life v2 (PM 2026-11-18). TODO(designer): review. ---
+  idle_loading: "Loading something fun…"
+  idle_loading_fail: "99%… nope. Never mind."
+  guess_reveal: "It was a {{shape}}!"
+  guess_reveal_tap: "It's a {{shape}}! Got a question for me?"
+  guess_star: star
+  guess_cube: cube
+  guess_heart: heart

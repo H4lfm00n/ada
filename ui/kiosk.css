@@ -63,6 +63,19 @@ html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
 #captions b { font-weight: 700; }
 #captions.long { font-size: 46px; }
 
+/* idle act: fake loading bar (counts to 99 %, gives up) */
+#loadbar { position: absolute; left: 660px; width: 600px; top: 690px; text-align: center; opacity: 0;
+  transition: opacity .5s; pointer-events: none; }
+#loadbar.on { opacity: 1; }
+#loadbar .lbl { font-size: 32px; color: var(--ink-2); margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+#loadbar .track { height: 18px; border-radius: 999px; background: var(--line); overflow: hidden; }
+#loadbar .track i { display: block; height: 100%; width: 100%; background: var(--accent); border-radius: 999px;
+  transform-origin: left; transform: scaleX(0); transition: background .4s; }
+#loadbar.stuck .track { animation: barshake .4s ease-in-out 2; }
+#loadbar.stuck .track i { background: var(--ink-3); }
+@keyframes barshake { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+#stage.carding #loadbar { display: none; }
+
 /* idle-act caption (visual only, never spoken) */
 #idlecap {
   position: absolute; left: 200px; right: 200px; top: 790px; text-align: center; font-size: 40px;

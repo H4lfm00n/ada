@@ -1110,3 +1110,33 @@ playing (the page reports `tts_playing`).
 point M6b will call. While it's off, the talk button uses a tap-only line
 (`talk_idle_tap_spoken`, ENG stand-in, TODO(designer)) because `talk_idle_spoken` promises
 "Hey Ada".
+
+## PM-built: idle life v2 + goodbye (2026-11-18)
+
+**PMI1. An idle act every 1-2 minutes** (`rotation` 60-120 s, was 45-120) so Ada visibly gets
+bored when nobody is talking to her (PM). Breathing in between, as before.
+
+**PMI2. Seven new "bored" acts** in `content/idle_acts.yaml` + `ui/blob.js`: `neural_doodle`
+(dots + edges drawn in front of the orb, a 3-4-3 net, a signal pulse, fade), `loading_bar`
+(the page draws a bar that counts to 99 %, shakes and gives up; the orb slumps), `sneeze`
+(two hitching breaths, squash, colored sparkle burst, springy wobble), `chase_glow` (a small
+bright spot runs around her faster and faster, she follows, gets dizzy), `peekaboo` (shrinks
+to a dot, pops back; caption at the pop), `what_am_i` (morphs into a star, cube or heart;
+see PMI3) and `sigh`. Captions are PM drafts: TODO(designer) review.
+
+**PMI3. "What am I?" tap-to-reveal.** The page picks the shape. A tap anywhere on the stage
+(not on a button or the typing box) reveals it ("It's a heart! Got a question for me?"),
+holds the shape ~2.6 s, then wakes Ada as a normal tap would. Nobody taps: she reveals it
+herself at ~74 %. Reveal copy lives in `content/ui_strings.yaml` (`guess_*`).
+
+**PMI4. Goodbye wave** (`goodbye_wave` in blob.js; not an idle act, never picked by the
+rotation): when a conversation ends (`session_reset` reason farewell / timeout / visitor) the
+page plays a bow, a side-to-side wave, a hop and a few sparkles while the goodbye finishes.
+Skipped with reduced motion.
+
+**PMI5. Blob API additions** (all optional, backward compatible): `act(id, seconds, opts)`
+passes `opts` to the act; `reveal(hold)`; act fields `mult` (fast overall scale), `squash`
+{x, y}, `rock` (tilt), `lift` (y offset): smoothed with a 0.07 s time constant (fast but no
+popping), `heart` (shape morph), `sparks` {t, n}, `doodle` (progress), `gazeLo` (smaller glow
+spot). Sparkles and the doodle use normal blending (the page is light; additive light would
+vanish off the orb). Preview: `ui/mockups/idle-acts.html`.
