@@ -19,10 +19,11 @@
 # Fields: id, name, duration_s, weight (relative pick chance), blob (motion), caption
 # (optional, spoken never), after_idle_s (optional), from_docs (optional).
 
-version: 2  # 2026-11-18: daydream_arm removed, orb wording, mode-neutral captions
+version: 3  # 2026-11-18 (PM): idle life v2 - acts every 1-2 min, 7 new 'bored' acts, goodbye wave (page-side)
 
 rotation:
-  min_gap_s: 45
+  # PM 2026-11-18: "every 1-2 minutes when no one is talking, so it seems like she's bored"
+  min_gap_s: 60
   max_gap_s: 120
   default_act: breathing
   no_repeat: true
@@ -170,3 +171,62 @@ acts:
     weight: 1
     blob: "bands of light brighten one at a time, top to bottom, then all fade"
     caption: "Trying to count to a million. Lost count. Again."
+
+  # ---- idle life v2 (PM 2026-11-18): Ada gets bored. TODO(designer): review captions. ----
+  - id: neural_doodle
+    name: Neural-net doodle
+    duration_s: 7
+    weight: 3
+    blob: "inner light dims; dots appear inside her layer by layer (3-4-3), lines draw between them, a signal pulse runs left to right, everything fades"
+    caption: "Doodling a tiny neural network."
+    reduced_motion: gentle
+
+  - id: loading_bar
+    name: Fake loading bar
+    duration_s: 8
+    weight: 3
+    blob: "works hard (sweep, fast light) while a bar under her counts to 99%, stalls, shakes, then she slumps; the bar fades"
+    reduced_motion: gentle
+
+  - id: sneeze
+    name: Sneeze
+    duration_s: 4.5
+    weight: 3
+    blob: "two hitching breaths in (stretches tall), a big squash, a burst of colored sparkles, a springy wobble back"
+    caption: "Achoo! Sorry. Dust in my pixels."
+    reduced_motion: skip
+
+  - id: chase_glow
+    name: Chasing her glow
+    duration_s: 7
+    weight: 3
+    blob: "a bright spot runs around her surface faster and faster; she leans and turns after it like a cat with a laser pointer, then wobbles, dizzy"
+    caption: "Must… catch… the light."
+    reduced_motion: skip
+
+  - id: peekaboo
+    name: Peekaboo
+    duration_s: 4.5
+    weight: 3
+    blob: "shrinks to a tiny dot, hides for a beat, pops back with a bounce and a ripple (caption at the pop)"
+    caption: "Peekaboo!"
+    reduced_motion: skip
+
+  - id: what_am_i
+    name: "What am I?"
+    duration_s: 9
+    weight: 3
+    blob: "morphs into a star, a cube or a heart (page picks); a tap reveals the answer and Ada then listens for a question; nobody taps: she reveals it herself near the end"
+    caption: "Guess what I am! Tap to find out."
+    reduced_motion: gentle
+
+  - id: sigh
+    name: Bored sigh
+    duration_s: 4
+    weight: 2
+    blob: "breathes in (grows a little), lets out a long deflating sigh and droops, slowly recovers"
+    caption: "So… quiet in here."
+    reduced_motion: gentle
+
+# Not an idle act (never picked by the rotation): `goodbye_wave` in ui/blob.js plays on the page
+# when a conversation ends (said bye, timed out, or walked away): a bow, a wave, a hop, sparkles.

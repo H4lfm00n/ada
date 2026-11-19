@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ada · idle acts preview</title>
+<!-- Preview of Ada's idle acts and goodbye wave with the real ui/blob.js. No server; fake events.
+     The kiosk itself (ui/kiosk.js) adds the loading bar, captions and the tap-to-reveal. -->
+<link rel="stylesheet" href="../kiosk.css">
+<link rel="stylesheet" href="cards-preview.css">
+</head>
+<body>
+<div id="viewport">
+<div id="stage" aria-label="Ada kiosk screen">
+  <canvas id="blob" aria-hidden="true"></canvas>
+  <div id="idlecap"></div>
+</div>
+</div>
+<div id="panel">
+  <div class="row" id="acts"><span class="lbl">Acts</span></div>
+  <div class="note">New: neural_doodle, loading_bar, sneeze, chase_glow, peekaboo, what_am_i (click the orb to reveal), sigh, goodbye_wave.</div>
+</div>
+<script type="module" src="idle-acts-preview.js"></script>
+</body>
+</html>

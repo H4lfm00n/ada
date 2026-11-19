@@ -362,7 +362,40 @@ function captionLine(e, bold) {   // a sentence or card line: spoken (tts) or pa
 }
 
 // ---------------------------------------------------------------- idle acts
-let actTimers = [], debugHoldUntil = 0;
+let actTimers = [], debugHoldUntil = 0, guess = null;
+const GUESS_SHAPES = ['star', 'cube', 'heart'];
+const CAPTION_AT = { peekaboo: .62 };   // caption appears this far into the act (fraction)
+function idleCaption(text, ms) {
+  const c = $('idlecap');
+  c.textContent = text; c.classList.add('on');
+  if (ms) actTimers.push(setTimeout(() => c.classList.remove('on'), ms));
+}
+function str(key, fallback, vars = {}) {
+  return (S[key] || fallback).replace(/\{\{(\w+)\}\}/g, (m, k) => (k in vars ? vars[k] : m));
+}
+// "Loading something fun..." bar that counts to 99 % and gives up (idle act loading_bar)
+function loadingBar(dur) {
+  const bar = document.createElement('div'); bar.id = 'loadbar';
+  const lbl = document.createElement('div'); lbl.className = 'lbl';
+  const track = document.createElement('div'); track.className = 'track';
+  const fill = document.createElement('i'); track.append(fill);
+  bar.append(lbl, track); stage.appendChild(bar);
+  const t0 = performance.now(), stallAt = dur * .62;
+  let pct = 0;
+  const tick = () => {
+    if (!bar.isConnected) return;
+    const el = (performance.now() - t0) / 1000;
+    if (el < stallAt) pct = Math.min(99, Math.round(99 * Math.pow(el / stallAt, .7)));
+    fill.style.transform = `scaleX(${pct / 100})`;
+    lbl.textContent = el < stallAt + .9 ? `${str('idle_loading', 'Loading something fun…')} ${pct}%`
+      : str('idle_loading_fail', '99%… nope. Never mind.');
+    bar.classList.toggle('stuck', el >= stallAt + .9);
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(() => bar.classList.add('on'));
+  tick();
+  actTimers.push(setTimeout(() => bar.classList.remove('on'), dur * 1000 - 700));
+}
 function playIdleAct(e, { forced = false } = {}) {
   if (!forced) {
     if (performance.now() < debugHoldUntil) return;   // the debug panel is driving the blob
@@ -371,11 +404,19 @@ function playIdleAct(e, { forced = false } = {}) {
   }
   stopIdleAct();
   const dur = Math.max(1, +e.duration_s || 5);
-  if (!blob.act(e.id, dur)) return;
+  const opts = {};
+  if (e.id === 'what_am_i') opts.shape = GUESS_SHAPES[Math.floor(Math.random() * GUESS_SHAPES.length)];
+  if (!blob.act(e.id, dur, opts)) return;
   if (e.caption) {
-    const c = $('idlecap');
-    c.textContent = e.caption; c.classList.add('on');
-    actTimers.push(setTimeout(() => c.classList.remove('on'), Math.max(4000, dur * 1000 - 600)));
+    const at = (CAPTION_AT[e.id] || 0) * dur * 1000;
+    const show = () => idleCaption(e.caption, Math.max(at ? 2200 : 4000, dur * 1000 - at - 600));
+    if (at) actTimers.push(setTimeout(show, at)); else show();
+  }
+  if (e.id === 'loading_bar') loadingBar(dur);
+  if (e.id === 'what_am_i') {
+    guess = { shape: opts.shape, revealed: false };
+    // nobody tapped: she gives the answer away herself near the end
+    actTimers.push(setTimeout(() => revealGuess(false), dur * 1000 * .74));
   }
   if (e.id === 'dozing' && !reduced) {
     let n = 0;
@@ -390,8 +431,25 @@ function playIdleAct(e, { forced = false } = {}) {
   actTimers.push(setTimeout(stopIdleAct, dur * 1000 + 100));
   debugSync();
 }
+function revealGuess(tapped) {
+  if (!guess || guess.revealed || blob.acting !== 'what_am_i') return false;
+  guess.revealed = true;
+  blob.reveal(tapped ? 2.8 : 2.2);
+  const shape = str(`guess_${guess.shape}`, guess.shape);
+  idleCaption(tapped ? str('guess_reveal_tap', "It's a {{shape}}! Got a question for me?", { shape })
+    : str('guess_reveal', 'It was a {{shape}}!', { shape }));
+  return true;
+}
+// Ada's goodbye: a bow, a wave, a hop and sparkles when a conversation ends
+function playGoodbye() {
+  if (blocked() || reduced) return;
+  stopIdleAct();
+  blob.act('goodbye_wave', 3.4);
+  actTimers.push(setTimeout(() => { if (blob.acting === 'goodbye_wave') blob.stopAct(); }, 3500));
+}
 function stopIdleAct() {   // instant: any interaction, any turn, kill switch
-  actTimers.forEach(clearTimeout); actTimers = [];
+  actTimers.forEach(clearTimeout); actTimers = []; guess = null;
+  const lb = $('loadbar'); if (lb) lb.remove();
   if (blob.acting) blob.stopAct();
   $('idlecap').classList.remove('on');
   stage.querySelectorAll('.z').forEach(z => z.remove());
@@ -505,8 +563,9 @@ const handlers = {
     if (blocked() || turnOpen || speaking() || view === 'listening') return;
     showStill(e.seconds_left || warnBeforeS);
   },
-  session_reset() {
+  session_reset(e) {
     sessionActive = false; stopStill(); cards.hide();
+    if (e && (e.reason === 'farewell' || e.reason === 'timeout' || e.reason === 'visitor')) playGoodbye();
     // The goodbye finishes on screen and stays a moment, then idle.
     clearTimeout(idleLater);
     const later = () => { idleLater = setTimeout(toIdle, GOODBYE_HOLD_MS); };
@@ -599,8 +658,19 @@ function closeTyping() {
   typingOpen = false; stage.classList.remove('typing'); input.value = ''; input.blur();
 }
 $('talk').addEventListener('click', () => wake('tap'));
-$('tap').addEventListener('click', () => wake('tap'));
-document.addEventListener('pointerdown', () => stopIdleAct(), true);
+$('tap').addEventListener('click', () => { if (!guessWake) wake('tap'); });
+let guessWake = null;
+document.addEventListener('pointerdown', ev => {
+  // "What am I?": a tap on the screen reveals the answer, then Ada listens for a question
+  const onButton = ev.target.closest && ev.target.closest('#talk, #typing, #debug, button, input');
+  if (!onButton && guess && revealGuess(true)) {
+    ev.stopPropagation();
+    guessWake = setTimeout(() => { guessWake = null; wake('tap'); }, 2600);
+    return;
+  }
+  if (guessWake) { clearTimeout(guessWake); guessWake = null; }
+  stopIdleAct();
+}, true);
 
 let hintTimer = null;
 function showHint() {

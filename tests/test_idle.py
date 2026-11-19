@@ -41,7 +41,19 @@ def test_real_file_loads_with_reasons_for_the_acts_that_are_off(repo_root: Path)
     cat = load_idle_acts(repo_root / "content" / "idle_acts.yaml", repo_root)
     assert "breathing" not in cat.acts  # the default state, not an act
     assert len(cat.acts) >= 15
-    assert cat.rotation.min_gap_s == 45 and cat.rotation.max_gap_s == 120
+    # PM 2026-11-18: an act every 1-2 minutes, plus the "bored" acts
+    assert cat.rotation.min_gap_s == 60 and cat.rotation.max_gap_s == 120
+    bored = (
+        "neural_doodle",
+        "loading_bar",
+        "sneeze",
+        "chase_glow",
+        "peekaboo",
+        "what_am_i",
+        "sigh",
+    )
+    for new in bored:
+        assert new in cat.acts, new
     assert "enabled: false" in cat.unavailable["quiz_invite"]
     assert "M5c" in cat.unavailable["event_teaser"]  # needs the lab_docs event reader
     assert "fun_fact" in cat.acts  # the ai_fact card is approved (PM, 2026-11-18)
